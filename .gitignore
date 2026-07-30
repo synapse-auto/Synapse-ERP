@@ -1,0 +1,41 @@
+# Segredos — nunca commitar (Princípio VII da constituição)
+.env
+.env.*
+!.env.exemplo
+!.env.local.exemplo
+*.key
+*.pem
+
+# Python / backend
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node / frontend
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# Vercel
+.vercel/
+
+# Supabase CLI
+.branches/
+.temp/
+
+# Sistema operacional / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+*.swp
+
+# Claude Code — estado local da sessão, não do projeto
+.claude/settings.local.json

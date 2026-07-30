@@ -1,0 +1,43 @@
+# [PROJECT_NAME] Constitution
+<!-- Example: Plataforma Financeira Synapse Constitution -->
+
+## Core Principles
+
+### [PRINCIPLE_1_NAME]
+<!-- Example: I. Library-First -->
+
+[PRINCIPLE_1_DESCRIPTION]
+<!-- Regras não-negociáveis em MUST / MUST NOT / SHOULD, com o motivo logo abaixo. -->
+
+### [PRINCIPLE_2_NAME]
+
+[PRINCIPLE_2_DESCRIPTION]
+
+### [PRINCIPLE_3_NAME]
+
+[PRINCIPLE_3_DESCRIPTION]
+
+### [PRINCIPLE_4_NAME]
+
+[PRINCIPLE_4_DESCRIPTION]
+
+### [PRINCIPLE_5_NAME]
+
+[PRINCIPLE_5_DESCRIPTION]
+
+## [SECTION_2_NAME]
+<!-- Example: Padrões Técnicos Obrigatórios — stack, idioma, dados, segurança. -->
+
+[SECTION_2_CONTENT]
+
+## [SECTION_3_NAME]
+<!-- Example: Fluxo de Trabalho e Comunicação — ordem das tasks, revisão, relato. -->
+
+[SECTION_3_CONTENT]
+
+## Governance
+<!-- Supremacia da constituição, procedimento de emenda, política de versão, conformidade. -->
+
+[GOVERNANCE_RULES]
+
+**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
