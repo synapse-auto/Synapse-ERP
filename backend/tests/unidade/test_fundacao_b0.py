@@ -336,13 +336,39 @@ def test_openapi_publica_em_api_docs():
 def test_caminho_inexistente_sai_no_formato_unico(cliente):
     """Regressão: a raiz do deploy respondia `{"detail":"Not Found"}`, o formato do
     FastAPI, e não o de contracts/README.md. Duas formas de erro na mesma API
-    obrigariam o frontend a tratar as duas (`RNF-02`)."""
-    resposta = cliente.get("/")
+    obrigariam o frontend a tratar as duas (`RNF-02`).
+
+    O caminho usado aqui era `/`, que hoje redireciona para a documentação. Trocado
+    por um caminho que não existe mesmo — o que o teste guarda é o **formato do
+    404**, não qual endereço estava vazio."""
+    resposta = cliente.get("/isto-nao-existe")
     assert resposta.status_code == 404
     corpo = resposta.json()
     assert "detail" not in corpo
     assert corpo["erro"]["codigo"] == "nao_encontrado"
     assert corpo["erro"]["mensagem"] == "Endereço não encontrado."
+
+
+def test_raiz_leva_para_a_documentacao(cliente):
+    """Regressão: `/` e `/api` respondiam 404 no nosso formato, e quem abria a URL do
+    deploy no navegador achava que o backend estava quebrado. Todo endpoint mora sob
+    `/api/...`; a raiz agora aponta para onde a resposta útil está."""
+    for caminho in ("/", "/api"):
+        resposta = cliente.get(caminho, follow_redirects=False)
+        assert resposta.status_code == 307, caminho
+        assert resposta.headers["location"] == "/api/docs", caminho
+
+    seguida = cliente.get("/")
+    assert seguida.status_code == 200
+    assert "swagger" in seguida.text.lower()
+
+
+def test_raiz_nao_entra_no_contrato_publicado(cliente):
+    """O atalho não pode aparecer no OpenAPI: `contracts/plataforma.md` não declara
+    rota em `/`, e T208 trata divergência entre contrato e `/api/docs` como bug."""
+    caminhos = cliente.get("/api/openapi.json").json()["paths"]
+    assert "/" not in caminhos
+    assert "/api" not in caminhos
 
 
 def test_metodo_errado_tambem_sai_no_formato_unico(cliente):

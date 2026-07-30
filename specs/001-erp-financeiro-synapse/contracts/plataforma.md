@@ -207,6 +207,13 @@ poder ser disparado à mão.
 
 Sem dado de negócio. Só para confirmar que o deploy subiu e o banco responde.
 
+**`GET /` e `GET /api` redirecionam (307) para `/api/docs`.** Não são endpoints e por isso
+não entram no OpenAPI — se entrassem, `/api/docs` passaria a listar rota que este contrato
+não declara, e `T208` trata essa divergência como bug. Existem por um motivo prático: todo
+endpoint mora sob `/api/...`, então a raiz da URL do deploy caía no 404 e quem a abria no
+navegador concluía que o serviço estava fora do ar — exatamente ao contrário, já que a
+mensagem de erro que aparecia era a **nossa**.
+
 ---
 
 ## 8. Exportação completa (`FR-112`, `RNF-06`)

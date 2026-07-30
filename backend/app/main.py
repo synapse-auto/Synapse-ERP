@@ -20,7 +20,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.cadastros.centros_custo import roteador as roteador_centros_custo
@@ -183,6 +183,32 @@ app.include_router(roteador_categorias)
 app.include_router(roteador_tags)
 app.include_router(roteador_centros_custo)
 app.include_router(roteador_servicos)
+
+
+# ── Raiz: atalho para a documentação ─────────────────────────────────────────
+#
+# Todo endpoint deste serviço mora sob `/api/...`, então `/` e `/api` não casavam
+# rota nenhuma e caíam no handler de 404. Quem abria a URL do deploy no navegador —
+# o primeiro reflexo de qualquer um — via
+#
+#     {"erro":{"codigo":"nao_encontrado","mensagem":"Endereço não encontrado.", …}}
+#
+# e concluía que o backend estava quebrado, quando na verdade aquela resposta era a
+# prova de que ele estava vivo (a mensagem é NOSSA; Vercel com rota inexistente
+# devolve HTML). Custou uma investigação inteira. Agora os dois caminhos levam a
+# `/api/docs`, que é onde a resposta útil está.
+#
+# `include_in_schema=False` de propósito: isto é atalho de navegação, não endpoint
+# de negócio. Entrar no OpenAPI criaria uma rota em `/api/docs` que
+# `contracts/plataforma.md` não declara, e T208 trata divergência entre os dois como
+# bug. Registrado em prosa no §7 do contrato e no README do módulo.
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/api", include_in_schema=False)
+async def raiz() -> RedirectResponse:
+    """Manda quem chega na raiz para a documentação, em vez de um 404 enganoso."""
+    return RedirectResponse(url="/api/docs", status_code=307)
 
 
 # ── GET /api/saude — contracts/plataforma.md §7 (T033) ───────────────────────

@@ -31,6 +31,8 @@ uvicorn app.main:app --reload --port 8000
 
 - `http://localhost:8000/api/saude` → `{"status":"ok","banco":"ok","versao":"…"}`
 - `http://localhost:8000/api/docs` → a documentação que o Princípio IV exige
+- `http://localhost:8000/` → redireciona para `/api/docs` (ver
+  [Por que a raiz redireciona](#por-que-a-raiz-redireciona))
 
 > ⚠️ **Não crie o `.env` com `Set-Content` nem com `>` no PowerShell.** O Windows
 > PowerShell escreve UTF-8 **com BOM**, e o BOM cola na primeira linha do arquivo: a
@@ -101,6 +103,34 @@ engana, porque o app está vivo e respondendo; só nunca casa nenhuma rota.
 
 Com o preset **FastAPI** (Settings → General → Framework), a Vercel já roteia todos os
 caminhos para o app. O `vercel.json` só declara o cron.
+
+## Por que a raiz redireciona
+
+`GET /` e `GET /api` respondem **307** para `/api/docs` ([`app/main.py`](app/main.py)).
+
+Todo endpoint deste serviço mora sob `/api/...`, então a raiz não casava rota nenhuma e caía
+no handler de 404:
+
+```json
+{"erro":{"codigo":"nao_encontrado","mensagem":"Endereço não encontrado.","requisito":null,"campos":null}}
+```
+
+Quem abre a URL do deploy no navegador — o primeiro reflexo de qualquer um — lia isso como
+"o backend está quebrado". É o contrário: **essa mensagem é nossa**, logo o app está de pé e
+respondendo. Vercel com rota inexistente devolve HTML `404: NOT_FOUND`, não JSON. Esse é o
+teste rápido para separar os dois casos:
+
+| O que aparece | O que significa |
+|---|---|
+| JSON com `"codigo":"nao_encontrado"` | App vivo, caminho sem rota |
+| HTML `404: NOT_FOUND` | A requisição nem chegou na função — roteamento da Vercel |
+| `FUNCTION_INVOCATION_FAILED` | O módulo estourou no import (ver cabeçalho do `pyproject.toml`) |
+
+O redirecionamento **não entra no OpenAPI** (`include_in_schema=False`): é atalho de
+navegação, não endpoint de negócio, e `contracts/plataforma.md` não o declara como rota —
+listá-lo em `/api/docs` criaria a divergência que `T208` trata como bug. Está registrado em
+prosa no §7 daquele contrato, e há teste de regressão para as duas coisas
+(`test_raiz_leva_para_a_documentacao`, `test_raiz_nao_entra_no_contrato_publicado`).
 
 ## ⚠️ Duas divergências abertas entre o contrato e a plataforma
 

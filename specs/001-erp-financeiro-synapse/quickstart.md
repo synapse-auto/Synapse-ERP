@@ -151,6 +151,10 @@ uvicorn app.main:app --reload --port 8000
 - `http://localhost:8000/api/docs` → todos os endpoints listados. Esta página **é** a
   documentação que a constituição exige (Princípio IV: endpoint sem documentação não está
   pronto).
+- `http://localhost:8000/` e `http://localhost:8000/api` → redirecionam para `/api/docs`.
+  Todo endpoint mora sob `/api/...`, então a raiz não casava rota e respondia
+  `{"erro":{"codigo":"nao_encontrado", …}}` — o que parece backend quebrado e é o
+  contrário: a mensagem é nossa, ou seja, o app está de pé.
 
 ### Variáveis de ambiente do backend
 
