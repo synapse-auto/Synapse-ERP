@@ -44,10 +44,21 @@ O sistema opera com dois **mundos** financeiros independentes dentro da mesma em
 - **Dashboard:** cards, gráficos e totais mostram apenas dados do mundo selecionado (ou consolidado em "Ambos").
 - **Lançamentos:** lista filtrada pelo mundo. Filtros modulares incluem "mundo" como dimensão.
 - **Extrato:** idem, resumo e timeline filtrados.
-- **Clientes:** só clientes do mundo selecionado.
+- **Clientes:** só clientes do mundo selecionado. **(Ver ressalva abaixo — filtro derivado.)**
 - **Funcionários:** só funcionários do mundo selecionado.
 - **Relatórios:** DRE, variação mensal, ranking de clientes — tudo filtrado pelo mundo.
 - **Notificações/alertas:** alertas de vencimento e inadimplência respeitam o mundo ativo.
+
+> **Atualizado em 2026-07-30 (implementação, Fase A) — o filtro de Clientes é derivado.**
+> Como o cliente não tem campo `mundo` (ver `RN-15` atualizado), "clientes do mundo X" deixa
+> de ser uma coluna e passa a significar **"clientes com ao menos um lançamento nesse mundo"**.
+>
+> Consequência que precisa ser aceita: **cliente recém-cadastrado, ainda sem nenhum lançamento,
+> aparece nos três estados do toggle** — não há como saber a que mundo ele pertence antes de
+> existir movimentação.
+>
+> Em troca, o ranking de clientes (`RF-71`) e o perfil do cliente ganham quebra por mundo, que
+> seria impossível com cadastros separados por mundo.
 
 **RF-102 — "Ambos" = visão consolidada.** 🟠 No modo "Ambos", o sistema exibe todos os dados unificados, com indicação visual de qual mundo cada item pertence (badge/cor). Cards do Dashboard mostram totais consolidados, e os gráficos por serviço já separam naturalmente (cada serviço pertence a um mundo).
 
@@ -55,9 +66,35 @@ O sistema opera com dois **mundos** financeiros independentes dentro da mesma em
 
 **RF-104 — Categorias são compartilhadas.** 🔴 Categorias e subcategorias **não** são divididas por mundo — existem uma única vez e servem para ambos. Evita duplicação de categorias.
 
-**RN-15 — Todo registro tem mundo.** 🔴 Qualquer entidade do sistema (exceto categorias) possui o campo `mundo` (`digital` | `infra`). Este campo é obrigatório e imutável após criação (para mudar, excluir e recriar). Garante a separação total dos dados financeiros entre os dois braços do negócio.
+**RN-15 — Todo registro tem mundo.** 🔴 Qualquer entidade do sistema (exceto as listadas abaixo) possui o campo `mundo` (`digital` | `infra`). Este campo é obrigatório e imutável após criação (para mudar, excluir e recriar). Garante a separação total dos dados financeiros entre os dois braços do negócio.
+
+> **Atualizado em 2026-07-30 (implementação, Fase A).** As exceções são **quatro**, não uma:
+> `categorias`, `subcategorias`, `tags` e `clientes`.
+>
+> - `categorias` e `subcategorias` — já previsto por `RF-104` (compartilhadas pelos dois mundos).
+> - `tags` — `RF-103` não as inclui na lista de formulários com campo "Mundo".
+> - **`clientes` — exceção nova, decidida pelo dono do projeto** (spec `FR-116`, research.md D-04):
+>   cadastro único de cliente, sem mundo. Quem carrega o mundo é cada lançamento dele. Para a
+>   mensalidade recorrente existe `mundo_cobranca`, que diz em qual mundo as ocorrências nascem
+>   — não é o mundo do cliente.
+>
+> **Onde `mundo` existe de fato**: `lancamentos`, `recorrencias`, `parcelamentos`,
+> `funcionarios`, `servicos`, `centros_custo`. A imutabilidade nessas seis é garantida por
+> gatilho de banco (`recusa_alteracao_de_mundo`), não pelo código de aplicação — é uma
+> garantia que não pode depender de o serviço lembrar.
 
 **RN-16 — Caixa por mundo.** 🟠 Saldo do caixa é calculado separadamente por mundo. No modo "Ambos", mostra saldo consolidado + breakdown Digital/Infra. O card "Saúde do caixa" (`RF-46b`) calcula o semáforo por mundo no modo filtrado, e consolidado no modo "Ambos".
+
+> **Atualizado em 2026-07-30 (implementação, Fase A) — não existe saldo inicial.**
+> Decisão do dono do projeto (spec `FR-114`, research.md D-06). O saldo é **exclusivamente** o
+> resultado dos lançamentos efetivados:
+> `saldo(mundo) = Σ(efetivado, receita) − Σ(efetivado, despesa)`. Não há campo de "saldo de
+> abertura" a informar em nenhuma tela.
+>
+> **Consequência que precisa ser aceita**: enquanto o histórico não estiver carregado, o número
+> na tela fica **menor que a realidade** e o semáforo de saúde do caixa (`RF-46b`) fica
+> pessimista. Isso se resolve carregando os meses anteriores — por recorrência retroativa
+> (`RF-17a`) ou por importação de CSV/OFX (`RF-85`) — não informando um saldo de partida.
 
 ### 1.2. Mapa de navegação (menu)
 
@@ -286,6 +323,17 @@ Exibição mensal + acumulado no ano. Comparativo com período anterior.
 - `Programado` → (chegou a data) → efetiva automaticamente → `Efetivado`.
 - Se algo impedir a efetivação (ex: cancelado antes) → `Cancelado` (mantém histórico).
 - Lançamento de cliente não confirmado manualmente (receita esperada não recebida) após o vencimento → `Atrasado` (automático, ver `RN-10`).
+
+> **Atualizado em 2026-07-30 (implementação, Fase A) — `Atrasado` só existe com efetivação
+> manual.** Decorre de `RF-17`/`RN-04` (spec `FR-115`, research.md D-05): lançamento com
+> "Efetivar automaticamente" **ligado** se efetiva na data e por definição **nunca vence**.
+> Logo o caminho até `Atrasado` é sempre `Programado → Pendente → Atrasado`, e só existe quando
+> o checkbox está **desligado**.
+>
+> **Efeito prático que precisa ser dito**: o alerta de inadimplência (`RN-10`, `RF-46a`) só
+> aparece se a receita do cliente tiver sido criada com efetivação manual. Por isso o padrão de
+> efetivação de receita de cliente nasce **desligado**, e é configuração
+> (`efetivacao_automatica_padrao_receita_cliente`), não código.
 **RN-04 — Efetivação configurável.** 🟠 Cada lançamento programado/recorrente define via checkbox se efetiva automático ou exige confirmação manual. Default: automático. Lançamentos com confirmação manual viram `Pendente` na data e ficam destacados no Extrato (`RF-34`) e Dashboard (`RF-46`) até serem confirmados.
 **RN-05 — Só `Efetivado` conta no realizado.** 🔴 Saldos e totais realizados consideram apenas `Efetivado`. `Programado` entra apenas em **projeções** e nos cards "A pagar/A receber" — sempre visualmente distintos (ex.: linha tracejada, cor atenuada).
 **RN-05a — Data de início retroativa.** 🔴 Recorrência com data de início no passado gera ocorrências históricas já `Efetivadas`. Permite popular o sistema com meses anteriores de operação real.
@@ -360,3 +408,42 @@ Exibição mensal + acumulado no ano. Comparativo com período anterior.
 5. **2 funcionários:** Dylan (n8n/IA, R$1.200/mês), Marcondes (Java, R$900/mês).
 6. **Efetivação automática por padrão** — checkbox por lançamento; default ativado, desativável quando quiser confirmação manual.
 7. **USD → BRL** — entrada em dólar convertida via API pública; todo o sistema opera em real.
+
+---
+
+## 16. Ajustes vindos da implementação (2026-07-30 — Fase A: banco de dados)
+
+O Princípio V da constituição manda que o que muda no código apareça aqui na mesma entrega.
+Estes cinco itens saíram da execução das tasks T001–T021 e **alteram o que está escrito acima**.
+Os três primeiros estão marcados no corpo do documento, junto do requisito que mudou.
+
+| # | O que mudou | Onde está escrito | Requisito |
+|---|---|---|---|
+| 1 | `RN-15` tem **quatro** exceções, não uma — entrou `clientes` | `RN-15`, §1.1 | `FR-116`, D-04 |
+| 2 | O filtro de Clientes por mundo é **derivado da movimentação** | `RF-101`, §1.1 | `FR-002`, D-04 |
+| 3 | `Atrasado` só é alcançável com **efetivação manual** | `RN-03`, §11 | `FR-115`, D-05 |
+| 4 | **Não existe saldo inicial** | `RN-16`, §1.1 | `FR-114`, D-06 |
+| 5 | O banco é **PostgreSQL** (Supabase) | ver nota abaixo | D-01 |
+
+**Sobre o item 5.** O banco escolhido é PostgreSQL gerenciado pelo Supabase. Este documento
+nunca nomeou um banco, e a constituição já exige PostgreSQL — então **não há nada a corrigir
+aqui**; o registro existe só para fechar a pendência. O que foi descartado foi o SQLite,
+mencionado na conversa inicial: a Vercel descarta o disco da função a cada requisição, então o
+arquivo do banco não sobreviveria (research.md D-01). Não é configuração — é como a plataforma
+funciona.
+
+**O que a Fase A entregou de fato**: 19 tabelas, 12 tipos enumerados, a view
+`lancamentos_ativos`, o gatilho de imutabilidade de `mundo` nas 6 tabelas que têm a coluna,
+RLS de negação para as chaves públicas, 17 chaves de configuração e os dados iniciais
+(9 categorias, 9 serviços, 2 funcionários com subcategoria espelho e recorrência de folha).
+Detalhe em `specs/001-erp-financeiro-synapse/data-model.md` e nas migrações em
+`backend/migracoes/`.
+
+**Duas coisas que o sistema assumiu por falta de dado no documento** — mudar pela tela quando
+quiser, é dado e não código:
+
+1. **`dia_pagamento` dos funcionários = 5.** `RF-65`/`FR-086` dão nome, função e valor mensal,
+   mas não o dia do pagamento, e o campo é obrigatório.
+2. **As recorrências da folha nascem sem histórico retroativo** — o primeiro vencimento é o
+   próximo dia 5 a partir da criação. Se nascessem retroativas, `RN-05a` geraria pagamentos já
+   `Efetivado` que ninguém conferiu, inventando histórico financeiro.

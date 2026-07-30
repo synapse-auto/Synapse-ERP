@@ -66,7 +66,7 @@ completude do vocabulário.
 
 | Campo | Tipo | Regra |
 |---|---|---|
-| `id` | uuid PK | **Igual ao `id` do Supabase Auth** — não gera próprio |
+| `id` | uuid PK | **Igual ao `id` do Supabase Auth** — não gera próprio. Uma exceção: ver nota |
 | `nome` | text NOT NULL | |
 | `email` | text NOT NULL UNIQUE | |
 | `papel` | `papel_usuario` NOT NULL DEFAULT `operador` | `RF-02`. Padrão é o menor privilégio |
@@ -75,6 +75,21 @@ completude do vocabulário.
 
 **Regras**: nunca excluído — só `ativo = false`. O sistema garante ao menos um `gestor`
 ativo: rebaixar ou desativar o último gestor é recusado.
+
+> **Exceção ao "id igual ao do Auth" — o usuário `Sistema`** (acrescentado em 2026-07-30,
+> migração `008`). Uma única linha, com UUID fixo `00000000-0000-0000-0000-000000000000`,
+> e-mail `sistema@synapse.local`, papel `operador` e `ativo = false`. Ela **não tem contraparte
+> no Supabase Auth**.
+>
+> **Por que existe**: `recorrencias.criado_por` e `lancamentos.criado_por` são `NOT NULL` e
+> apontam para `usuarios`. No momento do seed nenhuma pessoa existe ainda, e a recorrência da
+> folha precisa nascer junto do funcionário (`FR-088`, D-07). Sem um autor válido, o seed não
+> fecha. Vale também depois: as ocorrências que a rotina diária materializa herdam o autor da
+> recorrência.
+>
+> **Por que é seguro**: `ativo = false` impede login e a exclui da contagem de "último gestor
+> ativo"; `operador` é o menor privilégio (`RF-02`) e essa linha nunca autoriza nada — só serve
+> de destino de chave estrangeira para o que o sistema criou sozinho.
 
 ### 3.2. `categorias`
 
@@ -374,7 +389,9 @@ diferença de arredondamento absorvida na última parcela.
 | `atualizado_por` | uuid NULL → `usuarios` |
 | `atualizado_em` | timestamptz NOT NULL |
 
-Tabela que materializa `RNF-02`/`FR-106`/Princípio VII. **Seed completo**:
+Tabela que materializa `RNF-02`/`FR-106`/Princípio VII. **Seed completo** — a tabela abaixo tem
+16 linhas, mas a última declara **duas** chaves, então o total é **17 chaves**. Conferido no
+banco em 2026-07-30: `select count(*) from configuracoes` devolve `17`.
 
 | Chave | Valor padrão | Requisito |
 |---|---|---|

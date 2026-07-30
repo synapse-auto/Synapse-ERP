@@ -6,10 +6,17 @@ que deu certo**.
 
 **Pré-requisitos**: Python 3.12, Node 22, conta na Vercel, conta no Supabase, CLI do Supabase.
 
-> **Estado atual (2026-07-30)**: o projeto Supabase existe (`frpbowkoibdgigekrhor`,
-> PostgreSQL 17.6) e o MCP está autenticado e testado. O banco ainda está **vazio** — 0
-> tabelas, 0 migrações aplicadas, 0 buckets. Nada mais deste guia foi executado, mas nada
-> está bloqueado (plan.md, Pendências).
+> **Estado atual (2026-07-30, fim da Fase A)**: o projeto Supabase (`frpbowkoibdgigekrhor`,
+> PostgreSQL 17.6) está **com o banco de pé**: 19 tabelas, 12 tipos, a view
+> `lancamentos_ativos`, RLS de negação para as chaves públicas, 17 configurações e os dados
+> iniciais aplicados e conferidos por consulta. Bucket privado `anexos` criado.
+>
+> **Falta, e depende do painel do Supabase** (não há API para isso):
+>
+> 1. **Desabilitar o cadastro público** em Authentication → Sign In / Providers. Conferido em
+>    2026-07-30: está **habilitado** (`disable_signup: false`), e `FR-102` exige que só o gestor
+>    convide. Ver §2.
+> 2. **Confirmar o backup gerenciado** em Database → Backups (`RNF-06`, `FR-112`). Ver §2.
 
 ---
 
@@ -56,10 +63,29 @@ Ainda no painel:
 
 ## 3. Banco
 
-```powershell
-supabase link --project-ref <ref-do-projeto>
-supabase db push          # aplica backend/migracoes/001..008
-```
+As 8 migrações vivem em `backend/migracoes/`, na ordem `001` … `008`, e **já estão aplicadas**
+(2026-07-30). Foram aplicadas pelo MCP do Supabase, uma a uma, cada uma registrada no histórico
+de migrações do projeto.
+
+> ⚠️ **`supabase db push` não serve para estas migrações.** O CLI do Supabase lê **apenas**
+> `supabase/migrations/`, com nome no padrão de timestamp — a pasta não é configurável. Como o
+> plano manda os arquivos SQL viverem em `backend/migracoes/` (plan.md §Project Structure),
+> `db push` simplesmente não os encontraria. Versão anterior deste guia mandava rodar
+> `supabase db push`; era um comando que nunca teria funcionado.
+>
+> **Para aplicar em um banco novo** (recriar o projeto, ou montar o Postgres de teste da §6),
+> rode os arquivos na ordem por conexão direta:
+>
+> ```powershell
+> # $env:DATABASE_URL = conexão do passo 2
+> Get-ChildItem backend\migracoes\*.sql | Sort-Object Name | ForEach-Object {
+>   Write-Host "aplicando $($_.Name)"
+>   psql $env:DATABASE_URL -v ON_ERROR_STOP=1 -f $_.FullName
+> }
+> ```
+>
+> `-v ON_ERROR_STOP=1` é o que importa: sem isso o `psql` segue depois de um erro e o banco
+> termina meio aplicado, sem ninguém perceber.
 
 > **Seed `008`**: Dylan e Marcondes entram com `mundo = 'digital'` — confirmado pelo dono do
 > projeto em 2026-07-30. O campo é imutável (`RN-15`); mudar depois exige recriar o
@@ -68,8 +94,8 @@ supabase db push          # aplica backend/migracoes/001..008
 **Como saber que deu certo** — três conferências, não uma:
 
 ```sql
--- 1. As 16 chaves de configuração existem (Princípio VII)
-select count(*) from configuracoes;                          -- esperado: 16
+-- 1. As 17 chaves de configuração existem (Princípio VII)
+select count(*) from configuracoes;                          -- esperado: 17
 
 -- 2. As categorias especiais nasceram com vínculo (FR-077, FR-078)
 select nome, especial, vinculo from categorias where especial;

@@ -55,9 +55,14 @@ projeto em 2026-07-29:
 Cada escolha, com alternativas descartadas e o motivo, em [research.md](./research.md) §5
 (exigência do Princípio II).
 
-**Storage**: PostgreSQL gerenciado pelo Supabase. 19 tabelas, 13 tipos enumerados, uma view
-(`lancamentos_ativos`), um trigger (imutabilidade de `mundo`). Anexos em bucket privado do
+**Storage**: PostgreSQL gerenciado pelo Supabase. 19 tabelas, **12** tipos enumerados, uma view
+(`lancamentos_ativos`), o gatilho de imutabilidade de `mundo`. Anexos em bucket privado do
 Supabase Storage. Esquema completo em [data-model.md](./data-model.md).
+
+> Corrigido em 2026-07-30 (Fase A aplicada): são **12** `CREATE TYPE`, não 13. data-model §2
+> lista 13 nomes, mas `escopo_edicao_serie` é parâmetro de endpoint e não coluna — está lá por
+> completude do vocabulário. E o gatilho de `mundo` é **um por tabela que tem a coluna**: seis
+> gatilhos compartilhando uma função (`recusa_alteracao_de_mundo`), não um só.
 
 **Testing**: pytest + pytest-asyncio + httpx no backend (unidade para domínio, integração
 contra Postgres real, contrato contra os arquivos de `contracts/`). Vitest + Testing Library

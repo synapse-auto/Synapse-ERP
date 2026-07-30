@@ -1,4 +1,4 @@
----
+﻿---
 description: "Lista de tarefas — Plataforma Financeira Synapse (ERP interno v1)"
 ---
 
@@ -50,36 +50,36 @@ vazio (0 tabelas, 0 migrações, 0 buckets). A fase pode ir do começo ao fim.
 
 ## Sub-fase A0 — Repositório e esqueleto
 
-- [ ] T001 Rodar `git init`, criar `.gitignore` na raiz (`.env`, `.env.local`, `.venv/`, `node_modules/`, `.next/`, `__pycache__/`) e fazer o primeiro commit com a spec e os artefatos de desenho
-- [ ] T002 [P] Criar a árvore de diretórios de `backend/` conforme plan.md §Project Structure (`app/`, `app/comum/`, `app/dominio/`, `app/seguranca/`, `migracoes/`, `tests/unidade/`, `tests/integracao/`, `tests/contrato/`)
-- [ ] T003 [P] Criar `backend/.env.exemplo` com as 7 variáveis de quickstart.md §4, **sem valores** (Princípio VII)
-- [ ] T004 Criar o repositório remoto e dar push — pré-requisito dos dois projetos Vercel (quickstart.md §1)
+- [X] T001 Rodar `git init`, criar `.gitignore` na raiz (`.env`, `.env.local`, `.venv/`, `node_modules/`, `.next/`, `__pycache__/`) e fazer o primeiro commit com a spec e os artefatos de desenho
+- [X] T002 [P] Criar a árvore de diretórios de `backend/` conforme plan.md §Project Structure (`app/`, `app/comum/`, `app/dominio/`, `app/seguranca/`, `migracoes/`, `tests/unidade/`, `tests/integracao/`, `tests/contrato/`)
+- [X] T003 [P] Criar `backend/.env.exemplo` com as 8 variáveis de quickstart.md §4 (a tabela tem 6 linhas e nomeia 8 variáveis), **sem valores** (Princípio VII)
+- [X] T004 Criar o repositório remoto e dar push — pré-requisito dos dois projetos Vercel (quickstart.md §1)
 
 ## Sub-fase A1 — Provisionar o Supabase
 
 - [x] T005 ~~Criar o projeto no Supabase~~ — **feito**: projeto `frpbowkoibdgigekrhor` no ar, MCP autenticado e testado em 2026-07-30 (PostgreSQL 17.6). Falta apenas anotar `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `DATABASE_URL` fora do repositório (quickstart.md §2)
 - [ ] T006 [P] Habilitar Auth por e-mail + senha e **desabilitar cadastro público** — só gestor convida (`FR-102`)
-- [ ] T007 [P] Criar o bucket **privado** `anexos` no Supabase Storage (data-model §3.12, `FR-013`)
+- [X] T007 [P] Criar o bucket **privado** `anexos` no Supabase Storage (data-model §3.12, `FR-013`)
 - [ ] T008 [P] Confirmar que o backup gerenciado está ativo e registrar isso em `specs/001-erp-financeiro-synapse/quickstart.md` (`RNF-06`, `FR-112`)
 
 ## Sub-fase A2 — Migrações (escrever)
 
-- [ ] T009 🟢 Escrever `backend/migracoes/001_extensoes_e_tipos.sql`: extensão `pg_trgm` e os 12 `CREATE TYPE` de data-model §2
-- [ ] T010 🟢 Escrever `backend/migracoes/002_plataforma.sql`: `usuarios`, `configuracoes`, `auditoria`, `execucoes_rotina`, `cotacoes_cambio` (data-model §3.1, §3.15, §3.17, §3.18, §3.19)
-- [ ] T011 🟢 Escrever `backend/migracoes/003_cadastros.sql`: `categorias`, `subcategorias`, `clientes`, `clientes_servicos`, `funcionarios`, `servicos`, `centros_custo`, `tags` — tabelas primeiro e as FKs circulares (`subcategorias.cliente_id`/`funcionario_id`) no fim do arquivo (data-model §7)
-- [ ] T012 🟢 Escrever `backend/migracoes/004_lancamentos.sql`: `parcelamentos`, `recorrencias`, `lancamentos`, `lancamentos_tags`, `anexos`, view `lancamentos_ativos`, os 8 índices de data-model §3.10 e o trigger `BEFORE UPDATE` que recusa mudança de `mundo` (`RN-15`)
-- [ ] T013 🟢 [P] Escrever `backend/migracoes/005_notificacoes.sql`: `notificacoes` com UNIQUE `(usuario_id, chave_deduplicacao)` (data-model §3.16)
-- [ ] T014 🟢 Escrever `backend/migracoes/006_rls.sql`: RLS ligada com **negação** para `anon` e `authenticated` em todas as tabelas financeiras (research.md D-03a) — é onde erro silencioso custa caro
-- [ ] T015 🟢 [P] Escrever `backend/migracoes/007_seed_configuracoes.sql` com as 16 chaves de data-model §3.15, incluindo `dashboard_cards_disponiveis` com rótulo, grupo e ordem de cada card (`FR-106`, Princípio VII)
+- [X] T009 🟢 Escrever `backend/migracoes/001_extensoes_e_tipos.sql`: extensão `pg_trgm` e os 12 `CREATE TYPE` de data-model §2
+- [X] T010 🟢 Escrever `backend/migracoes/002_plataforma.sql`: `usuarios`, `configuracoes`, `auditoria`, `execucoes_rotina`, `cotacoes_cambio` (data-model §3.1, §3.15, §3.17, §3.18, §3.19)
+- [X] T011 🟢 Escrever `backend/migracoes/003_cadastros.sql`: `categorias`, `subcategorias`, `clientes`, `clientes_servicos`, `funcionarios`, `servicos`, `centros_custo`, `tags` — tabelas primeiro e as FKs circulares (`subcategorias.cliente_id`/`funcionario_id`) no fim do arquivo (data-model §7)
+- [X] T012 🟢 Escrever `backend/migracoes/004_lancamentos.sql`: `parcelamentos`, `recorrencias`, `lancamentos`, `lancamentos_tags`, `anexos`, view `lancamentos_ativos`, os 8 índices de data-model §3.10 e o trigger `BEFORE UPDATE` que recusa mudança de `mundo` (`RN-15`)
+- [X] T013 🟢 [P] Escrever `backend/migracoes/005_notificacoes.sql`: `notificacoes` com UNIQUE `(usuario_id, chave_deduplicacao)` (data-model §3.16)
+- [X] T014 🟢 Escrever `backend/migracoes/006_rls.sql`: RLS ligada com **negação** para `anon` e `authenticated` em todas as tabelas financeiras (research.md D-03a) — é onde erro silencioso custa caro
+- [X] T015 🟢 [P] Escrever `backend/migracoes/007_seed_configuracoes.sql` com as 17 chaves de data-model §3.15 (a tabela tem 16 linhas, mas a última declara duas chaves), incluindo `dashboard_cards_disponiveis` com rótulo, grupo e ordem de cada card (`FR-106`, Princípio VII)
 - [x] T016 ~~Confirmar o `mundo` de Dylan e Marcondes~~ — **confirmado em 2026-07-30: os dois são `digital`**. Registrado em data-model §3.6 (campo imutável — `RN-15`)
-- [ ] T017 🟢 Escrever `backend/migracoes/008_seed_dominio.sql`: 9 categorias de `FR-076` (Clientes e Funcionários como especiais com `vinculo`), 9 serviços de `FR-104` divididos por mundo, e os 2 funcionários de `FR-086` **ambos com `mundo = 'digital'`** (T016)
+- [X] T017 🟢 Escrever `backend/migracoes/008_seed_dominio.sql`: 9 categorias de `FR-076` (Clientes e Funcionários como especiais com `vinculo`), 9 serviços de `FR-104` divididos por mundo, e os 2 funcionários de `FR-086` **ambos com `mundo = 'digital'`** (T016)
 
 ## Sub-fase A3 — Aplicar e verificar de verdade
 
-- [ ] T018 Aplicar as migrações (`supabase link` + `supabase db push`) e confirmar que as 8 rodaram sem erro (quickstart.md §3)
-- [ ] T019 Verificar os seeds com as três consultas de quickstart.md §3: 16 configurações, categorias especiais com `vinculo`, e cada funcionário com subcategoria espelho e recorrência
-- [ ] T020 **Verificação de segurança**: chamar `/rest/v1/lancamentos` com a chave `anon` e confirmar lista vazia ou erro de permissão. Se devolver lançamentos, parar e corrigir o RLS antes de seguir (quickstart.md §3)
-- [ ] T021 Atualizar `Documentação/Requisitos da Plataforma Financeira.md` com as 5 divergências de plan.md Pendência #4: `RN-15` (2ª exceção — `clientes`), `RF-101` (filtro de cliente derivado), `RN-03`/`RF-17` (`atrasado` só com efetivação manual), ausência de saldo inicial (`FR-114`), e PostgreSQL no lugar de SQLite (Princípio V)
+- [X] T018 Aplicar as 8 migrações e confirmar que rodaram sem erro (quickstart.md §3). **`supabase db push` não serve**: o CLI só lê `supabase/migrations/` — aplicado pelo MCP do Supabase, uma a uma
+- [X] T019 Verificar os seeds com as três consultas de quickstart.md §3: 17 configurações, categorias especiais com `vinculo`, e cada funcionário com subcategoria espelho e recorrência
+- [X] T020 **Verificação de segurança**: chamar `/rest/v1/lancamentos` com a chave `anon` e confirmar lista vazia ou erro de permissão. Se devolver lançamentos, parar e corrigir o RLS antes de seguir (quickstart.md §3)
+- [X] T021 Atualizar `Documentação/Requisitos da Plataforma Financeira.md` com as 5 divergências de plan.md Pendência #4: `RN-15` (2ª exceção — `clientes`), `RF-101` (filtro de cliente derivado), `RN-03`/`RF-17` (`atrasado` só com efetivação manual), ausência de saldo inicial (`FR-114`), e PostgreSQL no lugar de SQLite (Princípio V)
 
 **✅ Checkpoint Boss 1**: banco aplicado, seeds conferidos por consulta, chave pública negada,
 documento-mestre alinhado. Sem isso, nenhuma linha de backend.
