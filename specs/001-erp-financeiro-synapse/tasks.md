@@ -125,43 +125,43 @@ conferir zero vazamento.
 
 ### Testes primeiro (escrever e ver falhar)
 
-- [ ] T039 [P] [US1] `backend/tests/unidade/dominio/test_split_soma_exata.py` — partes que não fecham são recusadas com a diferença explicitada (`RN-11`)
-- [ ] T040 [P] [US1] `backend/tests/unidade/dominio/test_conversao_usd.py` — usa a cotação da **data do lançamento**, não a de hoje; falha nas duas fontes exige cotação manual (`RN-12`)
-- [ ] T041 [P] [US1] `backend/tests/unidade/dominio/test_saldo_ignora_nao_efetivado.py` — só `efetivado` entra no realizado (`RN-05`)
-- [ ] T042 [P] [US2] `backend/tests/unidade/dominio/test_separacao_por_mundo.py` — nenhum dado de um mundo aparece no outro (`RN-15`, `SC-005`)
+- [X] T039 [P] [US1] `backend/tests/unidade/dominio/test_split_soma_exata.py` — partes que não fecham são recusadas com a diferença explicitada (`RN-11`)
+- [X] T040 [P] [US1] `backend/tests/unidade/dominio/test_conversao_usd.py` — usa a cotação da **data do lançamento**, não a de hoje; falha nas duas fontes exige cotação manual (`RN-12`)
+- [X] T041 [P] [US1] `backend/tests/unidade/dominio/test_saldo_ignora_nao_efetivado.py` — só `efetivado` entra no realizado (`RN-05`)
+- [X] T042 [P] [US2] `backend/tests/unidade/dominio/test_separacao_por_mundo.py` — nenhum dado de um mundo aparece no outro (`RN-15`, `SC-005`)
 
 ### Domínio
 
-- [ ] T043 [P] [US2] Implementar `backend/app/dominio/mundo.py`: validação de mundo obrigatório, recusa de alteração com `409 regra_violada`/`RN-15`, resolução do modo `ambos`
-- [ ] T044 [P] [US1] Implementar `backend/app/dominio/saldo.py`: `saldo(mundo) = Σ(efetivado,receita) − Σ(efetivado,despesa)`, sem saldo inicial (`RN-05`, `RN-16`, `FR-114`)
-- [ ] T045 [P] [US1] Implementar `backend/app/dominio/split.py`: soma das partes comparada em `numeric`, pai deixa de contar quando tem partes (`RN-11`)
-- [ ] T046 [P] [US1] Implementar `backend/app/dominio/cambio.py`: cache em `cotacoes_cambio` → fonte primária → alternativa → cotação manual com `cotacao_manual = true` (`RN-12`)
-- [ ] T047 [P] [US1] Implementar `backend/app/dominio/lixeira.py`: soft delete, restauração enquanto dentro de `lixeira_retencao_dias`, linha nunca apagada (`RN-08`)
+- [X] T043 [P] [US2] Implementar `backend/app/dominio/mundo.py`: validação de mundo obrigatório, recusa de alteração com `409 regra_violada`/`RN-15`, resolução do modo `ambos`
+- [X] T044 [P] [US1] Implementar `backend/app/dominio/saldo.py`: `saldo(mundo) = Σ(efetivado,receita) − Σ(efetivado,despesa)`, sem saldo inicial (`RN-05`, `RN-16`, `FR-114`)
+- [X] T045 [P] [US1] Implementar `backend/app/dominio/split.py`: soma das partes comparada em `numeric`, pai deixa de contar quando tem partes (`RN-11`)
+- [X] T046 [P] [US1] Implementar `backend/app/dominio/cambio.py`: cache em `cotacoes_cambio` → fonte primária → alternativa → cotação manual com `cotacao_manual = true` (`RN-12`)
+- [X] T047 [P] [US1] Implementar `backend/app/dominio/lixeira.py`: soft delete, restauração enquanto dentro de `lixeira_retencao_dias`, linha nunca apagada (`RN-08`)
 
 ### Cadastros de apoio que o lançamento exige
 
-- [ ] T048 🟢 [P] [US1] Implementar `backend/app/cadastros/tags.py` (rotas, serviço, repositório): `GET`/`POST` para gestor e operador, `PUT`/`DELETE` só gestor (contracts/cadastros.md §7, `RN-14`)
-- [ ] T049 🟢 [P] [US1] Implementar `backend/app/cadastros/centros_custo.py` com as 4 rotas de contracts/cadastros.md §6 — ausência significa "geral", sem centro chamado "Geral" (`RN-13`)
-- [ ] T050 🟢 [P] [US1] Implementar `GET /api/categorias` (leitura, com contagem e total do período por mundo) em `backend/app/categorias/rotas.py` — o CRUD completo fica em B4 (contracts/cadastros.md §1)
-- [ ] T051 🟢 [P] [US1] Implementar `GET /api/servicos?mundo=` (leitura) em `backend/app/cadastros/servicos.py` — alimenta o campo "serviço vinculado" (`FR-104`)
+- [X] T048 🟢 [P] [US1] Implementar `backend/app/cadastros/tags.py` (rotas, serviço, repositório): `GET`/`POST` para gestor e operador, `PUT`/`DELETE` só gestor (contracts/cadastros.md §7, `RN-14`)
+- [X] T049 🟢 [P] [US1] Implementar `backend/app/cadastros/centros_custo.py` com as 4 rotas de contracts/cadastros.md §6 — ausência significa "geral", sem centro chamado "Geral" (`RN-13`)
+- [X] T050 🟢 [P] [US1] Implementar `GET /api/categorias` (leitura, com contagem e total do período por mundo) em `backend/app/categorias/rotas.py` — o CRUD completo fica em B4 (contracts/cadastros.md §1)
+- [X] T051 🟢 [P] [US1] Implementar `GET /api/servicos?mundo=` (leitura) em `backend/app/cadastros/servicos.py` — alimenta o campo "serviço vinculado" (`FR-104`)
 
 ### Lançamentos
 
-- [ ] T052 [US1] Implementar `backend/app/lancamentos/esquemas.py`: Pydantic v2 dos corpos de contracts/lancamentos.md, com dinheiro como string decimal e datas ISO
-- [ ] T053 🟢 [US1] Implementar `backend/app/lancamentos/repositorio.py` partindo sempre da view `lancamentos_ativos`, com os filtros combináveis de `FR-037` e busca por texto via `pg_trgm`
-- [ ] T054 [US1] Implementar `backend/app/lancamentos/servico.py` orquestrando os módulos de domínio, a auditoria e a idempotência
-- [ ] T055 [US1] Implementar `GET /api/lancamentos` em `backend/app/lancamentos/rotas.py`: filtros, paginação, contador e soma de receitas/despesas/resultado do conjunto filtrado (`FR-036`–`FR-038`)
-- [ ] T056 [US1] Implementar `POST /api/lancamentos` com `Idempotency-Key`, validação de `RN-01` (subcategoria obrigatória em categoria especial) e `RN-02` (valor sempre positivo)
-- [ ] T057 [US1] Implementar `GET /api/lancamentos/{id}` com moeda de origem, classificação, programação, anexos, origem de série e linha do tempo de auditoria (`FR-041`, `FR-043`)
-- [ ] T058 [US1] Implementar `PUT /api/lancamentos/{id}` com controle de `versao` respondendo `409 conflito_versao` e o que mudou desde a leitura (data-model §5.6)
-- [ ] T059 [US1] Implementar `DELETE /api/lancamentos/{id}` (soft delete) mais `GET /api/lixeira` e `POST /api/lixeira/{id}/restaurar` em `backend/app/lancamentos/rotas.py` (`FR-017`, `RN-08`)
-- [ ] T060 [US1] Implementar `POST /api/lancamentos/{id}/efetivar`, `/cancelar` e `/duplicar` (`FR-018`, `FR-030`, `FR-042`)
-- [ ] T061 [US1] Implementar `POST /api/lancamentos/{id}/dividir` recusando soma inconsistente com a diferença na mensagem (`FR-019`, `FR-020`, `RN-11`)
+- [X] T052 [US1] Implementar `backend/app/lancamentos/esquemas.py`: Pydantic v2 dos corpos de contracts/lancamentos.md, com dinheiro como string decimal e datas ISO
+- [X] T053 🟢 [US1] Implementar `backend/app/lancamentos/repositorio.py` partindo sempre da view `lancamentos_ativos`, com os filtros combináveis de `FR-037` e busca por texto via `pg_trgm`
+- [X] T054 [US1] Implementar `backend/app/lancamentos/servico.py` orquestrando os módulos de domínio, a auditoria e a idempotência
+- [X] T055 [US1] Implementar `GET /api/lancamentos` em `backend/app/lancamentos/rotas.py`: filtros, paginação, contador e soma de receitas/despesas/resultado do conjunto filtrado (`FR-036`–`FR-038`)
+- [X] T056 [US1] Implementar `POST /api/lancamentos` com `Idempotency-Key`, validação de `RN-01` (subcategoria obrigatória em categoria especial) e `RN-02` (valor sempre positivo)
+- [X] T057 [US1] Implementar `GET /api/lancamentos/{id}` com moeda de origem, classificação, programação, anexos, origem de série e linha do tempo de auditoria (`FR-041`, `FR-043`)
+- [X] T058 [US1] Implementar `PUT /api/lancamentos/{id}` com controle de `versao` respondendo `409 conflito_versao` e o que mudou desde a leitura (data-model §5.6)
+- [X] T059 [US1] Implementar `DELETE /api/lancamentos/{id}` (soft delete) mais `GET /api/lixeira` e `POST /api/lixeira/{id}/restaurar` em `backend/app/lancamentos/rotas.py` (`FR-017`, `RN-08`)
+- [X] T060 [US1] Implementar `POST /api/lancamentos/{id}/efetivar`, `/cancelar` e `/duplicar` (`FR-018`, `FR-030`, `FR-042`)
+- [X] T061 [US1] Implementar `POST /api/lancamentos/{id}/dividir` recusando soma inconsistente com a diferença na mensagem (`FR-019`, `FR-020`, `RN-11`)
 - [ ] T062 [US1] Implementar `POST /api/lancamentos/lote` para a tabela editável (`FR-021`)
 - [ ] T063 [US1] Implementar `POST /api/lancamentos/acoes-em-massa`: excluir, mudar categoria, mudar status, adicionar/remover tags (`FR-040`)
 - [ ] T064 [US1] Implementar `backend/app/anexos/` — upload multipart para o bucket privado, `GET /api/anexos/{id}` com URL assinada de curta validade, `DELETE`, `413` acima do limite e `415` para MIME não permitido (`FR-013`)
 - [ ] T065 [US1] Implementar `GET /api/lancamentos/exportacao?formato=csv` respeitando os filtros ativos (`FR-045`)
-- [ ] T066 🟢 [US2] Implementar `GET /api/saldo?mundo=` com consolidado e quebra Digital/Infra (`FR-007`, `RN-16`)
+- [X] T066 🟢 [US2] Implementar `GET /api/saldo?mundo=` com consolidado e quebra Digital/Infra (`FR-007`, `RN-16`)
 - [ ] T067 [US2] Aplicar o parâmetro `?mundo=digital|infra|ambos` em todos os endpoints de leitura já criados e cobrir o trigger de imutabilidade com teste de integração (`RF-101`, `FR-005`)
 
 ### Fechamento

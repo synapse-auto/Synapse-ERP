@@ -20,9 +20,15 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.cadastros.centros_custo import roteador as roteador_centros_custo
+from app.cadastros.servicos import roteador as roteador_servicos
+from app.cadastros.tags import roteador as roteador_tags
+from app.categorias.rotas import roteador as roteador_categorias
 from app.comum.erros import ErroDaApi, ErroValidacao
 from app.config import obter_configuracao
 from app.db import banco_responde, encerrar_motor
+from app.lancamentos.rotas import roteador as roteador_lancamentos
+from app.lancamentos.rotas import roteador_lixeira, roteador_saldo
 from app.usuarios.rotas import roteador as roteador_sessao
 
 registrador = logging.getLogger("synapse.erp")
@@ -105,6 +111,13 @@ async def trata_erro_inesperado(request: Request, erro: Exception) -> JSONRespon
 # ── Routers ──────────────────────────────────────────────────────────────────
 
 app.include_router(roteador_sessao)
+app.include_router(roteador_lancamentos)
+app.include_router(roteador_lixeira)
+app.include_router(roteador_saldo)
+app.include_router(roteador_categorias)
+app.include_router(roteador_tags)
+app.include_router(roteador_centros_custo)
+app.include_router(roteador_servicos)
 
 
 # ── GET /api/saude — contracts/plataforma.md §7 (T033) ───────────────────────
