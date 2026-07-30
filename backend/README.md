@@ -14,10 +14,20 @@ Contexto do projeto: [`CLAUDE.md`](../CLAUDE.md) ·
 cd backend
 uv venv --python 3.12 .venv
 .\.venv\Scripts\Activate.ps1
-uv pip install -r requirements.txt ruff black
+uv pip install -r pyproject.toml --extra dev
 Copy-Item .env.exemplo .env      # preencher com os valores do Supabase
 uvicorn app.main:app --reload --port 8000
 ```
+
+> **Não existe `requirements.txt` neste projeto, e é de propósito.** As dependências
+> vivem em [`pyproject.toml`](pyproject.toml), porque é de lá que a **Vercel** instala:
+> havendo um `pyproject.toml`, ela ignora o `requirements.txt` por completo. Manter os
+> dois seria manter duas listas da mesma coisa — e a que ficaria desatualizada é
+> justamente a que roda em produção. Custou um deploy quebrado para descobrir; o
+> histórico está no cabeçalho do `pyproject.toml`.
+>
+> `--extra dev` traz uvicorn, pytest, ruff e black. **A função da Vercel não os
+> instala** — lá vai só o que está em `[project.dependencies]`.
 
 - `http://localhost:8000/api/saude` → `{"status":"ok","banco":"ok","versao":"…"}`
 - `http://localhost:8000/api/docs` → a documentação que o Princípio IV exige

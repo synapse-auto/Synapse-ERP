@@ -1,13 +1,74 @@
-# Lint, formatação e testes do backend — Tarefa: T037
+# Dependências, lint, formatação e testes do backend — Tarefas: T022, T037
 #
-# As dependências ficam em requirements.txt, não aqui: é o arquivo que a Vercel
-# lê para montar a função Python. Este arquivo é só ferramental.
+# ⚠️ ESTE É O ARQUIVO QUE A VERCEL LÊ. Não o `requirements.txt`.
+#
+# Descoberto no log do primeiro deploy que funcionou até o fim:
+#
+#     Using Python 3.12 from backend/pyproject.toml
+#     Installing required dependencies from pyproject.toml...
+#     Build Completed in /vercel/output [2s]
+#
+# Existindo um `pyproject.toml`, a Vercel instala a partir dele e **ignora o
+# `requirements.txt`**. Como este arquivo tinha só `[tool.*]` e nenhum
+# `[project.dependencies]`, ela instalou zero pacotes — daí o build em 2 segundos
+# e a função morrendo no primeiro `import fastapi`, com o 500 mudo
+# `FUNCTION_INVOCATION_FAILED`.
+#
+# Por isso as dependências moram aqui agora, e o `requirements.txt` foi removido:
+# duas listas para a mesma coisa é garantia de que uma vai ficar para trás, e a
+# que ficaria para trás é a que roda em produção.
+#
+# Instalar local:  uv pip install -r pyproject.toml
 
 [project]
 name = "synapse-erp-api"
 version = "0.1.0"
 description = "Backend da Plataforma Financeira Synapse (ERP interno v1)"
 requires-python = ">=3.12,<3.13"
+
+dependencies = [
+  # ── API ──────────────────────────────────────────────────────────────────
+  "fastapi>=0.115,<0.130",
+  "pydantic>=2.9,<3",
+  "pydantic-settings>=2.6,<3",
+
+  # ── Banco ────────────────────────────────────────────────────────────────
+  # SQLAlchemy no modo Core, sem ORM (Princípio I).
+  "SQLAlchemy>=2.0.36,<2.1",
+  "asyncpg>=0.30,<0.31",
+
+  # ── Autenticação ─────────────────────────────────────────────────────────
+  # O projeto assina o token com ES256 (JWKS). `cryptography` NÃO é opcional:
+  # sem ela o PyJWT não valida ES256.
+  "PyJWT>=2.10,<3",
+  "cryptography>=44,<47",
+
+  # ── Cliente HTTP ─────────────────────────────────────────────────────────
+  # Serve ao JWKS, às fontes de câmbio (RN-12) e ao Storage do Supabase.
+  "httpx>=0.28,<0.29",
+
+  # ── Domínio ──────────────────────────────────────────────────────────────
+  "python-dateutil>=2.9,<3",
+
+  # ── Upload multipart (FR-013, anexos) ────────────────────────────────────
+  "python-multipart>=0.0.18,<0.1",
+]
+
+# `ofxparse` (T134) e `reportlab` (T120) ficam FORA até serem usados de verdade em
+# B5/B6. Nenhum código os importa hoje, e os dois arrastam dependências pesadas —
+# ofxparse traz lxml e beautifulsoup4; reportlab traz pillow. O pacote da função
+# tem tamanho limitado (plan.md §Constraints).
+
+[project.optional-dependencies]
+# Não vão para a função da Vercel — só para trabalhar no projeto.
+# Instalar:  uv pip install -r pyproject.toml --extra dev
+dev = [
+  "uvicorn>=0.32,<0.40",
+  "pytest>=8.3,<9",
+  "pytest-asyncio>=0.24,<2",
+  "ruff>=0.7",
+  "black>=24",
+]
 
 [tool.black]
 line-length = 100

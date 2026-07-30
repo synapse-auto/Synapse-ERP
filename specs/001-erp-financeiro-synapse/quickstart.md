@@ -125,12 +125,25 @@ antes de seguir**.
 
 ```powershell
 cd backend
-python -m venv .venv
+uv venv --python 3.12 .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+uv pip install -r pyproject.toml --extra dev
 Copy-Item .env.exemplo .env      # preencher com os valores do passo 2
 uvicorn app.main:app --reload --port 8000
 ```
+
+> ⚠️ **As dependências estão em `pyproject.toml`, não em `requirements.txt`** — este
+> não existe mais. Motivo: a Vercel, achando um `pyproject.toml`, instala a partir dele
+> e ignora o `requirements.txt`. Com as duas listas coexistindo, a de produção ficaria
+> desatualizada sem ninguém notar. Detalhe no cabeçalho de `backend/pyproject.toml`.
+>
+> `--extra dev` traz uvicorn, pytest, ruff e black; a função publicada recebe só o que
+> está em `[project.dependencies]`.
+>
+> ⚠️ **Não crie o `.env` com `Set-Content` nem com `>`.** O PowerShell escreve UTF-8 com
+> BOM, o BOM cola na primeira linha e a primeira variável passa a se chamar
+> `﻿DATABASE_URL` — o app sobe reclamando que falta `database_url` com a linha
+> visivelmente ali. `Copy-Item` é seguro.
 
 **Como saber que deu certo**:
 

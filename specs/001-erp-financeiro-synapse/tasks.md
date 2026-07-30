@@ -1,4 +1,4 @@
-﻿---
+---
 description: "Lista de tarefas — Plataforma Financeira Synapse (ERP interno v1)"
 ---
 
@@ -94,7 +94,7 @@ erro de modelagem descoberto só na tela custaria retrabalho nas três fases.
 
 ## Sub-fase B0 — Fundação do backend (bloqueia todas as histórias)
 
-- [X] T022 Criar `backend/requirements.txt` com as dependências de plan.md §Technical Context (FastAPI, Pydantic v2, pydantic-settings, SQLAlchemy 2 Core, asyncpg, PyJWT, python-dateutil, ofxparse, reportlab, pytest, pytest-asyncio, httpx)
+- [X] T022 Declarar as dependências de plan.md §Technical Context em **`backend/pyproject.toml`**, não em `requirements.txt`: a Vercel instala do `pyproject.toml` e ignora o `requirements.txt` quando os dois existem — descoberto no log do deploy. Dependências (FastAPI, Pydantic v2, pydantic-settings, SQLAlchemy 2 Core, asyncpg, PyJWT, python-dateutil, ofxparse, reportlab, pytest, pytest-asyncio, httpx)
 - [X] T023 Implementar `backend/app/config.py` com pydantic-settings lendo as variáveis de quickstart.md §4 — nenhum `os.environ` solto (Princípio VII)
 - [X] T024 🟢 Implementar `backend/app/db.py`: engine asyncpg, pool dimensionado para função serverless e sessão por requisição
 - [X] T025 Implementar `backend/app/comum/erros.py` com o formato único de erro (`codigo`, `mensagem` PT-BR, `requisito`, `campos`) e os 10 códigos da tabela de contracts/README.md
