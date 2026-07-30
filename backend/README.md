@@ -87,6 +87,21 @@ entre no sistema.
 [`migracoes/006_rls.sql`](migracoes/006_rls.sql). O linter do Supabase aponta
 `rls_enabled_no_policy` nas 19 tabelas; é o resultado esperado.
 
+## Por que `vercel.json` não tem `rewrites`
+
+Tentador escrever `{"source": "/(.*)", "destination": "/api/index"}` para mandar tudo
+para a função. **Não faça isso.** O build avisa:
+
+> WARNING! Internal rewrites in backend framework projects now route requests using the
+> rewritten destination path.
+
+Ou seja: a Vercel entrega ao app o caminho **já reescrito**. Pedindo `/api/saude`, o
+FastAPI recebe `/api/index` — que não existe — e devolve 404 em **toda** rota. O sintoma
+engana, porque o app está vivo e respondendo; só nunca casa nenhuma rota.
+
+Com o preset **FastAPI** (Settings → General → Framework), a Vercel já roteia todos os
+caminhos para o app. O `vercel.json` só declara o cron.
+
 ## ⚠️ Duas divergências abertas entre o contrato e a plataforma
 
 Declaradas em voz alta porque a constituição não aceita resolver conflito em silêncio.
