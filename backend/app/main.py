@@ -21,6 +21,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.cadastros.centros_custo import roteador as roteador_centros_custo
 from app.cadastros.servicos import roteador as roteador_servicos
@@ -119,6 +120,35 @@ async def trata_erro_de_validacao(request: Request, erro: RequestValidationError
         campos=campos or None,
     )
     return JSONResponse(status_code=convertido.status, content=convertido.como_corpo())
+
+
+@app.exception_handler(StarletteHTTPException)
+async def trata_erro_http(request: Request, erro: StarletteHTTPException) -> JSONResponse:
+    """Traz o 404 e o 405 do próprio framework para o formato único.
+
+    Sem isto, caminho inexistente respondia `{"detail":"Not Found"}` — o formato do
+    FastAPI, não o de contracts/README.md. Duas formas de erro na mesma API obrigariam
+    o frontend a saber tratar as duas, e `RNF-02` diz que ele só mostra o que vem.
+    Apareceu no primeiro acesso à raiz do deploy.
+    """
+    codigos = {404: "nao_encontrado", 405: "metodo_nao_permitido", 401: "nao_autenticado"}
+    mensagens = {
+        404: "Endereço não encontrado.",
+        405: "Esta operação não é permitida neste endereço.",
+        401: "Faça login para continuar.",
+    }
+    return JSONResponse(
+        status_code=erro.status_code,
+        content={
+            "erro": {
+                "codigo": codigos.get(erro.status_code, "erro_http"),
+                "mensagem": mensagens.get(erro.status_code, str(erro.detail)),
+                "requisito": None,
+                "campos": None,
+            }
+        },
+        headers=getattr(erro, "headers", None),
+    )
 
 
 @app.exception_handler(Exception)

@@ -333,6 +333,24 @@ def test_openapi_publica_em_api_docs():
     assert app.docs_url == "/api/docs"
 
 
+def test_caminho_inexistente_sai_no_formato_unico(cliente):
+    """Regressão: a raiz do deploy respondia `{"detail":"Not Found"}`, o formato do
+    FastAPI, e não o de contracts/README.md. Duas formas de erro na mesma API
+    obrigariam o frontend a tratar as duas (`RNF-02`)."""
+    resposta = cliente.get("/")
+    assert resposta.status_code == 404
+    corpo = resposta.json()
+    assert "detail" not in corpo
+    assert corpo["erro"]["codigo"] == "nao_encontrado"
+    assert corpo["erro"]["mensagem"] == "Endereço não encontrado."
+
+
+def test_metodo_errado_tambem_sai_no_formato_unico(cliente):
+    resposta = cliente.delete("/api/saude")
+    assert resposta.status_code == 405
+    assert resposta.json()["erro"]["codigo"] == "metodo_nao_permitido"
+
+
 def test_saude_e_publico_sem_token(cliente):
     """contracts/plataforma.md §7. Aqui o banco de teste não existe → degradado."""
     resposta = cliente.get("/api/saude")
