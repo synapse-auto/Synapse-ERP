@@ -13,8 +13,10 @@ Tarefas: T032 (app), T033 (`GET /api/saude`)
 """
 
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -40,7 +42,40 @@ async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
     await encerrar_motor()
 
 
-configuracao = obter_configuracao()
+# ── Configuração: falha legível em vez de função morta ──────────────────────
+#
+# `obter_configuracao()` valida o ambiente e levanta se algo falta. Chamar isso solto
+# aqui fazia o **import do módulo** estourar — e função serverless que quebra ao ser
+# importada devolve `FUNCTION_INVOCATION_FAILED`, um 500 mudo, sem dizer qual variável
+# está faltando. Foi exatamente o que aconteceu no primeiro deploy.
+#
+# Agora o erro é guardado e o app sobe assim mesmo. `GET /api/saude` — que é público e
+# não toca dado de negócio — passa a **nomear as variáveis que faltam**. Os endpoints de
+# negócio continuam falhando, como devem: sem banco não há o que responder.
+#
+# Não é tolerar configuração errada. É trocar "morreu sem dizer nada" por "morreu
+# dizendo o quê" (Princípio VI: o que não é verificável não está pronto).
+
+configuracao = None
+_erro_de_configuracao: str | None = None
+
+try:
+    configuracao = obter_configuracao()
+except Exception as erro:  # noqa: BLE001 — qualquer falha aqui precisa virar mensagem
+    _erro_de_configuracao = str(erro)
+    registrador.error("Configuração inválida: %s", erro)
+
+
+def _variaveis_faltando() -> list[str]:
+    """Nomes das variáveis de ambiente ausentes, para a mensagem de `/api/saude`."""
+    from app.config import Configuracao
+
+    return sorted(
+        nome.upper()
+        for nome, campo in Configuracao.model_fields.items()
+        if campo.is_required() and not os.environ.get(nome.upper())
+    )
+
 
 app = FastAPI(
     title="Plataforma Financeira Synapse — API",
@@ -49,7 +84,7 @@ app = FastAPI(
         "Contratos acordados em `specs/001-erp-financeiro-synapse/contracts/`. "
         "Esta página é o contrato executável — os dois têm que bater."
     ),
-    version=configuracao.versao_publicada,
+    version=configuracao.versao_publicada if configuracao else "indisponivel",
     docs_url="/api/docs",
     redoc_url=None,
     openapi_url="/api/openapi.json",
@@ -132,7 +167,23 @@ app.include_router(roteador_servicos)
         "responde. `versao` traz o commit publicado, para saber qual código está no ar."
     ),
 )
-async def saude() -> dict[str, str]:
+async def saude() -> dict[str, Any]:
+    # Configuração quebrada é a primeira coisa a reportar: sem ela o resto nem é
+    # tentado, e o motivo real ficaria escondido atrás de um erro de banco.
+    if configuracao is None:
+        faltando = _variaveis_faltando()
+        return {
+            "status": "erro_de_configuracao",
+            "banco": "nao_verificado",
+            "versao": "indisponivel",
+            "variaveis_faltando": faltando,
+            "detalhe": (
+                f"Faltam variáveis de ambiente: {', '.join(faltando)}."
+                if faltando
+                else "Alguma variável de ambiente está com valor inválido."
+            ),
+        }
+
     banco_ok = await banco_responde()
     return {
         "status": "ok" if banco_ok else "degradado",
