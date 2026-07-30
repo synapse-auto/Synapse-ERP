@@ -1,0 +1,60 @@
+# Lint, formatação e testes do backend — Tarefa: T037
+#
+# As dependências ficam em requirements.txt, não aqui: é o arquivo que a Vercel
+# lê para montar a função Python. Este arquivo é só ferramental.
+
+[project]
+name = "synapse-erp-api"
+version = "0.1.0"
+description = "Backend da Plataforma Financeira Synapse (ERP interno v1)"
+requires-python = ">=3.12,<3.13"
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [".venv", "migracoes"]
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle
+  "F",    # pyflakes — pega import não usado e nome inexistente
+  "I",    # isort — ordem dos imports
+  "B",    # bugbear — armadilhas comuns
+  "UP",   # pyupgrade
+  "ASYNC",# await esquecido, chamada bloqueante dentro de async
+  "T20",  # print/pprint esquecido (constituição, Princípio III)
+]
+# E501 fica para o black resolver; não faz sentido as duas ferramentas brigarem.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# B008 ("não chame função no default do argumento") é a regra certa em geral e
+# falso positivo aqui: `Depends()`/`Query()`/`Header()` no default **é** a forma
+# como o FastAPI declara dependência e parâmetro. Silenciar B008 inteira esconderia
+# o caso legítimo (default mutável de verdade), então a exceção é só para estas.
+extend-immutable-calls = [
+  "fastapi.Depends",
+  "fastapi.Query",
+  "fastapi.Header",
+  "fastapi.Path",
+  "fastapi.Body",
+  "fastapi.Form",
+  "fastapi.File",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+  "integracao: precisa de um Postgres real (quickstart.md §6)",
+  "contrato: confere a resposta contra os arquivos de contracts/",
+]
+# Silencia o aviso de escopo do pytest-asyncio; o padrão (function) é o que queremos.
+asyncio_default_fixture_loop_scope = "function"

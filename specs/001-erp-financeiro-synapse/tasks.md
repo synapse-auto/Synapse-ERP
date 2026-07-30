@@ -94,22 +94,22 @@ erro de modelagem descoberto só na tela custaria retrabalho nas três fases.
 
 ## Sub-fase B0 — Fundação do backend (bloqueia todas as histórias)
 
-- [ ] T022 Criar `backend/requirements.txt` com as dependências de plan.md §Technical Context (FastAPI, Pydantic v2, pydantic-settings, SQLAlchemy 2 Core, asyncpg, PyJWT, python-dateutil, ofxparse, reportlab, pytest, pytest-asyncio, httpx)
-- [ ] T023 Implementar `backend/app/config.py` com pydantic-settings lendo as variáveis de quickstart.md §4 — nenhum `os.environ` solto (Princípio VII)
-- [ ] T024 🟢 Implementar `backend/app/db.py`: engine asyncpg, pool dimensionado para função serverless e sessão por requisição
-- [ ] T025 Implementar `backend/app/comum/erros.py` com o formato único de erro (`codigo`, `mensagem` PT-BR, `requisito`, `campos`) e os 10 códigos da tabela de contracts/README.md
-- [ ] T026 [P] Implementar `backend/app/comum/paginacao.py` (`pagina`, `por_pagina` 1–200 padrão 50, `ordenar`, `direcao`) devolvendo o envelope `{itens, paginacao}`
-- [ ] T027 [P] Implementar `backend/app/comum/periodo.py`: resolve `hoje`, `esta_semana`, `este_mes`, `mes_passado`, `ultimos_3_meses`, `este_ano`, `personalizado` para `(inicio, fim, inicio_anterior, fim_anterior)` — a mesma régua para o comparativo
-- [ ] T028 [P] Implementar `backend/app/comum/idempotencia.py` para o cabeçalho `Idempotency-Key` nos `POST` de criação (contracts/README.md)
-- [ ] T029 [P] Implementar `backend/app/comum/auditoria.py` com `registra_auditoria(entidade, id, acao, diff)` gravando só o que mudou (`RF-03`, `RN-08`)
-- [ ] T030 Implementar `backend/app/seguranca/auth.py`: valida o JWT do Supabase (modo conferido no painel — research.md D-03) e carrega o usuário de `usuarios`
-- [ ] T031 Implementar `backend/app/seguranca/rbac.py` com a dependência `exige_papel("gestor")` / `exige_papel("gestor","operador")` — todo endpoint declara o papel (constituição)
-- [ ] T032 Implementar `backend/app/main.py`: app FastAPI, registro de routers, handlers de erro usando `comum/erros.py`, OpenAPI em `/api/docs`
-- [ ] T033 [P] Implementar `GET /api/saude` em `backend/app/main.py` devolvendo `{status, banco, versao}` (contracts/plataforma.md §7)
-- [ ] T034 Implementar `backend/app/usuarios/rotas.py` com `GET /api/sessao` e `POST /api/sessao/preferencias` (tema e ordem de cards em `usuarios.preferencias`) — contracts/plataforma.md §1
-- [ ] T035 Criar `backend/api/index.py` expondo o app ASGI e `backend/vercel.json` com runtime Python e a declaração do cron diário
-- [ ] T036 Configurar `backend/tests/conftest.py` com pytest-asyncio, httpx e um Postgres de teste isolado (quickstart.md §6)
-- [ ] T037 [P] Configurar lint e formatação do backend (ruff + black) em `backend/pyproject.toml`
+- [X] T022 Criar `backend/requirements.txt` com as dependências de plan.md §Technical Context (FastAPI, Pydantic v2, pydantic-settings, SQLAlchemy 2 Core, asyncpg, PyJWT, python-dateutil, ofxparse, reportlab, pytest, pytest-asyncio, httpx)
+- [X] T023 Implementar `backend/app/config.py` com pydantic-settings lendo as variáveis de quickstart.md §4 — nenhum `os.environ` solto (Princípio VII)
+- [X] T024 🟢 Implementar `backend/app/db.py`: engine asyncpg, pool dimensionado para função serverless e sessão por requisição
+- [X] T025 Implementar `backend/app/comum/erros.py` com o formato único de erro (`codigo`, `mensagem` PT-BR, `requisito`, `campos`) e os 10 códigos da tabela de contracts/README.md
+- [X] T026 [P] Implementar `backend/app/comum/paginacao.py` (`pagina`, `por_pagina` 1–200 padrão 50, `ordenar`, `direcao`) devolvendo o envelope `{itens, paginacao}`
+- [X] T027 [P] Implementar `backend/app/comum/periodo.py`: resolve `hoje`, `esta_semana`, `este_mes`, `mes_passado`, `ultimos_3_meses`, `este_ano`, `personalizado` para `(inicio, fim, inicio_anterior, fim_anterior)` — a mesma régua para o comparativo
+- [X] T028 [P] Implementar `backend/app/comum/idempotencia.py` para o cabeçalho `Idempotency-Key` nos `POST` de criação (contracts/README.md)
+- [X] T029 [P] Implementar `backend/app/comum/auditoria.py` com `registra_auditoria(entidade, id, acao, diff)` gravando só o que mudou (`RF-03`, `RN-08`)
+- [X] T030 Implementar `backend/app/seguranca/auth.py`: valida o JWT do Supabase (modo conferido no painel — research.md D-03) e carrega o usuário de `usuarios`
+- [X] T031 Implementar `backend/app/seguranca/rbac.py` com a dependência `exige_papel("gestor")` / `exige_papel("gestor","operador")` — todo endpoint declara o papel (constituição)
+- [X] T032 Implementar `backend/app/main.py`: app FastAPI, registro de routers, handlers de erro usando `comum/erros.py`, OpenAPI em `/api/docs`
+- [X] T033 [P] Implementar `GET /api/saude` em `backend/app/main.py` devolvendo `{status, banco, versao}` (contracts/plataforma.md §7)
+- [X] T034 Implementar `backend/app/usuarios/rotas.py` com `GET /api/sessao` e `POST /api/sessao/preferencias` (tema e ordem de cards em `usuarios.preferencias`) — contracts/plataforma.md §1
+- [X] T035 Criar `backend/api/index.py` expondo o app ASGI e `backend/vercel.json` com runtime Python e a declaração do cron diário
+- [X] T036 Configurar `backend/tests/conftest.py` com pytest-asyncio, httpx e um Postgres de teste isolado (quickstart.md §6)
+- [X] T037 [P] Configurar lint e formatação do backend (ruff + black) em `backend/pyproject.toml`
 - [ ] T038 Criar o projeto `synapse-erp-api` na Vercel (root `backend`), publicar e confirmar `GET /api/saude` respondendo em produção (quickstart.md §7)
 
 **✅ Checkpoint B0**: deploy vivo, `/api/docs` listando, autenticação e RBAC prontos.
