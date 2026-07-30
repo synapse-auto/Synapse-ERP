@@ -11,7 +11,7 @@ Consequência que costuma surpreender: **não existe exclusão definitiva pela A
 Tarefa: T047
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.comum.erros import ErroRegraViolada
 
@@ -19,7 +19,7 @@ RETENCAO_PADRAO_DIAS = 90
 
 
 def _agora(agora: datetime | None) -> datetime:
-    return agora or datetime.now(UTC)
+    return agora or datetime.now(timezone.utc)
 
 
 def dias_restantes(

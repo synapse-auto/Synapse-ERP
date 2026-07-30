@@ -4,14 +4,14 @@ A parte que costuma ser implementada errada: passado o prazo, a restauração é
 recusada, mas **a linha não é apagada**. Não existe exclusão definitiva pela API.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from app.comum.erros import ErroRegraViolada
 from app.dominio import lixeira
 
-AGORA = datetime(2026, 7, 30, 12, 0, tzinfo=UTC)
+AGORA = datetime(2026, 7, 30, 12, 0, tzinfo=timezone.utc)
 
 
 def excluido_ha(dias: int) -> datetime:

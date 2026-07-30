@@ -27,7 +27,7 @@ Tarefa: T028
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
 from fastapi import Header
@@ -62,13 +62,13 @@ class _MemoriaDeChaves:
             del self.registros[chave]
 
     def obter(self, chave: tuple[str, str, str]) -> Any | None:
-        agora = datetime.now(UTC)
+        agora = datetime.now(timezone.utc)
         self._limpa_expirados(agora)
         registro = self.registros.get(chave)
         return registro.resposta if registro else None
 
     def guardar(self, chave: tuple[str, str, str], resposta: Any) -> None:
-        self.registros[chave] = _Registro(resposta=resposta, criado_em=datetime.now(UTC))
+        self.registros[chave] = _Registro(resposta=resposta, criado_em=datetime.now(timezone.utc))
 
 
 _memoria = _MemoriaDeChaves()

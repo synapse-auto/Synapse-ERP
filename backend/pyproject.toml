@@ -28,8 +28,16 @@ select = [
   "ASYNC",# await esquecido, chamada bloqueante dentro de async
   "T20",  # print/pprint esquecido (constituição, Princípio III)
 ]
-# E501 fica para o black resolver; não faz sentido as duas ferramentas brigarem.
-ignore = ["E501"]
+ignore = [
+  # Fica para o black resolver; não faz sentido as duas ferramentas brigarem.
+  "E501",
+  # UP017 manda trocar `timezone.utc` por `datetime.UTC`, que é mais curto — e só
+  # existe no Python 3.11+. Local rodamos 3.12, mas o runtime da Vercel nem sempre
+  # é o mesmo, e um `ImportError` no import do módulo vira 500 mudo em produção
+  # (FUNCTION_INVOCATION_FAILED), sem dizer o que houve. `timezone.utc` funciona
+  # em toda versão. Economia de 8 caracteres não paga esse risco.
+  "UP017",
+]
 
 [tool.ruff.lint.flake8-bugbear]
 # B008 ("não chame função no default do argumento") é a regra certa em geral e

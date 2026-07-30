@@ -30,8 +30,17 @@ httpx>=0.28,<0.29
 # ── Domínio ──────────────────────────────────────────────────────────────────
 # dateutil resolve recorrência mensal/anual; o clamp do dia 31 é nosso (T073).
 python-dateutil>=2.9,<3
-ofxparse>=0.21,<0.22
-reportlab>=4.2,<5
+
+# `ofxparse` (T134) e `reportlab` (T120) SAÍRAM daqui de propósito, até serem
+# usados de verdade em B5/B6. Nenhum código os importa hoje, e os dois arrastam
+# dependências pesadas — ofxparse traz lxml e beautifulsoup4; reportlab traz
+# pillow. Dezenas de megabytes no pacote da função, para nada.
+#
+# O pacote da função na Vercel tem tamanho limitado (plan.md §Constraints), e
+# excedê-lo dá erro difícil de ler. Princípio I: dependência que ainda não tem
+# uso não entra. Voltam junto com a task que as usa:
+#   ofxparse>=0.21,<0.22    → T134 (importação OFX)
+#   reportlab>=4.2,<5       → T120 (exportação PDF)
 
 # ── Upload multipart (FR-013, anexos) ────────────────────────────────────────
 python-multipart>=0.0.18,<0.1

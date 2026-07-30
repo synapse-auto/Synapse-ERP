@@ -1,13 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/index.py": {
-      "memory": 1024,
-      "maxDuration": 60
-    }
-  },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index.py" }
+    { "source": "/(.*)", "destination": "/api/index" }
   ],
   "crons": [
     { "path": "/api/rotinas/diaria", "schedule": "0 9 * * *" }
