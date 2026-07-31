@@ -25,6 +25,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.anexos.rotas import roteador as roteador_anexos
 from app.anexos.rotas import roteador_upload as roteador_anexos_upload
+from app.auditoria.rotas import roteador as roteador_auditoria
+from app.busca.rotas import roteador as roteador_busca
 from app.cadastros.centros_custo import roteador as roteador_centros_custo
 from app.cadastros.servicos import roteador as roteador_servicos
 from app.cadastros.tags import roteador as roteador_tags
@@ -33,16 +35,21 @@ from app.categorias.rotas import roteador_subcategorias
 from app.clientes.rotas import roteador as roteador_clientes
 from app.comum.erros import ErroDaApi, ErroValidacao
 from app.config import obter_configuracao
+from app.configuracoes.rotas import roteador as roteador_configuracoes
 from app.dashboard.rotas import roteador as roteador_dashboard
 from app.db import banco_responde, encerrar_motor
 from app.extrato.rotas import roteador as roteador_extrato
 from app.funcionarios.rotas import roteador as roteador_funcionarios
+from app.importacao.rotas import roteador as roteador_importacoes
 from app.lancamentos.rotas import roteador as roteador_lancamentos
 from app.lancamentos.rotas import roteador_lixeira, roteador_saldo
+from app.notificacoes.rotas import roteador as roteador_notificacoes
 from app.recorrencias.rotas import roteador as roteador_recorrencias
 from app.recorrencias.rotas import roteador_parcelamentos
 from app.relatorios.rotas import roteador as roteador_relatorios
+from app.relatorios.rotas import roteador_exportacoes
 from app.rotinas.rotas import roteador as roteador_rotinas
+from app.usuarios.gestao import roteador as roteador_usuarios
 from app.usuarios.rotas import roteador as roteador_sessao
 
 registrador = logging.getLogger("synapse.erp")
@@ -201,7 +208,14 @@ app.include_router(roteador_extrato)
 app.include_router(roteador_recorrencias)
 app.include_router(roteador_parcelamentos)
 app.include_router(roteador_relatorios)
+app.include_router(roteador_exportacoes)
+app.include_router(roteador_importacoes)
 app.include_router(roteador_rotinas)
+app.include_router(roteador_notificacoes)
+app.include_router(roteador_usuarios)
+app.include_router(roteador_configuracoes)
+app.include_router(roteador_auditoria)
+app.include_router(roteador_busca)
 app.include_router(roteador_categorias)
 app.include_router(roteador_subcategorias)
 app.include_router(roteador_clientes)

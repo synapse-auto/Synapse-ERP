@@ -38,6 +38,9 @@ from app.seguranca.auth import UsuarioAutenticado
 from app.seguranca.rbac import exige_papel
 
 roteador = APIRouter(prefix="/api/relatorios", tags=["Relatórios"])
+# Separado porque o contrato coloca a exportação completa fora de `/relatorios`: ela não
+# é um relatório, é a cópia integral da base.
+roteador_exportacoes = APIRouter(prefix="/api/exportacoes", tags=["Relatórios"])
 
 Autenticado = Annotated[UsuarioAutenticado, Depends(exige_papel("gestor", "operador"))]
 Conexao = Annotated[AsyncConnection, Depends(obter_conexao)]
@@ -534,3 +537,36 @@ async def matriz_mensal(
             campos={"formato": "Aceitos aqui: json, csv."},
         )
     return resposta
+
+
+# ── T137 · Exportação completa (`FR-112`, `SC-011`) ─────────────────────────
+
+
+@roteador_exportacoes.post(
+    "/completa",
+    summary="Baixa tudo: um CSV por tabela, num ZIP",
+    description=(
+        "Papel: **gestor**. `FR-112`. É a cópia de segurança que sai da empresa — CSVs "
+        "abertos em qualquer planilha, sem depender de nada nosso. Os **anexos não vão "
+        "no pacote**: são arquivos do bucket privado e embutir dezenas de PDFs estouraria "
+        "a memória da função; `anexos.csv` traz o caminho de cada um."
+    ),
+    response_class=Response,
+)
+async def exportacao_completa(
+    usuario: Annotated[UsuarioAutenticado, Depends(exige_papel("gestor"))],
+    conexao: Conexao,
+) -> Response:
+    from app.relatorios import exportacao_completa as exportador
+
+    pacote, contagens = await exportador.monta_zip(conexao)
+    hoje = date.today().isoformat()
+    return Response(
+        content=pacote,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="synapse-exportacao-{hoje}.zip"',
+            # Contagem no cabeçalho para o cliente conferir sem abrir o ZIP.
+            "X-Total-Lancamentos": str(contagens.get("lancamentos", 0)),
+        },
+    )

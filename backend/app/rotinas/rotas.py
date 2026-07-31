@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from app.comum.erros import ErroNaoAutenticado
 from app.config import obter_configuracao
 from app.db import obter_conexao
-from app.rotinas import diaria
+from app.rotinas import diaria, semanal
 from app.seguranca.auth import UsuarioAutenticado
 from app.seguranca.rbac import exige_papel
 
@@ -94,6 +94,22 @@ async def rodar_diaria(conexao: Conexao) -> dict[str, Any]:
 )
 async def rodar_diaria_pelo_cron(conexao: Conexao) -> dict[str, Any]:
     return await diaria.executa(conexao)
+
+
+@roteador.post(
+    "/semanal",
+    summary="Resumo da semana e alerta de caixa baixo",
+    description=(
+        "Protegido por `X-Segredo-Rotina`. `FR-098`, `FR-099`. **Não tem cron próprio**: "
+        "o plano gratuito da Vercel dá um cron por dia, então a rotina diária dispara "
+        "esta ao detectar que é segunda-feira. Este endpoint existe para disparo manual "
+        "— é o que permite conferir o resumo sem esperar a próxima segunda. Idempotente "
+        "por semana ISO."
+    ),
+    dependencies=[Depends(exige_segredo_da_rotina)],
+)
+async def rodar_semanal(conexao: Conexao) -> dict[str, Any]:
+    return await semanal.executa(conexao)
 
 
 @roteador.get(

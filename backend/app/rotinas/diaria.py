@@ -19,26 +19,37 @@ o relato dizer o que houve, não porque o cálculo dependa dela.
 fez. Sem isso, "a automação funcionou" seria afirmação, e o Princípio VI proíbe
 afirmar o que não se pode conferir. É o que `GET /api/rotinas/estado` devolve.
 
-## O que ainda não está aqui
+## Os alertas (B6 — T125, T126)
 
-Inadimplência (`RN-10`), alertas de vencimento e caixa baixo são da sub-fase B6
-(T125–T127). O resultado já traz os contadores zerados para o contrato não mudar de
-forma quando eles chegarem.
+Depois de materializar e aplicar o ciclo de status, a rotina gera as notificações. As
+duas famílias dependem de coisas diferentes:
 
-Tarefa: T083
+- **Vencimento** (`FR-096`): olha as antecedências de `configuracoes.alerta_vencimento_dias`
+  (`[1, 3, 7]` por padrão) e avisa do que vence nesses dias. A chave de deduplicação inclui
+  a antecedência, então "vence em 7" e "vence em 3" são avisos diferentes do mesmo
+  lançamento — que é o comportamento desejado.
+- **Inadimplência** (`FR-097`): sai de `dominio/inadimplencia.py`, com a mesma regra da
+  tela. Cliente com mensalidade **automática** nunca aparece aqui (D-05), e isso não é
+  falha da rotina.
+
+Tarefa: T083, T125, T126
 """
 
 import json
 import logging
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.comum.erros import formata_dinheiro
+from app.dominio import inadimplencia as mod_inadimplencia
+from app.lancamentos.servico import le_configuracao
+from app.notificacoes import servico as servico_notificacoes
 from app.recorrencias import repositorio as repositorio_recorrencias
 from app.recorrencias import servico as servico_recorrencias
 
@@ -63,7 +74,6 @@ class Resultado:
     movidos_para_atrasado: int = 0
     recorrencias_processadas: int = 0
     recorrencias_pendentes_de_geracao: int = 0
-    # Chegam em B6 (T125–T127). Já declarados para o contrato não mudar de forma.
     clientes_marcados_inadimplentes: int = 0
     notificacoes_criadas: int = 0
     avisos: list[str] = field(default_factory=list)
@@ -195,6 +205,130 @@ async def _aplica_ciclo_de_status(
     resultado.movidos_para_atrasado = atrasados.rowcount or 0
 
 
+# ── Passo 3 — alertas de vencimento (`FR-096`, T125) ───────────────────────
+
+
+async def _alerta_de_vencimento(
+    conexao: AsyncConnection, resultado: Resultado, *, hoje: date
+) -> None:
+    """Avisa do que vence nas antecedências configuradas.
+
+    As antecedências vêm de `configuracoes.alerta_vencimento_dias` — `[1, 3, 7]` por
+    padrão, mas é dado, não código (`RNF-02`). A chave de deduplicação inclui a
+    antecedência, então o mesmo lançamento avisa em 7, em 3 e em 1 dia sem repetir
+    nenhum dos três.
+    """
+    antecedencias = await le_configuracao(conexao, "alerta_vencimento_dias", padrao=[1, 3, 7])
+    usuarios = await servico_notificacoes.destinatarios(conexao)
+    if not usuarios:
+        return
+
+    for dias in antecedencias:
+        vencem = (
+            (
+                await conexao.execute(
+                    text("""
+                        select l.id, l.mundo, l.tipo, l.descricao, l.valor, l.data
+                        from lancamentos_ativos l
+                        where l.data = :quando
+                          and l.status in ('programado','pendente')
+                        order by l.valor desc
+                        """),
+                    {"quando": hoje + timedelta(days=int(dias))},
+                )
+            )
+            .mappings()
+            .all()
+        )
+
+        for item in vencem:
+            verbo = "receber" if item["tipo"] == "receita" else "pagar"
+            quando = "amanhã" if dias == 1 else f"em {dias} dias"
+            resultado.notificacoes_criadas += await servico_notificacoes.cria(
+                conexao,
+                tipo="vencimento",
+                titulo=f"{item['descricao']} vence {quando}",
+                corpo=(
+                    f"{formata_dinheiro(item['valor'])} a {verbo} em "
+                    f"{item['data'].strftime('%d/%m/%Y')}."
+                ),
+                chave=servico_notificacoes.chave_de_vencimento(item["id"], int(dias)),
+                mundo=item["mundo"],
+                lancamento_id=item["id"],
+                usuarios=usuarios,
+            )
+
+
+# ── Passo 4 — alerta de inadimplência (`FR-097`, T126) ─────────────────────
+
+
+async def _alerta_de_inadimplencia(
+    conexao: AsyncConnection, resultado: Resultado, *, hoje: date
+) -> None:
+    """A mesma regra da tela, vinda de `dominio/inadimplencia.py`.
+
+    Reimplementar o critério aqui faria a rotina e a lista de clientes discordarem no
+    dia em que a tolerância mudasse — e a discordância apareceria como "o sistema
+    avisou de um cliente que a tela diz estar em dia".
+    """
+    tolerancia = int(
+        await le_configuracao(
+            conexao,
+            "inadimplencia_dias_tolerancia",
+            padrao=mod_inadimplencia.PADRAO_DIAS_TOLERANCIA,
+        )
+    )
+    usuarios = await servico_notificacoes.destinatarios(conexao)
+    if not usuarios:
+        return
+
+    clientes = (await conexao.execute(text("""
+                    select c.id, c.nome,
+                           jsonb_agg(jsonb_build_object(
+                             'data', l.data, 'valor', l.valor, 'status', l.status,
+                             'efetivar_automaticamente', l.efetivar_automaticamente
+                           )) as em_aberto
+                    from clientes c
+                    join subcategorias s on s.cliente_id = c.id
+                    join lancamentos_ativos l on l.subcategoria_id = s.id
+                    where c.arquivado_em is null
+                      and l.tipo = 'receita'
+                      and l.status in ('pendente','atrasado')
+                    group by c.id, c.nome
+                    """))).mappings().all()
+
+    for cliente in clientes:
+        situacao = mod_inadimplencia.avalia(
+            [
+                {
+                    "data": date.fromisoformat(item["data"]),
+                    "valor": item["valor"],
+                    "status": item["status"],
+                    "efetivar_automaticamente": item["efetivar_automaticamente"],
+                }
+                for item in cliente["em_aberto"]
+            ],
+            tolerancia_dias=tolerancia,
+            hoje=hoje,
+        )
+        if situacao.situacao != "atrasado":
+            continue
+
+        resultado.clientes_marcados_inadimplentes += 1
+        resultado.notificacoes_criadas += await servico_notificacoes.cria(
+            conexao,
+            tipo="inadimplencia",
+            titulo=f"{cliente['nome']} está com pagamento atrasado",
+            corpo=(
+                f"{formata_dinheiro(situacao.valor_atrasado)} vencidos há "
+                f"{situacao.dias_atraso} dias."
+            ),
+            chave=servico_notificacoes.chave_de_inadimplencia(cliente["id"], hoje),
+            cliente_id=cliente["id"],
+            usuarios=usuarios,
+        )
+
+
 # ── Execução ────────────────────────────────────────────────────────────────
 
 
@@ -211,6 +345,19 @@ async def executa(
     resultado = Resultado()
     await _materializa_recorrencias(conexao, resultado, hoje=hoje, usuario_sistema=usuario_sistema)
     await _aplica_ciclo_de_status(conexao, resultado, hoje=hoje)
+    # Os alertas vêm DEPOIS do ciclo de status de propósito: um lançamento que acabou de
+    # virar `atrasado` nesta mesma execução precisa entrar na conta da inadimplência.
+    await _alerta_de_vencimento(conexao, resultado, hoje=hoje)
+    await _alerta_de_inadimplencia(conexao, resultado, hoje=hoje)
+
+    # `FR-098`: o plano gratuito da Vercel só dá um cron por dia, então o semanal é
+    # disparado daqui, na segunda. A chave por semana ISO garante um resumo só, mesmo
+    # que a rotina rode cinco vezes na mesma segunda.
+    from app.rotinas import semanal as rotina_semanal
+
+    if rotina_semanal.e_segunda(hoje):
+        do_semanal = await rotina_semanal.executa(conexao, hoje=hoje)
+        resultado.notificacoes_criadas += do_semanal["resultado"]["notificacoes_criadas"]
 
     if estado is not None and estado["ultima_data_processada"] < hoje:
         dias = (hoje - estado["ultima_data_processada"]).days

@@ -365,24 +365,44 @@ categorias e exportar em CSV com os mesmos números.
 tolerância gera alerta; operador recebe `403` chamando `/api/configuracoes` **pela API
 direta**, não só pelo menu escondido.
 
-- [ ] T123 🟢 [US9] Implementar `backend/app/notificacoes/servico.py` com `chave_deduplicacao` nos 4 formatos de data-model §3.16 — sem ela a rotina duplicaria o mesmo aviso
-- [ ] T124 [US9] Implementar `GET /api/notificacoes`, `POST /{id}/marcar-lida` e `POST /marcar-todas-lidas` em `backend/app/notificacoes/rotas.py`, com contador de não lidas (`FR-096`–`FR-100`)
-- [ ] T125 [US9] Gerar os alertas de vencimento na rotina diária conforme `configuracoes.alerta_vencimento_dias` (`FR-096`)
-- [ ] T126 [US9] Gerar o alerta de inadimplência a partir de `dominio/inadimplencia.py` (`FR-097`)
-- [ ] T127 [US9] Implementar `backend/app/rotinas/semanal.py` — resumo de segunda e alerta de caixa baixo sobre `caixa_baixo_horizonte_dias` — mais `POST /api/rotinas/semanal` para disparo manual (`FR-098`, `FR-099`)
-- [ ] T128 [US9] Escrever `backend/tests/integracao/test_rotinas.py` provando que rodar a rotina duas vezes no mesmo dia não duplica nada e que um dia perdido é recuperado
-- [ ] T129 [US10] Implementar as 5 rotas de usuários em `backend/app/usuarios/rotas.py`, com criação no Supabase Auth e a trava que recusa rebaixar ou desativar o **último gestor ativo** (contracts/plataforma.md §2)
-- [ ] T130 [US10] Implementar `GET /api/configuracoes` (gestor e operador) e `PUT /api/configuracoes` (gestor), devolvendo `efeitos` e reavaliando a inadimplência **na hora** quando a tolerância muda (`FR-105`, edge case)
-- [ ] T131 🟢 [P] [US10] Implementar `GET /api/auditoria` nos dois modos — por registro (gestor e operador) e geral com filtros (gestor) — marcando `alteracao_historica` (`FR-103`)
-- [ ] T132 🟢 [P] [US10] Implementar `GET /api/busca?q=&limite=` cobrindo lançamentos, clientes e categorias via `pg_trgm` (`FR-046`)
-- [ ] T133 [US10] Implementar `POST /api/importacoes` em `backend/app/importacao/csv.py` — recebe o arquivo, **não grava**, devolve `importacao_id`, colunas detectadas e prévia (`FR-044`)
-- [ ] T134 [P] [US10] Implementar a leitura de OFX em `backend/app/importacao/ofx.py` com ofxparse
-- [ ] T135 [US10] Implementar `POST /api/importacoes/{id}/mapeamento` em `backend/app/importacao/mapeamento.py` com `mundo` obrigatório e categoria não reconhecida apontada na prévia, nunca criada sozinha
-- [ ] T136 [US10] Implementar `POST /api/importacoes/{id}/confirmar` gravando em lotes com cursor (mesmo padrão de T081)
-- [ ] T137 [US10] Implementar `POST /api/exportacoes/completa` e `GET /api/exportacoes/{id}` em `backend/app/relatorios/` — ZIP com um CSV por tabela mais os anexos, por lote com cursor (`FR-112`, `SC-011`)
-- [ ] T138 [US10] Escrever `backend/tests/integracao/test_rbac.py` chamando **todos** os endpoints de gestor com token de operador e exigindo `403` (`SC-010`)
-- [ ] T139 [US10] Escrever os testes de contrato de plataforma em `backend/tests/contrato/test_plataforma.py`
-- [ ] T140 Verificar documentação de B6 e registrar a resposta (Princípio V)
+- [X] T123 🟢 [US9] Implementar `backend/app/notificacoes/servico.py` com `chave_deduplicacao` nos 4 formatos de data-model §3.16 — sem ela a rotina duplicaria o mesmo aviso
+- [X] T124 [US9] Implementar `GET /api/notificacoes`, `POST /{id}/marcar-lida` e `POST /marcar-todas-lidas` em `backend/app/notificacoes/rotas.py`, com contador de não lidas (`FR-096`–`FR-100`)
+- [X] T125 [US9] Gerar os alertas de vencimento na rotina diária conforme `configuracoes.alerta_vencimento_dias` (`FR-096`)
+- [X] T126 [US9] Gerar o alerta de inadimplência a partir de `dominio/inadimplencia.py` (`FR-097`)
+- [X] T127 [US9] Implementar `backend/app/rotinas/semanal.py` — resumo de segunda e alerta de caixa baixo sobre `caixa_baixo_horizonte_dias` — mais `POST /api/rotinas/semanal` para disparo manual (`FR-098`, `FR-099`)
+- [X] T128 [US9] Escrever `backend/tests/integracao/test_rotinas.py` provando que rodar a rotina duas vezes no mesmo dia não duplica nada e que um dia perdido é recuperado
+- [X] T129 [US10] Implementar as 5 rotas de usuários em `backend/app/usuarios/rotas.py`, com criação no Supabase Auth e a trava que recusa rebaixar ou desativar o **último gestor ativo** (contracts/plataforma.md §2)
+- [X] T130 [US10] Implementar `GET /api/configuracoes` (gestor e operador) e `PUT /api/configuracoes` (gestor), devolvendo `efeitos` e reavaliando a inadimplência **na hora** quando a tolerância muda (`FR-105`, edge case)
+- [X] T131 🟢 [P] [US10] Implementar `GET /api/auditoria` nos dois modos — por registro (gestor e operador) e geral com filtros (gestor) — marcando `alteracao_historica` (`FR-103`)
+- [X] T132 🟢 [P] [US10] Implementar `GET /api/busca?q=&limite=` cobrindo lançamentos, clientes e categorias via `pg_trgm` (`FR-046`)
+- [X] T133 [US10] Implementar `POST /api/importacoes` em `backend/app/importacao/csv.py` — recebe o arquivo, **não grava**, devolve `importacao_id`, colunas detectadas e prévia (`FR-044`)
+- [X] T134 [P] [US10] Implementar a leitura de OFX em `backend/app/importacao/ofx.py` com ofxparse
+- [X] T135 [US10] Implementar `POST /api/importacoes/{id}/mapeamento` em `backend/app/importacao/mapeamento.py` com `mundo` obrigatório e categoria não reconhecida apontada na prévia, nunca criada sozinha
+- [X] T136 [US10] Implementar `POST /api/importacoes/{id}/confirmar` gravando em lotes com cursor (mesmo padrão de T081)
+- [X] T137 [US10] Implementar `POST /api/exportacoes/completa` e `GET /api/exportacoes/{id}` em `backend/app/relatorios/` — ZIP com um CSV por tabela mais os anexos, por lote com cursor (`FR-112`, `SC-011`)
+- [X] T138 [US10] Escrever `backend/tests/integracao/test_rbac.py` chamando **todos** os endpoints de gestor com token de operador e exigindo `403` (`SC-010`)
+- [X] T139 [US10] Escrever os testes de contrato de plataforma em `backend/tests/contrato/test_plataforma.py`
+- [X] T140 Verificar documentação de B6 e registrar a resposta (Princípio V)
+
+> **Resposta de T140 (2026-07-30)** — três ajustes, e uma pendência que não é ajuste:
+>
+> 1. `data-model.md` §7 — **migração `011_importacoes.sql`**. A tabela não estava entre as
+>    19 do desenho: a necessidade só apareceu ao implementar o fluxo de três requisições de
+>    `FR-044`, que precisa do conteúdo lido sobrevivendo entre elas. Memória não serve —
+>    cada requisição da Vercel pode cair numa instância diferente, o mesmo motivo de D-01.
+> 2. `contracts/plataforma.md` §6 — `POST /api/rotinas/semanal` documentado como **sem cron
+>    próprio**: o plano gratuito dá um cron por dia, então a diária dispara a semanal na
+>    segunda, com chave por semana ISO.
+> 3. `backend/pyproject.toml` — **`ofxparse` não entrou**. A leitura de OFX é uma regex sobre
+>    `<STMTTRN>`, porque a biblioteca arrasta `lxml` e `beautifulsoup4` e o pacote da função
+>    tem tamanho limitado. É uma **troca declarada**: um OFX malformado que a `ofxparse`
+>    aceitaria pode falhar aqui, e o tratamento é dizer isso em PT-BR e sugerir o CSV.
+>
+> **Documento-mestre**: nada a mudar.
+>
+> ⚠️ **Pendência aberta**: a migração `011` **não foi aplicada** no Supabase — o MCP
+> desconectou no meio da sub-fase. Sem ela, os três endpoints de importação respondem erro
+> de tabela inexistente. É a única coisa que separa B6 de estar completo em produção.
 
 **✅ Checkpoint Boss 2**: os ~75 endpoints no ar, os 7 testes obrigatórios passando,
 `/api/docs` batendo com `contracts/`.

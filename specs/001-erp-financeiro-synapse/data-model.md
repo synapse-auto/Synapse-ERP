@@ -634,6 +634,7 @@ centavos incomoda menos numa parcela que ninguém anunciou.
 | `007_seed_configuracoes.sql` | tabela `configuracoes` completa (§3.15) |
 | `008_seed_dominio.sql` | 9 categorias, 9 serviços, 2 funcionários — **depende da confirmação do mundo dos funcionários** (§3.6) |
 | `009_seed_anexo_url_assinada.sql` | chave `anexo_url_assinada_segundos` (§3.15). Nasceu em B1/T064: os anexos precisavam de um prazo para a URL assinada, e prazo não mora no código (Princípio VII). Migração nova em vez de editar a `007`, que já estava aplicada |
+| `011_importacoes.sql` | tabela `importacoes` — o estado das três etapas da importação (`FR-044`). **Não estava entre as 19 tabelas do desenho**: a necessidade só ficou clara ao implementar o fluxo de três requisições, que precisa do conteúdo lido sobrevivendo entre elas. Memória não serve (cada requisição da Vercel pode cair numa instância diferente — o mesmo motivo de D-01). Dado **temporário**: expira em 24h |
 | `010_ocorrencia_unica_por_data.sql` | índice único `lancamentos (recorrencia_id, data) where recorrencia_id is not null`. Nasceu em B2/T083: **sem ele a idempotência de D-08 não existe**. É o que permite `insert … on conflict do nothing` em vez de um `select` antes de cada ocorrência (N+1 numa função com duração limitada), e cobre o caso de duas invocações simultâneas. Deliberadamente **não** é parcial em `excluido_em is null`: excluir uma ocorrência não pode fazê-la renascer na próxima execução da rotina (§3.13) |
 
 As `003`/`004` têm dependência circular entre `subcategorias.cliente_id` e
