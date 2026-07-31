@@ -1,0 +1,316 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@import "../estilos/tokens.css";
+@import "../estilos/tema-escuro.css";
+
+/* O tema escuro é marcado pelo `next-themes` nos dois formatos: `class`
+   (o que o Tailwind/shadcn espera) e `data-theme` (o que research.md D-12
+   escreve). A variante cobre os dois. */
+@custom-variant dark (&:where(.dark, [data-theme="dark"], .dark *, [data-theme="dark"] *));
+
+/* ============================================================
+   Fontes — carregadas por `next/font/google` em app/layout.tsx (T145).
+   As três famílias do design system, com a mesma ordem de fallback que
+   `colors_and_type.css` declara.
+   ============================================================ */
+:root {
+  --font-display:
+    var(--fonte-display), "Plus Jakarta Sans", "Inter", system-ui, -apple-system, Segoe UI,
+    sans-serif;
+  --font-body: var(--fonte-body), "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-mono: var(--fonte-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ============================================================
+   Ponte para o Tailwind e para o shadcn/ui.
+
+   Os papéis semânticos do shadcn (background, primary, muted…) apontam
+   para os papéis do Synapse Design System. Consequência: todo componente
+   do shadcn nasce na marca, e o tema escuro chega neles sem que nenhum
+   deles saiba que existe tema.
+   ============================================================ */
+@theme inline {
+  /* --- papéis do shadcn --- */
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--superficie-cartao);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--superficie-cartao);
+  --color-popover-foreground: var(--fg);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--fg-onbrand);
+  --color-secondary: var(--bg-subtle);
+  --color-secondary-foreground: var(--fg-strong);
+  --color-muted: var(--bg-subtle);
+  --color-muted-foreground: var(--fg-muted);
+  --color-accent: var(--brand-tint-2);
+  --color-accent-foreground: var(--lateral-ativo-fg);
+  --color-destructive: var(--danger-500);
+  --color-destructive-foreground: var(--white);
+  --color-border: var(--border);
+  --color-input: var(--linha-controle);
+  --color-ring: var(--brand);
+
+  --color-sidebar: var(--superficie-lateral);
+  --color-sidebar-foreground: var(--fg);
+  --color-sidebar-primary: var(--brand);
+  --color-sidebar-primary-foreground: var(--fg-onbrand);
+  --color-sidebar-accent: var(--lateral-ativo-bg);
+  --color-sidebar-accent-foreground: var(--lateral-ativo-fg);
+  --color-sidebar-border: var(--linha-chrome);
+  --color-sidebar-ring: var(--brand);
+
+  /* --- escala bruta do design system, exposta como utilitário --- */
+  --color-roxo-50: var(--purple-50);
+  --color-roxo-100: var(--purple-100);
+  --color-roxo-200: var(--purple-200);
+  --color-roxo-300: var(--purple-300);
+  --color-roxo-400: var(--purple-400);
+  --color-roxo-500: var(--purple-500);
+  --color-roxo-600: var(--purple-600);
+  --color-roxo-700: var(--purple-700);
+  --color-roxo-800: var(--purple-800);
+  --color-roxo-900: var(--purple-900);
+
+  --color-tinta-50: var(--ink-50);
+  --color-tinta-100: var(--ink-100);
+  --color-tinta-200: var(--ink-200);
+  --color-tinta-300: var(--ink-300);
+  --color-tinta-400: var(--ink-400);
+  --color-tinta-500: var(--ink-500);
+  --color-tinta-600: var(--ink-600);
+  --color-tinta-700: var(--ink-700);
+  --color-tinta-800: var(--ink-800);
+  --color-tinta-900: var(--ink-900);
+
+  /* --- papéis do Synapse, em PT-BR (Princípio: domínio em português) --- */
+  --color-marca: var(--brand);
+  --color-marca-hover: var(--brand-hover);
+  --color-marca-press: var(--brand-press);
+  --color-marca-tint: var(--brand-tint);
+  --color-marca-tint-2: var(--brand-tint-2);
+
+  --color-forte: var(--fg-strong);
+  --color-suave: var(--fg-muted);
+  --color-sutil: var(--fg-subtle);
+
+  --color-sucesso: var(--success-500);
+  --color-sucesso-suave: var(--success-50);
+  --color-aviso: var(--warn-500);
+  --color-aviso-suave: var(--warn-50);
+  --color-perigo: var(--danger-500);
+  --color-perigo-suave: var(--danger-50);
+  --color-informacao: var(--info-500);
+  --color-informacao-suave: var(--info-50);
+
+  --color-superficie-app: var(--superficie-app);
+  --color-superficie-lateral: var(--superficie-lateral);
+  --color-superficie-cartao: var(--superficie-cartao);
+  --color-linha-chrome: var(--linha-chrome);
+  --color-linha-controle: var(--linha-controle);
+  --color-linha-suave: var(--linha-suave);
+  --color-segmento: var(--segmento-bg);
+  --color-lateral-ativo: var(--lateral-ativo-bg);
+  --color-lateral-ativo-fg: var(--lateral-ativo-fg);
+  --color-lateral-hover: var(--lateral-hover-bg);
+
+  --color-mundo-digital: var(--mundo-digital);
+  --color-mundo-infra: var(--mundo-infra);
+  --color-mundo-ambos: var(--mundo-ambos);
+
+  /* --- raios: a escada do design system, sem interpolação --- */
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-2xl: var(--r-2xl);
+  --radius-3xl: var(--r-2xl);
+  --radius-4xl: var(--r-2xl);
+
+  /* --- tipografia --- */
+  --font-sans: var(--font-body);
+  --font-titulo: var(--font-display);
+  --font-mono: var(--fonte-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* --- sombras --- */
+  --shadow-cartao: var(--sombra-cartao);
+  --shadow-destaque: var(--sombra-destaque);
+  --shadow-acao: var(--sombra-acao);
+  --shadow-painel: var(--sombra-painel);
+
+  /* --- motion: as três durações e as duas curvas do design system --- */
+  --ease-saida: var(--ease-out);
+  --ease-entrada-saida: var(--ease-in-out);
+  --animate-entrada: entrada var(--dur-slow) var(--ease-out);
+  --animate-gaveta: gaveta var(--dur-slow) var(--ease-out);
+  --animate-esmaecer: esmaecer var(--dur-base) var(--ease-out);
+  --animate-surgir: surgir var(--dur-base) var(--ease-out);
+}
+
+/* `--radius` é lido diretamente por alguns componentes do shadcn.
+   Campos e botões pequenos: 10px (`--r-md`), como o design system manda. */
+:root {
+  --radius: var(--r-md);
+}
+
+/* ============================================================
+   Animações do mockup (`Synapse ERP Financeiro.dc.html`, bloco <style>).
+   Nomes traduzidos, valores idênticos.
+   ============================================================ */
+@keyframes entrada {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes gaveta {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes esmaecer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes surgir {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-family: var(--font-body);
+    color-scheme: light;
+  }
+
+  html.dark,
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background: var(--superficie-app);
+    color: var(--fg);
+    font-size: var(--fs-16);
+    line-height: var(--lh-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    color: var(--fg-strong);
+    letter-spacing: var(--tracking-tight);
+    line-height: var(--lh-tight);
+    font-weight: 700;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  p {
+    margin: 0;
+    line-height: var(--lh-normal);
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--purple-200);
+    color: var(--ink-900);
+  }
+
+  /* Barra de rolagem do mockup */
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #dcd7e8;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c4bdd6;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .dark ::-webkit-scrollbar-thumb,
+  [data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #3a3159;
+    background-clip: content-box;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover,
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #4b4173;
+    background-clip: content-box;
+  }
+
+  /* Foco visível é sempre o anel roxo do design system — nunca removido. */
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--ring-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Números de dinheiro e data alinham em coluna — tabular sempre. */
+  .numerico {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Rótulo de seção do mockup: 10–11px, 700, caixa alta, tracking largo. */
+  .rotulo-seccao {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-subtle);
+  }
+}

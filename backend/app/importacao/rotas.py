@@ -18,7 +18,7 @@ Tarefas: T133, T135, T136
 """
 
 import json
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -27,12 +27,14 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.comum.auditoria import registra_auditoria
 from app.comum.erros import ErroNaoEncontrado, ErroRegraViolada, ErroValidacao
 from app.db import obter_conexao
 from app.dominio import mundo as mod_mundo
 from app.importacao import csv as leitor_csv
 from app.importacao import mapeamento as mod_mapeamento
 from app.importacao import ofx as leitor_ofx
+from app.lancamentos.servico import le_configuracao
 from app.seguranca.auth import UsuarioAutenticado
 from app.seguranca.rbac import exige_papel
 
@@ -97,16 +99,34 @@ async def _exige(conexao: AsyncConnection, importacao_id: UUID, usuario_id: UUID
     # responde 404, não 403 — 403 já contaria que ela existe.
     if linha is None:
         raise ErroNaoEncontrado("Importação não encontrada.")
-    return dict(linha)
+
+    # A expiração de 24h existia só como `default` da coluna: nada a conferia, e uma
+    # importação abandonada continuava gravável para sempre. O prazo é o que impede
+    # confirmar hoje um arquivo mapeado semana passada, quando as categorias e o saldo
+    # já são outros.
+    registro = dict(linha)
+    if registro["concluida_em"] is None and registro["expira_em"] <= datetime.now(UTC):
+        raise ErroRegraViolada(
+            "Esta importação expirou. Envie o arquivo de novo.",
+            requisito="FR-044",
+            campos={"importacao": "Importações valem por 24 horas depois do envio."},
+        )
+    return registro
 
 
-async def _categorias_por_nome(conexao: AsyncConnection) -> dict[str, str]:
+async def _categorias_por_nome(conexao: AsyncConnection) -> dict[str, tuple[str, str]]:
+    """Nome em minúsculas → `(id, nome original)`.
+
+    O nome original é guardado porque a sugestão de categoria (`FR-044`) é mostrada ao
+    usuário — "você quis dizer Ferramentas/Assinaturas?" com a grafia do cadastro, não
+    a minúscula que serve só de chave de busca.
+    """
     linhas = (
         await conexao.execute(
             text("select id, nome from categorias where arquivada_em is null and not especial")
         )
     ).all()
-    return {nome.strip().lower(): str(identificador) for identificador, nome in linhas}
+    return {nome.strip().lower(): (str(identificador), nome) for identificador, nome in linhas}
 
 
 # ── T133 · POST /api/importacoes ────────────────────────────────────────────
@@ -319,10 +339,19 @@ async def confirmar(
     inicio = importacao["cursor"]
     do_lote = validas[inicio : inicio + LOTE_DE_GRAVACAO]
 
+    # `RNF-02`/`FR-106`: o padrão de efetivação é dado, não código. Vale para as linhas
+    # com data futura — as passadas nascem `efetivado` de qualquer jeito. Antes daqui
+    # estava `true` fixo no `insert`, que é exatamente o hardcode que `FR-029` proíbe.
+    efetivar_auto = bool(
+        await le_configuracao(conexao, "efetivacao_automatica_padrao", padrao=True)
+    )
+
+    hoje = date.today()
     gravados = 0
     for linha in do_lote:
-        await conexao.execute(
-            text("""
+        criado = (
+            await conexao.execute(
+                text("""
                 insert into lancamentos (
                   mundo, tipo, descricao, valor, data, status, categoria_id,
                   efetivar_automaticamente, efetivado_em, efetivado_por, criado_por
@@ -330,23 +359,52 @@ async def confirmar(
                   cast(:mundo as mundo), cast(:tipo as tipo_lancamento), :descricao,
                   :valor, :data,
                   case when :data <= :hoje then 'efetivado' else 'programado' end::status_lancamento,
-                  cast(:categoria as uuid), true,
+                  cast(:categoria as uuid), :efetivar_auto,
                   case when :data <= :hoje then now() end,
                   case when :data <= :hoje then cast(:usuario as uuid) end,
                   cast(:usuario as uuid)
                 )
+                returning id
                 """),
-            {
+                {
+                    "mundo": importacao["mundo"],
+                    "tipo": linha.tipo,
+                    "descricao": linha.descricao,
+                    # `RN-02`: valor sempre positivo; o sinal do extrato virou `tipo`.
+                    "valor": abs(linha.valor),
+                    "data": linha.data,
+                    "hoje": hoje,
+                    "categoria": linha.categoria_id,
+                    "efetivar_auto": efetivar_auto,
+                    "usuario": str(usuario.id),
+                },
+            )
+        ).scalar_one()
+
+        # `FR-103`/`RN-08`/`SC-014`: **toda** criação registra autor e data. Este era o
+        # único caminho de criação de lançamento sem rastro na auditoria — e é
+        # justamente o que cria centenas de linhas de uma vez, onde "de onde veio isso?"
+        # é a primeira pergunta que alguém faz.
+        await registra_auditoria(
+            conexao,
+            entidade="lancamentos",
+            entidade_id=criado,
+            acao="criacao",
+            depois={
                 "mundo": importacao["mundo"],
                 "tipo": linha.tipo,
                 "descricao": linha.descricao,
-                # `RN-02`: valor sempre positivo; o sinal do extrato virou `tipo`.
                 "valor": abs(linha.valor),
                 "data": linha.data,
-                "hoje": date.today(),
-                "categoria": linha.categoria_id,
-                "usuario": str(usuario.id),
+                "categoria_id": linha.categoria_id,
+                # O que distingue este registro de um lançamento digitado à mão. Sem
+                # isto, a linha do tempo diria "criado por Lucas" para 300 lançamentos
+                # que ninguém digitou.
+                "origem": "importacao",
+                "importacao_id": str(importacao_id),
+                "arquivo": importacao["nome_arquivo"],
             },
+            usuario_id=usuario.id,
         )
         gravados += 1
 

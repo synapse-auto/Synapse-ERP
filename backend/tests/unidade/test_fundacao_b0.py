@@ -19,7 +19,7 @@ from app.comum.erros import (
     ErroValidacao,
     formata_dinheiro,
 )
-from app.comum.idempotencia import registra_resposta, resposta_ja_registrada
+from app.comum.idempotencia import chave_de_idempotencia
 from app.comum.paginacao import Paginacao, envelope
 
 # ── Formato de erro (T025) ───────────────────────────────────────────────────
@@ -300,23 +300,22 @@ def test_criacao_registra_todo_campo_preenchido():
 
 
 # ── Idempotência (T028) ──────────────────────────────────────────────────────
+#
+# A validação do cabeçalho continua aqui — é regra pura. O reaproveitamento da chave
+# **saiu** para `tests/integracao/test_lancamentos.py` em 2026-07-31: desde a migração
+# `012` a chave vive no banco, não em memória do processo. Testá-la sem banco voltaria a
+# testar o mecanismo que não cobria o caso real (ver `app/comum/idempotencia.py`).
 
 
-def test_mesma_chave_devolve_o_resultado_guardado():
-    registra_resposta("k1", rota="/api/lancamentos", usuario_id="u1", resposta={"id": "abc"})
-    assert resposta_ja_registrada("k1", rota="/api/lancamentos", usuario_id="u1") == {"id": "abc"}
+def test_chave_vazia_e_tratada_como_ausente():
+    assert chave_de_idempotencia("   ") is None
+    assert chave_de_idempotencia(None) is None
 
 
-def test_chave_e_escopada_por_usuario_e_por_rota():
-    registra_resposta("k1", rota="/api/lancamentos", usuario_id="u1", resposta={"id": "abc"})
-    assert resposta_ja_registrada("k1", rota="/api/lancamentos", usuario_id="u2") is None
-    assert resposta_ja_registrada("k1", rota="/api/clientes", usuario_id="u1") is None
-
-
-def test_sem_chave_nunca_reaproveita():
-    """Cabeçalho é opcional; sem ele, cada chamada é uma operação nova."""
-    registra_resposta(None, rota="/api/lancamentos", usuario_id="u1", resposta={"id": "abc"})
-    assert resposta_ja_registrada(None, rota="/api/lancamentos", usuario_id="u1") is None
+def test_chave_longa_demais_e_recusada():
+    with pytest.raises(ErroValidacao) as capturado:
+        chave_de_idempotencia("x" * 201)
+    assert "Idempotency-Key" in capturado.value.campos
 
 
 # ── App e contrato (T032, T033) ──────────────────────────────────────────────

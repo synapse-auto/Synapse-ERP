@@ -1,0 +1,158 @@
+/* ============================================================
+   Synapse ERP — escala escura DERIVADA (T144, research.md D-12)
+
+   O Synapse Design System não tem tema escuro e o mockup só existe em
+   claro. `RNF-09`/`FR-109`/`SC-009` exigem tema escuro em 100% das telas.
+   D-12 decidiu derivar a escala das regras que o design system já enuncia,
+   em vez de inventar uma paleta nova. As cinco regras, aplicadas aqui:
+
+   1. Fundo base = `--ink-900` (#14102B). Nunca `#000` — o design system
+      proíbe preto puro.
+   2. Superfícies elevadas sobem a escala de tinta (#1E1633, #2B2347).
+      Sem sombra colorida: sombra roxa sobre fundo escuro não se vê.
+      Elevação no escuro = diferença de luminosidade + hairline.
+   3. Roxo de ação sobe um passo: `--purple-400` (#A78BFA). O hover
+      escurece (regra do design system), então vai para #8B6CF0.
+   4. Semânticos reajustados para contraste AA sobre #14102B. Os valores
+      claros não passam — o vermelho #D64545 dá ~3,7:1 e o azul #4F7DF3
+      dá ~4,3:1, ambos abaixo de 4,5:1 para texto normal.
+   5. Entregue como bloco de sobrescrita das MESMAS variáveis, para que
+      nenhum componente precise saber que existe tema.
+
+   As variáveis de escala bruta (`--purple-*`, `--ink-*`) NÃO são
+   sobrescritas: elas são a paleta, não o papel. Só os papéis mudam.
+
+   Seletores: `[data-theme="dark"]` é o que D-12 escreve; `.dark` é o que o
+   Tailwind v4/shadcn usa como variante. `next-themes` marca os dois.
+   ============================================================ */
+
+[data-theme="dark"],
+.dark {
+  /* ---------- Semânticos reajustados (regra 4) ----------
+     Contraste aproximado sobre o fundo base #14102B:
+       verde  #45C98F ≈ 7,9:1   (era #2BAE76 ≈ 6,1:1 — passava, subiu junto
+                                 para não destoar dos vizinhos)
+       âmbar  #EFB43C ≈ 8,6:1   (era #E0A018 ≈ 7,0:1)
+       vermelho #E97A7A ≈ 5,3:1 (era #D64545 ≈ 3,7:1 — reprovava)
+       azul   #7FA1F7 ≈ 6,9:1   (era #4F7DF3 ≈ 4,3:1 — reprovava)          */
+  --success-500: #45c98f;
+  --success-50: #16332a;
+  --warn-500: #efb43c;
+  --warn-50: #382c14;
+  --danger-500: #e97a7a;
+  --danger-50: #3a1e21;
+  --info-500: #7fa1f7;
+  --info-50: #1a2444;
+
+  /* ---------- Papéis de fundo (regras 1 e 2) ---------- */
+  --bg: #14102b; /* = --ink-900, nunca #000 */
+  --bg-subtle: #1e1633; /* = --ink-800, um degrau acima */
+  --bg-muted: #2b2347; /* = --ink-700 */
+  --bg-invert: #f7f5fb;
+
+  /* ---------- Papéis de texto ----------
+     Não são o inverso mecânico do claro: a tinta clara mais alta (#F7F5FB)
+     sobre #14102B dá 17:1, o que "vibra". O topo fica em #F1EEF9.          */
+  --fg: #e4e0ee;
+  --fg-strong: #f1eef9;
+  --fg-muted: #a9a2be;
+  --fg-subtle: #8b84a0;
+  --fg-onbrand: #14102b; /* texto SOBRE o roxo de ação, que agora é claro */
+
+  /* ---------- Bordas: hairline por luminosidade (regra 2) ---------- */
+  --border: #2e2748;
+  --border-strong: #40385f;
+  --border-brand: #4a3a86;
+
+  /* ---------- Marca um passo mais clara (regra 3) ---------- */
+  --brand: var(--purple-400); /* #A78BFA */
+  --brand-hover: var(--purple-500); /* #8B6CF0 — hover escurece */
+  --brand-press: var(--purple-600); /* #7C5CE0 */
+  --brand-tint: #1f1940;
+  --brand-tint-2: #2a2154;
+
+  /* ---------- Gradientes: mesma forma, tinta escura ---------- */
+  --grad-brand: linear-gradient(135deg, #8b6cf0 0%, #6a47c7 100%);
+  --grad-brand-soft: linear-gradient(135deg, #241c46 0%, #1a1433 100%);
+  --grad-hero:
+    radial-gradient(1200px 600px at 20% -10%, #241c46 0%, rgba(36, 28, 70, 0) 60%),
+    radial-gradient(900px 500px at 110% 10%, #1f1940 0%, rgba(31, 25, 64, 0) 55%), #14102b;
+  --grad-surface: linear-gradient(180deg, #1e1633 0%, #191330 100%);
+
+  /* ---------- Sombras: sem tom roxo, quase só profundidade (regra 2) ----
+     Sombra colorida some no escuro. O que separa camada de camada aqui é a
+     luminosidade da superfície mais a hairline; a sombra só ancora.        */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 6px 16px -4px rgba(0, 0, 0, 0.48), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.58), 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 32px 64px -20px rgba(0, 0, 0, 0.7);
+  --shadow-brand: 0 12px 32px -8px rgba(124, 92, 224, 0.45);
+  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --ring-brand: 0 0 0 4px rgba(167, 139, 250, 0.22);
+  --ring-focus: 0 0 0 3px rgba(167, 139, 250, 0.45);
+
+  /* ---------- Medidas/superfícies do mockup ----------
+     As medidas (246px, 64px) não mudam com o tema. As superfícies sim.     */
+  --superficie-app: #14102b;
+  --superficie-lateral: #191330;
+  --superficie-cartao: #1e1633;
+  --linha-chrome: #2b2347;
+  --linha-controle: #362e56;
+  --linha-suave: #251e40;
+  --lateral-ativo-bg: #2e2352;
+  --lateral-ativo-fg: #c4b2fd;
+  --lateral-hover-bg: #241c3f;
+  --lateral-hover-fg: #e4e0ee;
+  --segmento-bg: #1a1433;
+
+  /* Mundos: o roxo e o azul sobem junto com os semânticos */
+  --mundo-digital: #a78bfa;
+  --mundo-infra: #7fa1f7;
+  --mundo-ambos: #a9a2be;
+
+  --sombra-cartao: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --sombra-destaque: 0 10px 28px -18px rgba(0, 0, 0, 0.7);
+  --sombra-acao: 0 8px 20px -8px rgba(124, 92, 224, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --sombra-painel: 0 24px 60px -24px rgba(0, 0, 0, 0.75);
+
+  /* ---------- Estados e mundos, na escala escura ----------
+     Mesma forma do claro (fundo tingido + texto e ponto na cor do estado),
+     invertida: no claro o fundo é a versão pálida e o texto é o tom escuro;
+     no escuro o fundo é o tom escuro e o texto é o semântico já reajustado
+     acima, que passa AA sobre #14102B.                                     */
+  --st-efetivado-bg: #16332a;
+  --st-efetivado-fg: #45c98f;
+  --st-efetivado-dot: #45c98f;
+
+  --st-programado-bg: #1a2444;
+  --st-programado-fg: #7fa1f7;
+  --st-programado-dot: #7fa1f7;
+
+  --st-pendente-bg: #382c14;
+  --st-pendente-fg: #efb43c;
+  --st-pendente-dot: #efb43c;
+
+  --st-atrasado-bg: #3a1e21;
+  --st-atrasado-fg: #e97a7a;
+  --st-atrasado-dot: #e97a7a;
+
+  --st-cancelado-bg: #251e40;
+  --st-cancelado-fg: #a9a2be;
+  --st-cancelado-dot: #8b84a0;
+
+  --receita-fg: #45c98f;
+  --receita-bg: #16332a;
+  --despesa-fg: #e97a7a;
+  --despesa-bg: #3a1e21;
+  --valor-previsto-fg: #8b84a0;
+
+  --mundo-digital-bg: #2a2154;
+  --mundo-digital-fg: #c4b2fd;
+  --mundo-infra-bg: #1a2444;
+  --mundo-infra-fg: #a9c0fa;
+
+  --linha-selecionada: #241c46;
+  --linha-marcada: #1c1638;
+  --linha-hover: #1c1638;
+}

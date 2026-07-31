@@ -421,6 +421,86 @@ direta**, não só pelo menu escondido.
 **✅ Checkpoint Boss 2**: os ~75 endpoints no ar, os 7 testes obrigatórios passando,
 `/api/docs` batendo com `contracts/`.
 
+> **Número real, medido em 2026-07-31 depois da auditoria abaixo**:
+>
+> ```
+> .venv/Scripts/python -m pytest tests -q -m "not lento"
+> 509 passed, 4 deselected in 2086.76s (0:34:46)
+> ```
+>
+> **94 rotas** carregadas, lint e formatação limpos.
+>
+> Os 4 dispensados são o `test_desempenho.py` (`SC-007`/`SC-002`), que insere milhares de
+> linhas no banco de produção — rodá-lo continua sendo decisão consciente, fora do horário
+> de uso (ressalva de T097, ainda de pé).
+>
+> Antes da auditoria este checkpoint estava verde com a suíte de integração **quebrada**:
+> 91 errors na execução completa. As ressalvas de B1–B6 ("21 testes escritos", "20", "16",
+> "21") contavam teste **escrito**, não teste **passando** — que é exatamente o que o
+> Princípio VI proíbe. As ressalvas seguem no texto de cada sub-fase como registro do que
+> foi declarado na época; o número acima é o que vale.
+
+---
+
+## Auditoria de fim do Boss 2 — 2026-07-31
+
+Conferência do documento-mestre contra o código e contra o banco, **rodando**: banco lido
+pelo MCP do Supabase, rotas carregadas do app FastAPI, suíte executada. Correções aplicadas
+na mesma entrega.
+
+### O que estava quebrado e foi corrigido
+
+| # | Defeito | Onde |
+|---|---|---|
+| 1 | **Pooler derrubava consulta em produção.** `statement_cache_size=0` não basta com pgbouncer em modo *transaction*: o asyncpg nomeia o statement por contador, o contador reinicia a cada conexão nova (`NullPool`) e duas requisições concorrentes multiplexadas no mesmo servidor colidiam em `DuplicatePreparedStatementError`. Faltava `prepared_statement_name_func` | `app/db.py`, `tests/conftest.py` |
+| 2 | **Consultas que nunca chegavam a executar.** 12 usos de `:param::date` — o `text()` do SQLAlchemy **não** substitui bind seguido de `:`, então o `:inicio::date` ia literal para o Postgres e virava erro de sintaxe. Atingia fluxo de caixa, evolução do saldo, sparklines, matriz mensal e filtro de auditoria por data | `dashboard/repositorio.py`, `relatorios/repositorio.py`, `auditoria/rotas.py` |
+| 3 | **`card_clientes.inadimplentes` era `[]` fixo** — o comentário dizia "chega em B4", B4 fechou e ninguém voltou. `RF-44`/`FR-083`/`SC-006` pedem o destaque no Dashboard; funcionava na lista e no perfil, não no painel | `dashboard/rotas.py`, `dashboard/repositorio.py` |
+| 4 | **Comparativo vazio nos cards Clientes e Funcionários** (`RF-44`, `RF-45`, `FR-055`) | `dashboard/rotas.py` |
+| 5 | **Reordenar card não fazia nada** quando a posição escolhida empatava com um `ordem_padrao` do catálogo: a ordenação é estável e o catálogo ganhava (`FR-071`) | `dashboard/rotas.py` |
+| 6 | **O resumo em linguagem natural engolia o aviso de contas vencidas** em período sem lançamento efetivado — o retorno antecipado pulava a frase. É quando o aviso mais importa (`FR-070`) | `dashboard/rotas.py` |
+| 7 | **Alerta de caixa baixo ignorava as contas já vencidas**: `data between hoje and ate` exclui `atrasado`, que por definição tem data no passado (`RF-83`) | `rotinas/semanal.py` |
+| 8 | **Lançamento importado não registrava auditoria** — único caminho de criação sem rastro, e justamente o que cria centenas de linhas de uma vez (`RF-03`, `RN-08`, `SC-014`) | `importacao/rotas.py` |
+| 9 | **A validade de 24h da importação estava escrita e não era aplicada**: nem recusa, nem faxina. Upload abandonado ficava gravável para sempre, com o arquivo inteiro na tabela | `importacao/rotas.py`, `rotinas/diaria.py` |
+| 10 | **`efetivar_automaticamente` fixo em `true`** no `insert` da importação, ignorando `configuracoes.efetivacao_automatica_padrao` (`FR-029`, `RNF-02`) | `importacao/rotas.py` |
+| 11 | **"Sugestão de categoria" era casamento exato de nome** — `RF-21`/`FR-044` pedem sugestão. Agora sugere a mais parecida por similaridade, e **não aplica sozinha** | `importacao/mapeamento.py` |
+| 12 | **Teste de split exigia a diferença na `mensagem`**; o contrato a coloca em `campos.partes` e o código seguia o contrato. Teste e docstring estavam desatualizados, não o código | `tests/integracao/test_lancamentos.py`, `dominio/split.py` |
+| 13 | **Editar recorrência com `esta_e_futuras` apagava o futuro e não regerava nada.** O índice único `(recorrencia_id, data)` da migração `010` não filtra `excluido_em` — de propósito, para ocorrência excluída não renascer. A consequência não tinha sido vista: o soft delete **não libera a data**, então o `on conflict do nothing` da regeneração não inseria nenhuma linha. `RN-07`/`FR-034` prometem o contrário, e a série ficava sem futuro **em silêncio**. Corrigido com remoção definitiva só nesse caminho (alvo estreito: gerada pelo sistema, nunca efetivada, de regra recém-substituída) | `recorrencias/repositorio.py`, `recorrencias/rotas.py` |
+| 14 | **Promover categoria a um `vinculo` já ocupado devolvia `500`.** O `update` batia no índice `categorias_vinculo_uidx` e o usuário recebia "Algo deu errado do nosso lado" numa ação previsível. Agora é `409 regra_violada`/`FR-079` dizendo **qual** categoria já ocupa o vínculo | `categorias/rotas.py` |
+| 15 | **Idempotência não cobria o caso que existe para cobrir.** A divergência nº 2 do README do backend estava aberta desde B0 e o fechamento previsto para T056 nunca aconteceu: a chave vivia em memória do processo, e a repetição que a Vercel faz após timeout cai em instância nova. Resultado possível: dois lançamentos iguais, valor em dobro no saldo. Migração **`012`** aplicada e conferida | `migracoes/012_chaves_idempotencia.sql`, `comum/idempotencia.py`, `lancamentos/rotas.py`, `recorrencias/rotas.py`, `rotinas/diaria.py` |
+
+### Verificação de documentação (Princípio V) — **não** era "nada a mudar"
+
+- `Documentação/Requisitos da Plataforma Financeira.md` — §16 corrigido (19→**20 tabelas**,
+  17→**18 chaves**) e **§17 novo**, com os dois pontos que mudam o que estava escrito:
+  `RNF-06` (a exportação completa não leva os arquivos anexados) e `RF-21` (a sugestão de
+  categoria sugere, não aplica).
+- `contracts/plataforma.md` §8 — reescrito. Prometia `GET /api/exportacoes/{id}`, gravação
+  por lote com cursor e anexos no ZIP; **nada disso existe**. O endpoint é síncrono e
+  devolve o ZIP na hora. A troca está declarada com o limite dela.
+- `contracts/lancamentos.md` §6 — sugestão de categoria, validade de 24h, auditoria do
+  lançamento importado e origem do padrão de efetivação.
+- `contracts/consultas.md` §1 — inadimplentes, comparativo dos cards especiais, desempate de
+  ordem e o aviso de vencidos no resumo.
+- `data-model.md` — §3.20 nova (`chaves_idempotencia`), §5.15 nova (validade da
+  importação), a migração `012` e a nota da `011`.
+- `contracts/README.md` §Idempotência — escopo, prazo, transação e quais `POST` aceitam.
+- `backend/README.md` — divergência nº 2 marcada como resolvida, com o que foi feito.
+- `plan.md` — contagem de tabelas.
+
+O banco tem agora **21 tabelas** (`012` aplicada e conferida: RLS ligada, 0 políticas,
+0 grant para `anon`/`authenticated` — a mesma negação de D-03a).
+
+### O que ficou de fora — **precisa de decisão do dono do projeto**
+
+- **T006** (cadastro público desabilitado no Supabase Auth), **T008** (confirmar backup
+  gerenciado) e **T038** (publicar o projeto na Vercel) continuam abertas. São painel do
+  Supabase e da Vercel, não código.
+- **`GET /api/exportacoes/{id}` e a exportação por lote**: o contrato foi alinhado ao que
+  existe hoje. Voltar ao desenho assíncrono é trabalho novo e só se justifica quando o
+  histórico crescer — T210 mede.
+- **`POST /api/funcionarios/{id}/desarquivar`**: clientes têm, funcionários não. Nem o
+  contrato nem `RN-06` exigem; a assimetria está apontada, sem endpoint novo.
+
 ---
 
 # 🎨 FASE BOSS 3 — FRONTEND
@@ -437,93 +517,130 @@ então código próprio, e **registrar a pesquisa** (Princípio II).
 
 ## Sub-fase C0 — Fundação visual
 
-- [ ] T141 Inicializar o Next.js 15 (App Router) + TypeScript + Tailwind em `frontend/` e rodar `shadcn init`
-- [ ] T142 Copiar `colors_and_type.css` do Synapse Design System para `frontend/estilos/tokens.css` **sem reinterpretar**: roxo `#8B6CF0`, tinta `#14102B` (nunca `#000`), sombras com tom roxo, raios 10/14–20/28/999px, grade de 4pt
+- [X] T141 Inicializar o Next.js 15 (App Router) + TypeScript + Tailwind em `frontend/` e rodar `shadcn init`
+- [X] T142 Copiar `colors_and_type.css` do Synapse Design System para `frontend/estilos/tokens.css` **sem reinterpretar**: roxo `#8B6CF0`, tinta `#14102B` (nunca `#000`), sombras com tom roxo, raios 10/14–20/28/999px, grade de 4pt
 - [x] T143 ~~Aprovar a escala de tema escuro derivada~~ — **decidido em 2026-07-30: haverá tema escuro mesmo sem estar no design system, e a escala é derivada na hora da implementação** (T144). Sem aprovação prévia; a conferência é visual, tela a tela (T202)
-- [ ] T144 Escrever `frontend/estilos/tema-escuro.css` derivando a escala pelas regras de research.md D-12 — nunca `#000` (usar a tinta `#14102B` como base), elevação por luminosidade em vez de sombra colorida, roxo de ação um passo mais claro que `#8B6CF0`, semânticos reajustados para contraste AA — e ligar o alternador claro/escuro/automático em `frontend/app/layout.tsx` (`FR-109`)
-- [ ] T145 [P] Configurar fontes e providers em `frontend/app/layout.tsx` (TanStack Query, tema, zustand)
-- [ ] T146 [P] Extrair os SVGs de navegação do mockup para `frontend/componentes/comum/icones.tsx`; o resto da interface usa Lucide
-- [ ] T147 [P] Implementar `frontend/lib/formato.ts` com `Intl`: `R$ 1.234,56` e `dd/mm/aaaa` (`RNF-03`) — a API transporta ISO e decimal em string
-- [ ] T148 Implementar `frontend/lib/api.ts`: cliente HTTP tipado que lê o formato único de erro e mostra `erro.mensagem` como veio do backend, sem montar texto de regra de negócio no frontend (`RNF-02`)
-- [ ] T149 [P] Implementar `frontend/lib/supabase.ts` — **só login**; o frontend nunca fala com o banco (research.md D-03a)
-- [ ] T150 [P] Implementar `frontend/lib/estado-global.ts` com zustand: mundo e período espelhados na URL e mantidos entre navegações e sessões (`FR-001`)
-- [ ] T151 [P] Implementar `frontend/lib/atalhos.ts`: novo lançamento, busca global, navegação entre abas e fechar painel/modal (`FR-110`)
-- [ ] T152 Configurar `frontend/next.config.ts` com o rewrite de `/api/:path*` para `BACKEND_URL` — mesma origem, sem CORS (research.md D-02)
-- [ ] T153 [P] Configurar Vitest + Testing Library em `frontend/vitest.config.ts`
+- [X] T144 Escrever `frontend/estilos/tema-escuro.css` derivando a escala pelas regras de research.md D-12 — nunca `#000` (usar a tinta `#14102B` como base), elevação por luminosidade em vez de sombra colorida, roxo de ação um passo mais claro que `#8B6CF0`, semânticos reajustados para contraste AA — e ligar o alternador claro/escuro/automático em `frontend/app/layout.tsx` (`FR-109`)
+- [X] T145 [P] Configurar fontes e providers em `frontend/app/layout.tsx` (TanStack Query, tema, zustand)
+- [X] T146 [P] Extrair os SVGs de navegação do mockup para `frontend/componentes/comum/icones.tsx`; o resto da interface usa Lucide
+- [X] T147 [P] Implementar `frontend/lib/formato.ts` com `Intl`: `R$ 1.234,56` e `dd/mm/aaaa` (`RNF-03`) — a API transporta ISO e decimal em string
+- [X] T148 Implementar `frontend/lib/api.ts`: cliente HTTP tipado que lê o formato único de erro e mostra `erro.mensagem` como veio do backend, sem montar texto de regra de negócio no frontend (`RNF-02`)
+- [X] T149 [P] Implementar `frontend/lib/supabase.ts` — **só login**; o frontend nunca fala com o banco (research.md D-03a)
+- [X] T150 [P] Implementar `frontend/lib/estado-global.ts` com zustand: mundo e período espelhados na URL e mantidos entre navegações e sessões (`FR-001`)
+- [X] T151 [P] Implementar `frontend/lib/atalhos.ts`: novo lançamento, busca global, navegação entre abas e fechar painel/modal (`FR-110`)
+- [X] T152 Configurar `frontend/next.config.ts` com o rewrite de `/api/:path*` para `BACKEND_URL` — mesma origem, sem CORS (research.md D-02)
+- [X] T153 [P] Configurar Vitest + Testing Library em `frontend/vitest.config.ts`
 - [ ] T154 Criar o projeto `synapse-erp-web` na Vercel (root `frontend`, `BACKEND_URL` apontando para a API) e confirmar `https://<web>.vercel.app/api/saude` respondendo pelo proxy
 
 ## Sub-fase C1 — Casca da aplicação
 
-- [ ] T155 Implementar `frontend/app/entrar/page.tsx` com Supabase Auth (e-mail + senha), sem cadastro público
-- [ ] T156 Implementar `frontend/app/(app)/layout.tsx` e `frontend/componentes/layout/BarraLateral.tsx`: 246px, fundo `#F7F5FB`, item ativo `#EDE6FD`/`#4F3299`, as 7 abas de `FR-107` e o rodapé com Configurações e perfil
-- [ ] T157 Implementar `frontend/componentes/layout/CabecalhoGlobal.tsx` (64px) e `SeletorMundo.tsx` com os três estados Digital / Infra / Ambos (`FR-001`)
-- [ ] T158 [P] Implementar `frontend/componentes/layout/SeletorPeriodo.tsx` com os atalhos de período resolvidos pelo servidor (contracts/README.md)
-- [ ] T159 [P] Implementar `frontend/componentes/layout/BuscaGlobal.tsx` (atalho de teclado) e `SinoNotificacoes.tsx` com contador de não lidas (`FR-046`, `FR-100`)
-- [ ] T160 [P] Implementar `frontend/componentes/layout/AlternadorTema.tsx` persistindo em `usuarios.preferencias` (`FR-109`)
-- [ ] T161 [P] Implementar `frontend/componentes/comum/`: `Moeda`, `DataBR`, `BadgeStatus`, `BadgeMundo` e `EstadoVazio` ("Nada previsto", conforme mockup)
+- [X] T155 Implementar `frontend/app/entrar/page.tsx` com Supabase Auth (e-mail + senha), sem cadastro público
+- [X] T156 Implementar `frontend/app/(app)/layout.tsx` e `frontend/componentes/layout/BarraLateral.tsx`: 246px, fundo `#F7F5FB`, item ativo `#EDE6FD`/`#4F3299`, as 7 abas de `FR-107` e o rodapé com Configurações e perfil
+- [X] T157 Implementar `frontend/componentes/layout/CabecalhoGlobal.tsx` (64px) e `SeletorMundo.tsx` com os três estados Digital / Infra / Ambos (`FR-001`)
+- [X] T158 [P] Implementar `frontend/componentes/layout/SeletorPeriodo.tsx` com os atalhos de período resolvidos pelo servidor (contracts/README.md)
+- [X] T159 [P] Implementar `frontend/componentes/layout/BuscaGlobal.tsx` (atalho de teclado) e `SinoNotificacoes.tsx` com contador de não lidas (`FR-046`, `FR-100`)
+- [X] T160 [P] Implementar `frontend/componentes/layout/AlternadorTema.tsx` persistindo em `usuarios.preferencias` (`FR-109`)
+- [X] T161 [P] Implementar `frontend/componentes/comum/`: `Moeda`, `DataBR`, `BadgeStatus`, `BadgeMundo` e `EstadoVazio` ("Nada previsto", conforme mockup)
 
 ## Sub-fase C2 — US1 Lançamentos + US2 Mundos (P1) 🎯 MVP de tela
 
-- [ ] T162 [US1] Implementar `frontend/componentes/lancamentos/TabelaLancamentos.tsx` com TanStack Table: colunas de `FR-036`, cor por tipo e ordenação por qualquer coluna
-- [ ] T163 [US1] Implementar `frontend/componentes/lancamentos/BarraFiltros.tsx`: filtros combináveis, marcadores removíveis individualmente, limpar todos, contador e somas do conjunto filtrado (`FR-037`–`FR-039`)
-- [ ] T164 [US1] Implementar `frontend/componentes/lancamentos/FormLancamento.tsx` com react-hook-form + zod, valores padrão inteligentes, campo de mundo pré-preenchido e "salvar e criar outro" (`FR-004`, `FR-014`, `FR-015`)
-- [ ] T165 [US1] Implementar `frontend/componentes/lancamentos/PainelDetalhe.tsx`: um clique abre, duplo clique edita; valor, moeda de origem, classificação, programação, anexos, observações e histórico (`FR-041`, `FR-042`)
-- [ ] T166 [P] [US1] Implementar `frontend/componentes/lancamentos/DialogoSplit.tsx` mostrando a diferença que falta fechar antes de deixar salvar (`RN-11`)
-- [ ] T167 [P] [US1] Implementar `frontend/componentes/lancamentos/TabelaLote.tsx` e a barra de ações em massa (`FR-021`, `FR-040`)
-- [ ] T168 [P] [US1] Implementar o envio e o download de anexos com mensagem clara para arquivo grande e formato não suportado (`FR-013`)
-- [ ] T169 [P] [US1] Implementar a lixeira em `frontend/app/(app)/lancamentos/lixeira/page.tsx` com `dias_restantes` (`FR-017`)
+- [X] T162 [US1] Implementar `frontend/componentes/lancamentos/TabelaLancamentos.tsx` com TanStack Table: colunas de `FR-036`, cor por tipo e ordenação por qualquer coluna
+- [X] T163 [US1] Implementar `frontend/componentes/lancamentos/BarraFiltros.tsx`: filtros combináveis, marcadores removíveis individualmente, limpar todos, contador e somas do conjunto filtrado (`FR-037`–`FR-039`)
+- [X] T164 [US1] Implementar `frontend/componentes/lancamentos/FormLancamento.tsx` com react-hook-form + zod, valores padrão inteligentes, campo de mundo pré-preenchido e "salvar e criar outro" (`FR-004`, `FR-014`, `FR-015`)
+- [X] T165 [US1] Implementar `frontend/componentes/lancamentos/PainelDetalhe.tsx`: um clique abre, duplo clique edita; valor, moeda de origem, classificação, programação, anexos, observações e histórico (`FR-041`, `FR-042`)
+- [X] T166 [P] [US1] Implementar `frontend/componentes/lancamentos/DialogoSplit.tsx` mostrando a diferença que falta fechar antes de deixar salvar (`RN-11`)
+- [X] T167 [P] [US1] Implementar `frontend/componentes/lancamentos/TabelaLote.tsx` e a barra de ações em massa (`FR-021`, `FR-040`)
+- [X] T168 [P] [US1] Implementar o envio e o download de anexos com mensagem clara para arquivo grande e formato não suportado (`FR-013`)
+- [X] T169 [P] [US1] Implementar a lixeira em `frontend/app/(app)/lancamentos/lixeira/page.tsx` com `dias_restantes` (`FR-017`)
 - [ ] T170 [US2] Conferir a troca de mundo em todas as telas já prontas e a identificação visual por item no modo "Ambos" — zero dado do mundo errado (`SC-005`, `FR-003`)
 
 ## Sub-fase C3 — US3 Programação e recorrência (P1)
 
-- [ ] T171 [US3] Implementar os campos de recorrência e o `DialogoSerie.tsx` ("só este" / "este e os futuros") em `frontend/componentes/lancamentos/` (`FR-034`)
-- [ ] T172 [US3] Implementar a confirmação de geração retroativa mostrando quantas ocorrências e o intervalo, com barra de progresso para a geração em lotes — a interface não trava (`FR-027`, edge case)
-- [ ] T173 [P] [US3] Implementar a interface de parcelamento com a identificação "2/3" e o link para a série completa (`FR-028`, `FR-043`)
-- [ ] T174 [US3] Implementar os estados visuais de `programado`, `pendente` e `atrasado` e a confirmação de um clique na lista e no painel (`FR-030`, `FR-033`)
+- [X] T171 [US3] Implementar os campos de recorrência e o `DialogoSerie.tsx` ("só este" / "este e os futuros") em `frontend/componentes/lancamentos/` (`FR-034`)
+- [X] T172 [US3] Implementar a confirmação de geração retroativa mostrando quantas ocorrências e o intervalo, com barra de progresso para a geração em lotes — a interface não trava (`FR-027`, edge case)
+- [X] T173 [P] [US3] Implementar a interface de parcelamento com a identificação "2/3" e o link para a série completa (`FR-028`, `FR-043`)
+- [X] T174 [US3] Implementar os estados visuais de `programado`, `pendente` e `atrasado` e a confirmação de um clique na lista e no painel (`FR-030`, `FR-033`)
 
 ## Sub-fase C4 — US4 Dashboard (P1)
 
-- [ ] T175 [US4] Implementar `frontend/app/(app)/page.tsx` montando a grade a partir de `dashboard_cards_disponiveis` — um componente por card, resolvido por `id`, nenhum rótulo escrito no código (`FR-106`)
-- [ ] T176 [US4] Implementar os 7 cards numéricos com comparativo e mini-gráfico de tendência em `frontend/componentes/dashboard/` (`FR-054`–`FR-057`)
-- [ ] T177 [US4] Implementar os gráficos em `frontend/componentes/graficos/` com Recharts e tokens do tema: fluxo de caixa com projeção distinta, evolução do saldo, comparativo mensal e despesas por categoria (`FR-059`–`FR-062`)
-- [ ] T178 [P] [US4] Implementar os cards especiais de Clientes e Funcionários e a linha do tempo de 7 dias (`FR-065`–`FR-067`)
-- [ ] T179 [P] [US4] Implementar o alerta vermelho fixo de atrasados, o card "Saúde do caixa" com semáforo e o resumo em linguagem natural (`FR-068`–`FR-070`)
-- [ ] T180 [P] [US4] Implementar "Configurar cards" — mostrar, ocultar e reordenar, persistindo por usuário (`FR-071`)
-- [ ] T181 [US4] Ligar todo card e toda fatia de gráfico à lista já filtrada correspondente (`FR-058`, `FR-062`)
+- [X] T175 [US4] Implementar `frontend/app/(app)/page.tsx` montando a grade a partir de `dashboard_cards_disponiveis` — um componente por card, resolvido por `id`, nenhum rótulo escrito no código (`FR-106`)
+- [X] T176 [US4] Implementar os 7 cards numéricos com comparativo e mini-gráfico de tendência em `frontend/componentes/dashboard/` (`FR-054`–`FR-057`)
+- [X] T177 [US4] Implementar os gráficos em `frontend/componentes/graficos/` com Recharts e tokens do tema: fluxo de caixa com projeção distinta, evolução do saldo, comparativo mensal e despesas por categoria (`FR-059`–`FR-062`)
+- [X] T178 [P] [US4] Implementar os cards especiais de Clientes e Funcionários e a linha do tempo de 7 dias (`FR-065`–`FR-067`)
+- [X] T179 [P] [US4] Implementar o alerta vermelho fixo de atrasados, o card "Saúde do caixa" com semáforo e o resumo em linguagem natural (`FR-068`–`FR-070`)
+- [X] T180 [P] [US4] Implementar "Configurar cards" — mostrar, ocultar e reordenar, persistindo por usuário (`FR-071`)
+- [X] T181 [US4] Ligar todo card e toda fatia de gráfico à lista já filtrada correspondente (`FR-058`, `FR-062`)
 
 ## Sub-fase C5 — US7 Extrato (P2)
 
-- [ ] T182 [US7] Implementar `frontend/app/(app)/extrato/page.tsx` com agrupamento por dia, semana ou mês e saldo acumulado ao fim de cada grupo (`FR-047`)
-- [ ] T183 [P] [US7] Implementar o cabeçalho-resumo comparativo e o gráfico compacto de receitas × despesas (`FR-048`, `FR-050`)
-- [ ] T184 [P] [US7] Implementar a seção fixa "A pagar / A receber" com destaque vermelho para vencidos e marcação visual dos grupos previstos (`FR-051`, `FR-052`)
+- [X] T182 [US7] Implementar `frontend/app/(app)/extrato/page.tsx` com agrupamento por dia, semana ou mês e saldo acumulado ao fim de cada grupo (`FR-047`)
+- [X] T183 [P] [US7] Implementar o cabeçalho-resumo comparativo e o gráfico compacto de receitas × despesas (`FR-048`, `FR-050`)
+- [X] T184 [P] [US7] Implementar a seção fixa "A pagar / A receber" com destaque vermelho para vencidos e marcação visual dos grupos previstos (`FR-051`, `FR-052`)
 
 ## Sub-fase C6 — US5 Clientes + US6 Funcionários + Categorias (P2)
 
-- [ ] T185 [P] [US5] Implementar `frontend/app/(app)/categorias/page.tsx` com contagem e total por período respeitando o mundo, e o fluxo de arquivamento com escolha de destino (`FR-074`, `FR-075`)
-- [ ] T186 [US5] Implementar `frontend/app/(app)/clientes/page.tsx` com filtro de mundo derivado, situação e inadimplentes no topo (`FR-002`, `FR-083`)
-- [ ] T187 [US5] Implementar `frontend/app/(app)/clientes/[id]/page.tsx` — perfil com total recebido, gráfico mensal, lançamentos, próximos recebimentos e quebra por mundo (`FR-081`)
-- [ ] T188 [P] [US6] Implementar `frontend/app/(app)/funcionarios/page.tsx` (`FR-085`)
-- [ ] T189 [P] [US6] Implementar `frontend/app/(app)/funcionarios/[id]/page.tsx` — custo histórico e do período, pagamentos e próximos (`FR-087`)
-- [ ] T190 [US5] Implementar o destaque de inadimplência no Dashboard, no card Clientes e no perfil (`FR-097`, `SC-006`)
+- [X] T185 [P] [US5] Implementar `frontend/app/(app)/categorias/page.tsx` com contagem e total por período respeitando o mundo, e o fluxo de arquivamento com escolha de destino (`FR-074`, `FR-075`)
+- [X] T186 [US5] Implementar `frontend/app/(app)/clientes/page.tsx` com filtro de mundo derivado, situação e inadimplentes no topo (`FR-002`, `FR-083`)
+- [X] T187 [US5] Implementar `frontend/app/(app)/clientes/[id]/page.tsx` — perfil com total recebido, gráfico mensal, lançamentos, próximos recebimentos e quebra por mundo (`FR-081`)
+- [X] T188 [P] [US6] Implementar `frontend/app/(app)/funcionarios/page.tsx` (`FR-085`)
+- [X] T189 [P] [US6] Implementar `frontend/app/(app)/funcionarios/[id]/page.tsx` — custo histórico e do período, pagamentos e próximos (`FR-087`)
+- [X] T190 [US5] Implementar o destaque de inadimplência no Dashboard, no card Clientes e no perfil (`FR-097`, `SC-006`)
 
 ## Sub-fase C7 — US8 Relatórios (P3)
 
-- [ ] T191 [US8] Implementar `frontend/app/(app)/relatorios/page.tsx` com o DRE mensal e acumulado no ano (`FR-090`)
-- [ ] T192 [P] [US8] Implementar o ranking de clientes por receita (`FR-091`)
-- [ ] T193 [P] [US8] Implementar a variação mensal por categoria com o destaque vindo da configuração, e a matriz mensal (`FR-092`, `FR-093`)
-- [ ] T194 [US8] Implementar a exportação em PDF e CSV do que está na tela e a leitura do período em linguagem natural (`FR-094`, `FR-095`)
+- [X] T191 [US8] Implementar `frontend/app/(app)/relatorios/page.tsx` com o DRE mensal e acumulado no ano (`FR-090`)
+- [X] T192 [P] [US8] Implementar o ranking de clientes por receita (`FR-091`)
+- [X] T193 [P] [US8] Implementar a variação mensal por categoria com o destaque vindo da configuração, e a matriz mensal (`FR-092`, `FR-093`)
+- [X] T194 [US8] Implementar a exportação em PDF e CSV do que está na tela e a leitura do período em linguagem natural (`FR-094`, `FR-095`)
 
 ## Sub-fase C8 — US9 Notificações + US10 Configuração e papéis (P3)
 
-- [ ] T195 [US9] Implementar o painel de notificações a partir do sino, com marcar lida e marcar todas (`FR-096`–`FR-100`)
-- [ ] T196 [US10] Implementar `frontend/app/(app)/configuracoes/page.tsx` com as 7 seções do mockup, montadas a partir de `GET /api/configuracoes` — inclusive os textos de ajuda, que vêm do banco (`FR-105`, `FR-106`)
-- [ ] T197 [US10] Implementar a gestão de usuários e esconder Configurações do menu para operador — **lembrando que esconder o menu não é autorizar**; a garantia é o `403` do backend (`FR-102`, `SC-010`)
-- [ ] T198 [US10] Implementar o assistente de importação CSV/OFX: envio, mapeamento de colunas com sugestão de categoria, escolha de mundo, prévia e progresso da gravação em lotes (`FR-044`)
-- [ ] T199 [P] [US10] Implementar a exportação completa com acompanhamento do progresso e link assinado ao final (`FR-112`)
-- [ ] T200 [P] [US10] Implementar o histórico de alterações no painel de detalhe, mostrando quem, o quê e quando (`FR-103`, `SC-014`)
-- [ ] T201 [US10] Fechar os atalhos de teclado em todas as telas e escrever os testes de componente em `frontend/tests/` (`FR-110`)
+- [X] T195 [US9] Implementar o painel de notificações a partir do sino, com marcar lida e marcar todas (`FR-096`–`FR-100`)
+- [X] T196 [US10] Implementar `frontend/app/(app)/configuracoes/page.tsx` com as 7 seções do mockup, montadas a partir de `GET /api/configuracoes` — inclusive os textos de ajuda, que vêm do banco (`FR-105`, `FR-106`)
+- [X] T197 [US10] Implementar a gestão de usuários e esconder Configurações do menu para operador — **lembrando que esconder o menu não é autorizar**; a garantia é o `403` do backend (`FR-102`, `SC-010`)
+- [X] T198 [US10] Implementar o assistente de importação CSV/OFX: envio, mapeamento de colunas com sugestão de categoria, escolha de mundo, prévia e progresso da gravação em lotes (`FR-044`)
+- [X] T199 [P] [US10] Implementar a exportação completa com acompanhamento do progresso e link assinado ao final (`FR-112`)
+- [X] T200 [P] [US10] Implementar o histórico de alterações no painel de detalhe, mostrando quem, o quê e quando (`FR-103`, `SC-014`)
+- [X] T201 [US10] Fechar os atalhos de teclado em todas as telas e escrever os testes de componente em `frontend/tests/` (`FR-110`)
 
 **✅ Checkpoint Boss 3**: todas as telas navegáveis, fiéis ao mockup.
+
+> **Medido em 2026-07-31, rodando:**
+>
+> ```
+> npx tsc --noEmit          → sem erros
+> npx next lint             → No ESLint warnings or errors
+> npx vitest run            → 37 passed (4 arquivos)
+> npx next build            → Compiled successfully · 14 rotas
+> npx next start + curl     → as 10 rotas respondem 200
+> ```
+>
+> **T154 fica aberta** (criar o projeto `synapse-erp-web` na Vercel) — é painel, como
+> T006/T008/T038.
+>
+> **T170 fica aberta**: o mecanismo está pronto (mundo e período entram na `queryKey` de
+> toda leitura, e o modo "Ambos" marca cada item com o `BadgeMundo`), mas *conferir* zero
+> vazamento exige dados nos dois mundos. O banco de produção está vazio — a conferência
+> vale quando houver histórico, junto de T202/T206.
+>
+> ### Verificação de documentação da Fase C (Princípio V) — **não** era "nada a mudar"
+>
+> 1. **`frontend/README.md`** escrito: estrutura, as cinco decisões que o código carrega,
+>    a convenção de nome dos hooks e a tabela de divergências.
+> 2. **Divergência achada entre o mockup e o seed**: o mockup desenha o bloco "Receita por
+>    serviço" e `GET /api/dashboard` devolve `receita_por_servico`, mas as **18 chaves de
+>    `dashboard_cards_disponiveis` (migração `007`) não têm entrada para ele**. Como
+>    `FR-106` proíbe rótulo escrito no frontend, o bloco não é desenhado sem catálogo. O
+>    componente existe e é resolvido pelo id `receita_servico`: acrescentar a chave no seed
+>    liga o bloco sem tocar em código. **Decisão do dono do projeto** — está no README §
+>    Divergências.
+> 3. **Conflito entre a convenção PT-BR e o `react-hooks/rules-of-hooks`**: hooks nomeados
+>    `usar…` não são reconhecidos como hooks pelo ESLint, e a regra deixa de acusar chamada
+>    condicional **em todo o projeto**, não só nos arquivos deles. Os 43 arquivos foram
+>    renomeados para o prefixo `use` mantendo o substantivo em português (`useSessao`,
+>    `useLancamentos`). Registrado no README.
+> 4. **Documento-mestre**: nada a mudar. Nenhum `RF-xx`/`RN-xx` mudou de significado — a
+>    Fase C implementou o que já estava escrito.
 
 ---
 

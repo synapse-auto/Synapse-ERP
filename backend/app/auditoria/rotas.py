@@ -104,7 +104,7 @@ async def listar(
     if data_fim is not None:
         # `< data_fim + 1 dia` em vez de `<=`: `criado_em` é timestamptz, e `<= data_fim`
         # cortaria tudo que aconteceu depois da meia-noite do último dia.
-        condicoes.append("a.criado_em < (:data_fim::date + 1)")
+        condicoes.append("a.criado_em < (cast(:data_fim as date) + 1)")
         parametros["data_fim"] = data_fim
 
     onde = " and ".join(condicoes)

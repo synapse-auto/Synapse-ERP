@@ -439,6 +439,23 @@ RLS de negação para as chaves públicas, 17 chaves de configuração e os dado
 Detalhe em `specs/001-erp-financeiro-synapse/data-model.md` e nas migrações em
 `backend/migracoes/`.
 
+> **Atualizado em 2026-07-31 (fim do Boss 2).** Os números acima são os do fim da Fase A e
+> ficaram para trás. O banco tem hoje **21 tabelas** e **18 chaves de configuração**, em
+> 12 migrações. As diferenças nasceram da implementação do backend, não de mudança de
+> escopo:
+>
+> - `anexo_url_assinada_segundos` (migração `009`) — os anexos precisavam de um prazo para a
+>   URL assinada, e prazo não mora no código (`RNF-02`).
+> - `importacoes` (migração `011`) — a importação de `RF-21` acontece em três requisições, e
+>   o conteúdo lido precisa sobreviver entre elas. Memória não serve: cada requisição da
+>   Vercel pode cair numa instância diferente. Expira em 24h e a rotina diária a limpa.
+> - `chaves_idempotencia` (migração `012`) — impede que uma repetição de rede vire dois
+>   lançamentos iguais. Pelo mesmo motivo da anterior: a repetição cai em outra instância,
+>   então guardar em memória não protege. Expira em minutos.
+>
+> As duas últimas são as **únicas** tabelas com dado temporário; todo o resto é permanente
+> (`RN-08`). A migração `010` é um índice, não uma tabela.
+
 **Duas coisas que o sistema assumiu por falta de dado no documento** — mudar pela tela quando
 quiser, é dado e não código:
 
@@ -447,3 +464,60 @@ quiser, é dado e não código:
 2. **As recorrências da folha nascem sem histórico retroativo** — o primeiro vencimento é o
    próximo dia 5 a partir da criação. Se nascessem retroativas, `RN-05a` geraria pagamentos já
    `Efetivado` que ninguém conferiu, inventando histórico financeiro.
+
+---
+
+## 17. Ajustes vindos da auditoria de fim do Boss 2 (2026-07-31)
+
+Conferência do documento contra o código e contra o banco, rodando. Dois pontos **mudam o
+que está escrito acima** e por isso vivem aqui; o resto foi defeito corrigido, não requisito
+alterado.
+
+### 17.1. `RNF-06` — a exportação completa não leva os arquivos anexados 🟠
+
+`RNF-06` fala em "exportação completa a qualquer momento (propriedade total dos dados)".
+Na prática, `POST /api/exportacoes/completa` entrega **um CSV por tabela num ZIP**, e os
+arquivos anexados (nota fiscal, comprovante, contrato) **não vão no pacote** — `anexos.csv`
+traz o caminho de cada um no armazenamento.
+
+**Motivo**: os anexos vivem no bucket privado e embutir dezenas de PDFs estouraria a memória
+da função da Vercel.
+
+**Consequência que precisa ser aceita**: o dado financeiro é 100% seu e abre em qualquer
+planilha; os arquivos em si continuam no Supabase Storage e saem de lá pelo painel. Se um dia
+"levar tudo embora num clique" incluir os PDFs, isso é trabalho novo.
+
+### 17.2. `RF-21` — a sugestão de categoria da importação **sugere, não aplica** 🟢
+
+`RF-21` pede "tela de mapeamento de colunas e sugestão de categoria". A sugestão existe: cada
+categoria do arquivo que não bate exato com o cadastro vem com a mais parecida ("Ferramenta"
+→ "Ferramentas/Assinaturas"). Mas ela é **oferecida na prévia para o usuário aceitar**, nunca
+aplicada sozinha.
+
+**Motivo**: adivinhar categoria e gravar deixa o erro invisível — ele só aparece semanas
+depois, torto, no DRE e no card do Dashboard. Recusar e perguntar é mais barato que corrigir
+300 lançamentos classificados errado.
+
+### 17.3. `RF-57` — só pode existir **uma** categoria especial por tipo 🟢
+
+`RF-57` diz que a arquitetura permite promover qualquer categoria a especial. Verdade, com um
+limite que não estava escrito: **um vínculo, uma categoria**. Não dá para ter duas categorias
+"de cliente" ao mesmo tempo.
+
+**Motivo**: quando um cliente é cadastrado, o sistema cria sozinho a subcategoria dele
+(`RF-55`). Com duas categorias de cliente, não há como saber em qual criar.
+
+Na prática isso só aparece se alguém tentar promover uma segunda categoria a "Clientes" ou
+"Funcionários" — e aí a tela explica qual categoria já ocupa o lugar e o que fazer.
+
+### 17.4. O que foi corrigido sem mudar requisito
+
+Registrado para não parecer que a auditoria não achou nada: conexão com o pooler derrubando
+consultas em produção; consultas do Dashboard e dos Relatórios que nunca chegavam a executar;
+**editar uma recorrência com "este e os futuros" apagava as ocorrências futuras e não gerava
+as novas** (`RF-15`, `RN-07`) — talvez o mais grave da lista, porque falhava em silêncio;
+inadimplentes ausentes do card Clientes (`RF-44`); comparativo ausente nos cards Clientes e
+Funcionários (`RF-44`, `RF-45`); alerta de caixa baixo (`RF-83`) que ignorava justamente as
+contas já vencidas; lançamento importado sem registro de auditoria (`RF-03`); a validade de
+24h da importação, que estava escrita e não era aplicada; e a repetição de rede que podia
+criar o mesmo lançamento duas vezes.

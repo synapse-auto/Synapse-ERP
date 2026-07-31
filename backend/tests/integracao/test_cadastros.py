@@ -532,9 +532,70 @@ async def test_criar_subcategoria_a_mao_em_categoria_especial_e_recusado(conexao
     assert "cadastre-o em Clientes" in capturado.value.mensagem
 
 
-async def test_promover_categoria_a_especial_aponta_as_subcategorias_sem_dono(conexao_de_teste):
-    """`FR-079`: promover é gravar `especial` e `vinculo`, sem deploy."""
+async def test_promover_para_vinculo_ja_ocupado_e_recusado_dizendo_quem_ocupa(conexao_de_teste):
+    """`FR-079` tem um limite: **um** vínculo, **uma** categoria.
+
+    O índice `categorias_vinculo_uidx` garante isso, e tem que garantir —
+    `dominio/espelho_subcategoria.py` precisa saber em qual categoria criar a
+    subcategoria quando um cliente é cadastrado, e com duas a pergunta não tem resposta.
+
+    O que este teste protege é a **mensagem**: antes da auditoria de 2026-07-31 o
+    `update` batia direto no índice e o usuário recebia `500 erro_interno`, com a
+    explicação só no log.
+    """
     usuario = await _usuario(conexao_de_teste)
+    nova = await rotas_categorias.criar(
+        rotas_categorias.CategoriaEntrada(
+            nome=f"Parceiros {uuid4().hex[:6]}",
+            cor="#8B6CF0",
+            icone="users",
+            tipo="receita",
+        ),
+        usuario,
+        conexao_de_teste,
+    )
+
+    with pytest.raises(ErroRegraViolada) as capturado:
+        await rotas_categorias.editar(
+            UUID(nova["id"]),
+            rotas_categorias.CategoriaEntrada(
+                nome=nova["nome"],
+                cor="#8B6CF0",
+                icone="users",
+                tipo="receita",
+                especial=True,
+                vinculo="cliente",  # já é da categoria "Clientes", vinda do seed
+            ),
+            usuario,
+            conexao_de_teste,
+        )
+
+    assert capturado.value.requisito == "FR-079"
+    # Precisa dizer **quem** ocupa — é a informação que resolve.
+    assert "Clientes" in capturado.value.mensagem
+    assert "vinculo" in capturado.value.campos
+
+
+async def test_promover_categoria_a_especial_aponta_as_subcategorias_sem_dono(conexao_de_teste):
+    """`FR-079`: promover é gravar `especial` e `vinculo`, sem deploy.
+
+    ⚠️ **Único teste que altera uma linha do seed** — e por isso a exceção está escrita
+    aqui. Como só pode existir uma categoria por vínculo (teste acima), provar que a
+    promoção funciona exige o vínculo livre, e os dois nascem ocupados pelo seed. A
+    alternativa seria não cobrir a promoção, que é o coração de `FR-079`.
+
+    A regra do `conftest` continua valendo para o resto: nada é apagado, o arquivamento
+    é desfeito no `rollback` como todo o resto, e a janela é de segundos.
+    """
+    usuario = await _usuario(conexao_de_teste)
+
+    await conexao_de_teste.execute(
+        text(
+            "update categorias set arquivada_em = now() "
+            "where vinculo = 'cliente' and arquivada_em is null"
+        )
+    )
+
     nova = await rotas_categorias.criar(
         rotas_categorias.CategoriaEntrada(
             nome=f"Parceiros {uuid4().hex[:6]}",

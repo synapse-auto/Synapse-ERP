@@ -242,13 +242,29 @@ mensagem de erro que aparecia era a **nossa**.
 
 | Endpoint | Papel | O quê |
 |---|---|---|
-| `POST /api/exportacoes/completa` | gestor | Inicia a exportação de todos os dados |
-| `GET /api/exportacoes/{id}` | gestor | Estado e link assinado quando pronto |
+| `POST /api/exportacoes/completa` | gestor | Devolve o ZIP com um CSV por tabela |
 
-Assíncrona por lote, com cursor — o mesmo padrão das recorrências longas, pela mesma razão
-(limite de duração da função, research.md D-02a). ZIP com um CSV por tabela mais os anexos.
-`SC-011` pede menos de 5 minutos; o formato por lote é o que torna isso alcançável sem
-worker dedicado.
+ZIP com **um CSV por tabela de negócio**, em formato de dados (separador vírgula, decimal
+com ponto, datas ISO 8601), mais um `LEIA-ME.txt` com a contagem por tabela. A resposta é
+`application/zip`, com `X-Total-Lancamentos` no cabeçalho para conferir sem abrir o arquivo.
+
+**Duas coisas que este endpoint não faz, e o porquê de cada uma:**
+
+1. **Os arquivos anexados não vão no pacote.** Eles vivem no bucket privado e embutir
+   dezenas de PDFs estouraria a memória da função. `anexos.csv` traz o caminho de cada um.
+   `RNF-06` ("propriedade total dos dados") fica atendido para o dado financeiro; para os
+   arquivos em si, o caminho é o Storage do Supabase.
+2. **A tabela `importacoes` fica de fora.** É rascunho descartável que expira em 24h
+   (§6 de lancamentos.md), não histórico.
+
+**Sobre ser síncrono.** O desenho original previa `GET /api/exportacoes/{id}` e gravação por
+lote com cursor, como as recorrências longas. Não foi o que se implementou: o `POST` monta o
+ZIP inteiro numa invocação e devolve na hora. Com o volume desta empresa — 3 usuários,
+dezenas a poucas centenas de lançamentos por mês — isso cabe com folga e é bem mais simples
+(Princípio I). **A troca declarada**: quando o histórico crescer o bastante para a montagem
+passar da duração máxima da função, a exportação passa a falhar em vez de degradar, e aí o
+formato por lote volta a ser necessário para garantir `SC-011`. É o que a medição de T210
+existe para detectar.
 
 O **backup automático** de `RNF-06` é o backup gerenciado do Supabase, não código deste
-sistema. Registrar isso na documentação faz parte da Fase A.
+sistema. Registrar isso na documentação faz parte da Fase A (T008).

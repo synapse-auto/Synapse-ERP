@@ -7,25 +7,27 @@ que deu certo**.
 **Pré-requisitos**: Python 3.12, Node 22, conta na Vercel, conta no Supabase, CLI do Supabase.
 
 > **Estado atual (2026-07-31, fim do Boss 2)**: o projeto Supabase (`frpbowkoibdgigekrhor`,
-> PostgreSQL 17.6) está **com o banco de pé**: **20 tabelas**, 12 tipos, a view
+> PostgreSQL 17.6) está **com o banco de pé**: **21 tabelas**, 12 tipos, a view
 > `lancamentos_ativos`, RLS de negação para as chaves públicas, **18** configurações e os dados
 > iniciais aplicados e conferidos por consulta. Bucket privado `anexos` criado.
 >
-> Três migrações nasceram depois da Fase A, cada uma no commit em que passou a ser necessária:
+> Quatro migrações nasceram depois da Fase A, cada uma no commit em que passou a ser
+> necessária:
 >
 > | Migração | Quando | Por quê |
 > |---|---|---|
 > | `009_seed_anexo_url_assinada` | B1/T064 | A URL assinada de anexo precisava de um prazo, e prazo não mora no código (é a 18ª configuração) |
 > | `010_ocorrencia_unica_por_data` | B2/T083 | Sem o índice único, a idempotência de D-08 não existe |
 > | `011_importacoes` | B6/T133 | A importação em três requisições precisa do conteúdo lido sobrevivendo entre elas (é a 20ª tabela) |
+> | `012_chaves_idempotencia` | Auditoria de fim do Boss 2 | O `Idempotency-Key` vivia em memória do processo, que não sobrevive entre invocações — era a divergência nº 2 do README do backend, aberta desde B0 (é a 21ª tabela) |
 >
-> **`list_migrations` devolve 12 registros para 11 arquivos**, e isso é esperado: a
-> `006a_rls_revoga_execute_rls_auto_enable` foi aplicada à parte quando o `revoke execute`
-> entrou no `006_rls.sql` — o arquivo do repositório **já contém** a linha (006, l. 77), então
-> recriar o banco pela sequência do repositório chega ao mesmo estado.
+> **`list_migrations` devolve um registro a mais que a contagem de arquivos**, e isso é
+> esperado: a `006a_rls_revoga_execute_rls_auto_enable` foi aplicada à parte quando o
+> `revoke execute` entrou no `006_rls.sql` — o arquivo do repositório **já contém** a linha,
+> então recriar o banco pela sequência do repositório chega ao mesmo estado.
 >
 > **Conferido em 2026-07-31**: zero tabelas sem RLS, zero `EXECUTE` de `rls_auto_enable` para
-> `anon`/`authenticated`, e `get_advisors(security)` com 20 avisos `INFO
+> `anon`/`authenticated`, e `get_advisors(security)` com **21** avisos `INFO
 > rls_enabled_no_policy` — um por tabela, o resultado que D-03a prevê. Nenhum ERROR ou WARN.
 >
 > **Falta, e depende do painel do Supabase** (não há API para isso):

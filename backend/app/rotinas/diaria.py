@@ -76,6 +76,8 @@ class Resultado:
     recorrencias_pendentes_de_geracao: int = 0
     clientes_marcados_inadimplentes: int = 0
     notificacoes_criadas: int = 0
+    importacoes_expiradas_removidas: int = 0
+    chaves_idempotencia_removidas: int = 0
     avisos: list[str] = field(default_factory=list)
 
 
@@ -329,6 +331,46 @@ async def _alerta_de_inadimplencia(
         )
 
 
+# ── Passo 5 — faxina do estado temporário ───────────────────────────────────
+
+
+async def _limpa_chaves_de_idempotencia(conexao: AsyncConnection, resultado: Resultado) -> None:
+    """Apaga as chaves de `Idempotency-Key` vencidas (migração `012`).
+
+    A janela útil é de minutos — o tempo de uma repetição de rede. Sem a faxina, a tabela
+    só cresceria guardando corpos de resposta que ninguém vai mais pedir.
+    """
+    apagadas = (
+        await conexao.execute(text("delete from chaves_idempotencia where expira_em <= now()"))
+    ).rowcount
+    resultado.chaves_idempotencia_removidas = max(apagadas or 0, 0)
+
+
+async def _limpa_importacoes_expiradas(conexao: AsyncConnection, resultado: Resultado) -> None:
+    """Apaga o estado de importação que passou de `expira_em` (migração `011`).
+
+    `importacoes` é uma das duas tabelas do sistema onde apagar linha é o certo (a outra
+    é `chaves_idempotencia`): ela guarda o conteúdo do arquivo em `jsonb` como rascunho de
+    três etapas, não histórico financeiro. O que vira lançamento sai dela e passa a viver
+    em `lancamentos`, que nunca é apagado (`RN-08`).
+
+    A migração e o comentário da tabela já diziam que esta faxina existia. Ela não
+    existia: a coluna era só um `default`, ninguém a conferia e ninguém a limpava —
+    então um upload abandonado ficava gravável para sempre, com o arquivo inteiro na
+    tabela. O `DELETE` mora aqui, e a recusa de confirmar depois do prazo mora em
+    `importacao/rotas.py`; as duas pontas são necessárias, porque a rotina pode ter
+    falhado no dia.
+    """
+    # `DELETE` sem `RETURNING` de propósito: com `RETURNING` o `rowcount` do asyncpg
+    # deixa de ser confiável (a operação passa a devolver linhas), e aqui o número vai
+    # para `ultimo_resultado`, que é registro de verificação (Princípio VI). Contagem
+    # errada num relato é pior que contagem nenhuma.
+    apagadas = (
+        await conexao.execute(text("delete from importacoes where expira_em <= now()"))
+    ).rowcount
+    resultado.importacoes_expiradas_removidas = max(apagadas or 0, 0)
+
+
 # ── Execução ────────────────────────────────────────────────────────────────
 
 
@@ -349,6 +391,8 @@ async def executa(
     # virar `atrasado` nesta mesma execução precisa entrar na conta da inadimplência.
     await _alerta_de_vencimento(conexao, resultado, hoje=hoje)
     await _alerta_de_inadimplencia(conexao, resultado, hoje=hoje)
+    await _limpa_importacoes_expiradas(conexao, resultado)
+    await _limpa_chaves_de_idempotencia(conexao, resultado)
 
     # `FR-098`: o plano gratuito da Vercel só dá um cron por dia, então o semanal é
     # disparado daqui, na segunda. A chave por semana ISO garante um resumo só, mesmo

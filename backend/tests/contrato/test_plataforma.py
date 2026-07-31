@@ -214,15 +214,35 @@ def test_categoria_desconhecida_e_apontada_e_nao_criada():
     from app.importacao import mapeamento as mod
 
     mapeadas = mod.mapeia(
-        [{"d": "10/07/2026", "h": "Anúncio", "v": "100,00", "c": "Marketing Digital"}],
+        [
+            {"d": "10/07/2026", "h": "Anúncio", "v": "100,00", "c": "Marketing Digital"},
+            {"d": "11/07/2026", "h": "Táxi", "v": "40,00", "c": "Zebra Azul"},
+        ],
         mapa={"data": "d", "descricao": "h", "valor": "v", "categoria": "c"},
-        categorias_por_nome={"marketing": "id-existente"},
+        # Nome em minúsculas → (id, nome original). O original existe porque a sugestão
+        # é mostrada ao usuário com a grafia do cadastro.
+        categorias_por_nome={"marketing": ("id-existente", "Marketing")},
     )
     assert not mapeadas[0].valida
     assert "não cria categoria" in " ".join(mapeadas[0].problemas)
 
+    # `FR-044`: sugere a mais parecida, e **não** aplica — a linha segue inválida.
+    assert mapeadas[0].categoria_sugerida_id == "id-existente"
+    assert mapeadas[0].categoria_sugerida_nome == "Marketing"
+    assert mapeadas[0].categoria_id is None
+
+    # Sem nada parecido, sugestão nula em vez de chute.
+    assert mapeadas[1].categoria_sugerida_id is None
+
     resumo = mod.resumo(mapeadas)
-    assert resumo["categorias_nao_reconhecidas"] == ["Marketing Digital"]
+    assert resumo["categorias_nao_reconhecidas"] == [
+        {
+            "texto": "Marketing Digital",
+            "sugestao_id": "id-existente",
+            "sugestao_nome": "Marketing",
+        },
+        {"texto": "Zebra Azul", "sugestao_id": None, "sugestao_nome": None},
+    ]
 
 
 def test_ofx_e_lido_sem_dependencia_externa():

@@ -4,21 +4,33 @@ Papel: **gestor**. É a cópia de segurança que o dono do projeto leva embora s
 quiser trocar de sistema — e por isso não pode depender de nada nosso para ser lida: são
 CSVs, abertos em qualquer planilha.
 
-## Por que em lotes, e por que o ZIP é montado na hora
+## É síncrono, e isso é uma troca declarada
 
-`SC-011` dá 5 minutos, mas a **duração de uma invocação da Vercel é bem menor**
-(plan.md §Constraints). Então a exportação segue o mesmo padrão das recorrências e da
-importação: cada chamada processa um pedaço e devolve o cursor.
+O desenho original (contracts/plataforma.md §8, T137) previa gravação **por lote com
+cursor** e um `GET /api/exportacoes/{id}` para acompanhar — o mesmo padrão das recorrências
+longas. Não é o que está aqui: uma chamada monta o ZIP inteiro na memória e devolve.
 
-O ZIP é montado na memória e devolvido de uma vez, sem passo intermediário no Storage.
-Para a escala do projeto — milhares de lançamentos acumulados — o arquivo fica em poucos
-megabytes. Guardar no Storage exigiria uma URL assinada, um objeto a limpar depois e um
-estado a mais; não paga (Princípio I).
+Para a escala deste sistema — 3 usuários, dezenas a poucas centenas de lançamentos por mês —
+o arquivo fica em poucos megabytes e cabe com folga numa invocação. O caminho assíncrono
+exigiria estado no banco, URL assinada, objeto a limpar depois e um segundo endpoint; não
+paga (Princípio I).
 
-Os anexos **não** entram no ZIP: são arquivos no bucket privado, e embutir dezenas de
-PDFs estouraria a memória da função. O CSV de anexos traz o caminho e o link assinado é
-pedido por `/api/anexos/{id}`, como em qualquer outro lugar. Isso é uma redução
-declarada em relação ao texto de `FR-112` — está no relato da task.
+**O limite disso, dito na cara**: quando o histórico crescer o bastante para a montagem
+passar da duração máxima da função (plan.md §Constraints), este endpoint passa a **falhar**,
+não a ficar lento — e aí o formato por lote volta a ser necessário para garantir `SC-011`.
+A medição de T210 é o que detecta isso antes do usuário.
+
+O contrato foi corrigido para descrever o que existe (auditoria de 2026-07-31); não é
+divergência silenciosa.
+
+## O que não entra no pacote
+
+- **Os arquivos anexados.** São objetos do bucket privado, e embutir dezenas de PDFs
+  estouraria a memória da função. `anexos.csv` traz o caminho de cada um; o link assinado
+  sai por `/api/anexos/{id}`, como em qualquer outro lugar. Redução declarada em relação ao
+  texto de `RNF-06`/`FR-112` — registrada no §17.1 do documento-mestre.
+- **A tabela `importacoes`.** É rascunho de três etapas que expira em 24h, não histórico
+  financeiro. Exportar rascunho descartável só confundiria quem abrisse o pacote.
 
 Tarefa: T137
 """
@@ -124,6 +136,9 @@ async def monta_zip(conexao: AsyncConnection) -> tuple[bytes, dict[str, int]]:
                 "depende de nada nosso para ser lida.\n\n"
                 "Os arquivos anexados NÃO estão neste pacote — anexos.csv traz o caminho "
                 "de cada um no armazenamento.\n\n"
+                "Também fica de fora a tabela de importações: ela guarda o rascunho de um "
+                "arquivo em processo de importação, expira em 24 horas e não é histórico "
+                "financeiro. O que virou lançamento está em lancamentos.csv.\n\n"
                 "Contagem por tabela:\n"
                 + "\n".join(f"  {tabela}: {total}" for tabela, total in contagens.items())
             ).encode("utf-8"),

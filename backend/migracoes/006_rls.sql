@@ -81,7 +81,8 @@ revoke execute on function public.rls_auto_enable() from anon, authenticated, pu
 -- reabriria exatamente o buraco que D-03a fecha. O frontend nunca consulta o banco pelo
 -- SDK do Supabase: o SDK no cliente serve só ao login (Princípio IV).
 --
--- ⚠️ O linter do Supabase vai apontar `rls_enabled_no_policy` (nível INFO) nas 19 tabelas.
+-- ⚠️ O linter do Supabase vai apontar `rls_enabled_no_policy` (nível INFO) em todas as
+-- tabelas (20, depois que a `011_importacoes.sql` entrou).
 -- É o resultado esperado, não um defeito a corrigir. "RLS ligada sem política" é a forma
 -- de negar tudo em Postgres. Quem "consertar" isso adicionando política estará abrindo as
 -- finanças da empresa para a chave que vive no navegador.

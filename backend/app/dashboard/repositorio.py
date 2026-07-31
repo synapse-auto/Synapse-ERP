@@ -91,7 +91,7 @@ async def saldo_acumulado(
                     from lancamentos_ativos l
                     where l.mundo = any(cast(:mundos as mundo[]))
                       and {_EFETIVADO}
-                      and (:ate::date is null or l.data <= :ate)
+                      and (cast(:ate as date) is null or l.data <= cast(:ate as date))
                     """),
                 {"mundos": mundos, "ate": ate},
             )
@@ -112,7 +112,8 @@ async def saldo_por_mundo(conexao: AsyncConnection, *, ate: date | None = None) 
                       coalesce(sum(l.valor) filter (where l.tipo = 'receita'), 0)
                       - coalesce(sum(l.valor) filter (where l.tipo = 'despesa'), 0) as saldo
                     from lancamentos_ativos l
-                    where {_EFETIVADO} and (:ate::date is null or l.data <= :ate)
+                    where {_EFETIVADO}
+                      and (cast(:ate as date) is null or l.data <= cast(:ate as date))
                     group by l.mundo
                     """),
                 {"ate": ate},
@@ -226,8 +227,8 @@ async def fluxo_mensal(
                 text(f"""
                     with meses as (
                       select generate_series(
-                        date_trunc('month', :inicio::date),
-                        date_trunc('month', :fim::date),
+                        date_trunc('month', cast(:inicio as date)),
+                        date_trunc('month', cast(:fim as date)),
                         interval '1 month'
                       )::date as mes
                     )
@@ -237,7 +238,7 @@ async def fluxo_mensal(
                         where l.tipo = 'receita' and {_SEM_PAI_DE_SPLIT}), 0) as receitas,
                       coalesce(sum(l.valor) filter (
                         where l.tipo = 'despesa' and {_SEM_PAI_DE_SPLIT}), 0) as despesas,
-                      m.mes > date_trunc('month', :hoje::date) as projetado
+                      m.mes > date_trunc('month', cast(:hoje as date)) as projetado
                     from meses m
                     left join lancamentos_ativos l
                       on date_trunc('month', l.data) = m.mes
@@ -270,8 +271,8 @@ async def evolucao_saldo(
                 text(f"""
                     with meses as (
                       select generate_series(
-                        date_trunc('month', :inicio::date),
-                        date_trunc('month', :fim::date),
+                        date_trunc('month', cast(:inicio as date)),
+                        date_trunc('month', cast(:fim as date)),
                         interval '1 month'
                       )::date as mes
                     ),
@@ -281,7 +282,7 @@ async def evolucao_saldo(
                       from lancamentos_ativos l
                       where l.mundo = any(cast(:mundos as mundo[]))
                         and {_EFETIVADO}
-                        and l.data < date_trunc('month', :inicio::date)
+                        and l.data < date_trunc('month', cast(:inicio as date))
                     ),
                     por_mes as (
                       select m.mes,
@@ -297,7 +298,7 @@ async def evolucao_saldo(
                     select to_char(p.mes, 'YYYY-MM') as mes,
                            (select base from anterior)
                              + sum(p.resultado) over (order by p.mes) as saldo_final,
-                           p.mes > date_trunc('month', :hoje::date) as projetado
+                           p.mes > date_trunc('month', cast(:hoje as date)) as projetado
                     from por_mes p
                     order by p.mes
                     """),
@@ -429,6 +430,54 @@ async def por_vinculo_de_categoria(
     return [dict(linha) for linha in linhas]
 
 
+async def em_aberto_por_cliente(
+    conexao: AsyncConnection, *, mundos: list[str]
+) -> list[dict[str, Any]]:
+    """Lançamentos de receita em aberto, agrupados por cliente (`FR-065`, `RN-10`).
+
+    Alimenta `card_clientes.inadimplentes`. O `jsonb_agg` numa junção lateral é o mesmo
+    arranjo de `clientes/repositorio.py`, e pelo mesmo motivo: quem decide se o cliente
+    está atrasado é `dominio/inadimplencia.py`, em Python, para a regra ser testável sem
+    Postgres e ser **a mesma** na lista, no perfil, aqui e na rotina diária. Sem a
+    agregação seria uma consulta por cliente.
+
+    **Ignora o filtro de período de propósito** — igual a `alerta_atrasados`: conta que
+    venceu em maio continua vencida em julho (contracts/consultas.md).
+
+    O `where` sai de `categorias.vinculo`, nunca do nome da categoria (`FR-079`).
+    """
+    linhas = (
+        (
+            await conexao.execute(
+                text("""
+                    select cl.id as cliente_id, cl.nome,
+                           coalesce(a.em_aberto, '[]'::jsonb) as em_aberto
+                    from clientes cl
+                    join lateral (
+                      select jsonb_agg(jsonb_build_object(
+                               'data', l.data, 'valor', l.valor, 'status', l.status,
+                               'efetivar_automaticamente', l.efetivar_automaticamente
+                             )) as em_aberto
+                      from lancamentos_ativos l
+                      join categorias c on c.id = l.categoria_id
+                      join subcategorias s on s.id = l.subcategoria_id
+                      where s.cliente_id = cl.id
+                        and c.vinculo = 'cliente'
+                        and l.tipo = 'receita'
+                        and l.mundo = any(cast(:mundos as mundo[]))
+                        and l.status in ('pendente','atrasado')
+                    ) a on a.em_aberto is not null
+                    where cl.arquivado_em is null
+                    """),
+                {"mundos": mundos},
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(linha) for linha in linhas]
+
+
 async def proximos_pagamentos_por_vinculo(
     conexao: AsyncConnection, *, mundos: list[str], hoje: date, vinculo: str, limite: int = 10
 ) -> list[dict[str, Any]]:
@@ -491,8 +540,8 @@ async def tendencia_mensal(
                 text(f"""
                     with meses as (
                       select generate_series(
-                        date_trunc('month', :inicio::date),
-                        date_trunc('month', :fim::date),
+                        date_trunc('month', cast(:inicio as date)),
+                        date_trunc('month', cast(:fim as date)),
                         interval '1 month'
                       )::date as mes
                     )

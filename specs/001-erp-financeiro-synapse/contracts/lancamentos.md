@@ -257,7 +257,7 @@ Não existe exclusão definitiva por API — o histórico financeiro é permanen
 | `POST /api/recorrencias/previa` | gestor, operador | **Não grava.** Devolve a prévia de `FR-027` |
 | `POST /api/recorrencias` | gestor, operador | Cria e materializa |
 | `GET /api/recorrencias/{id}` | gestor, operador | Regra + ocorrências |
-| `PUT /api/recorrencias/{id}` | gestor, operador | `escopo_serie` obrigatório (`RN-07`) — só `esta_e_futuras` |
+| `PUT /api/recorrencias/{id}` | gestor, operador | `escopo_serie` obrigatório (`RN-07`) — só `esta_e_futuras`. Substitui as ocorrências de hoje em diante ainda não efetivadas; devolve quantas em `ocorrencias_futuras_regeradas` |
 | `POST /api/recorrencias/{id}/desativar` | gestor, operador | Para de gerar; remove futuras não efetivadas |
 | `DELETE /api/recorrencias/{id}` | gestor | Soft delete da regra; ocorrências efetivadas ficam |
 
@@ -406,6 +406,36 @@ nulo.
 
 A importação **não** deduz mundo nem cria categorias novas: categoria não reconhecida é
 apontada na prévia para o usuário escolher o destino.
+
+**Sugestão de categoria — sugere, não aplica.** Cada texto de categoria que não bate exato
+com o cadastro vem com a categoria existente mais parecida, por similaridade de string. Na
+prévia, cada linha traz `categoria_sugerida_id` e `categoria_sugerida_nome` (nulos quando
+nada chega perto), e o `resumo` traz o agrupado, que é o que a tela usa para oferecer o
+de-para uma vez em vez de linha a linha:
+
+```json
+{ "categorias_nao_reconhecidas": [
+    { "texto": "Ferramenta", "sugestao_id": "…", "sugestao_nome": "Ferramentas/Assinaturas" },
+    { "texto": "Zebra Azul", "sugestao_id": null, "sugestao_nome": null }
+] }
+```
+
+`POST /confirmar` **nunca aplica a sugestão sozinho**. Adivinhar categoria e gravar deixa o
+erro invisível e contamina DRE, relatório por categoria e o card do Dashboard; o usuário
+aceita a sugestão (ou usa `categoria_padrao_id`) e aí sim grava.
+
+**As importações valem 24 horas.** Passado `expira_em`, mapear e confirmar respondem
+`409 regra_violada` mandando enviar o arquivo de novo, e a rotina diária apaga a linha.
+`importacoes` é a única tabela do sistema em que apagar é o certo — é rascunho de três
+etapas, não histórico financeiro. Confirmar hoje um arquivo mapeado semana passada gravaria
+contra um cadastro de categorias e um saldo que já são outros.
+
+**Lançamento importado registra auditoria** como qualquer outro (`FR-103`, `RN-08`,
+`SC-014`), com `origem: "importacao"`, o `importacao_id` e o nome do arquivo — sem isso a
+linha do tempo diria "criado por Lucas" para centenas de lançamentos que ninguém digitou.
+
+O padrão de `efetivar_automaticamente` das linhas com data futura vem de
+`configuracoes.efetivacao_automatica_padrao`, não fixo no código (`FR-029`, `RNF-02`).
 
 ### `GET /api/lancamentos/exportacao` (`FR-045`, implementado em B1/T065)
 

@@ -308,14 +308,57 @@ async def insere_ocorrencia(
 
 
 async def remove_futuras_nao_efetivadas(
-    conexao: AsyncConnection, recorrencia_id: UUID, *, a_partir_de: date, usuario_id: UUID
+    conexao: AsyncConnection,
+    recorrencia_id: UUID,
+    *,
+    a_partir_de: date,
+    usuario_id: UUID,
+    definitivo: bool = False,
 ) -> int:
-    """Soft delete das ocorrências futuras ainda não efetivadas.
+    """Remove as ocorrências futuras ainda não efetivadas.
 
     Usado por desativar, por editar com `esta_e_futuras` (que apaga e regera) e pelo
     arquivamento de cliente/funcionário. **Nunca toca em efetivada** (`RN-05`,
     `RN-07`): o dinheiro que já se moveu fica no histórico, mesmo que a regra morra.
+
+    ## `definitivo` — por que a edição de série precisa apagar de verdade
+
+    O índice único da migração `010` é `(recorrencia_id, data)` **sem** filtro de
+    `excluido_em`, e isso é deliberado: excluir uma ocorrência não pode fazê-la renascer
+    na próxima execução da rotina (data-model §3.13).
+
+    A consequência é que o soft delete **não libera a data**. Na edição com
+    `esta_e_futuras` — que apaga e regera — o `insert … on conflict do nothing` da
+    materialização batia nas linhas soft-deleted e não inseria nada. Resultado observado:
+    a edição limpava o futuro e **não regerava ocorrência nenhuma**, silenciosamente.
+    `RN-07`/`FR-034` prometem o contrário.
+
+    Com `definitivo=True` a linha é apagada de verdade, a data é liberada e a
+    regeneração acontece. É seguro porque o alvo é estreito: ocorrência **gerada pelo
+    sistema**, **nunca efetivada**, de uma regra que acabou de ser substituída — não é
+    histórico financeiro, que é o que `RN-08` protege. A mudança da regra fica registrada
+    na auditoria da recorrência.
+
+    Repare que o `where` continua exigindo `excluido_em is null`: uma ocorrência que o
+    **usuário** apagou à mão permanece apagada e não é regerada pela edição da série —
+    exatamente o que o *edge case* "excluir uma ocorrência afeta só aquela" pede.
+
+    Nos outros dois usos (desativar, arquivar cliente/funcionário) nada é regerado
+    depois, então o soft delete continua sendo o certo: some da tela e a linha fica.
     """
+    if definitivo:
+        resultado = await conexao.execute(
+            text("""
+                delete from lancamentos
+                where recorrencia_id = :id
+                  and data >= :a_partir_de
+                  and status <> 'efetivado'
+                  and excluido_em is null
+                """),
+            {"id": str(recorrencia_id), "a_partir_de": a_partir_de},
+        )
+        return resultado.rowcount or 0
+
     resultado = await conexao.execute(
         text("""
             update lancamentos

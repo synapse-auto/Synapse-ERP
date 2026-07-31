@@ -12,22 +12,38 @@ contraintuitivas:
    e fecha. Para 3 usuários o custo do handshake é irrelevante; conexão pendurada
    não é.
 
-2. **Prepared statement desligado.** A regra `conn-prepared-statements`: no modo
-   *transaction* o pooler devolve a conexão ao fim de cada transação, e a próxima
-   requisição pode cair em outra conexão — onde o statement preparado não existe.
-   Daí `statement_cache_size=0` no asyncpg e `prepared_statement_cache_size=0` no
-   dialeto do SQLAlchemy. As duas são necessárias: são caches diferentes.
+2. **Prepared statement desligado — e com nome único.** A regra
+   `conn-prepared-statements`: no modo *transaction* o pooler devolve a conexão ao fim
+   de cada transação, e a próxima requisição pode cair em outra conexão — onde o
+   statement preparado não existe. Daí `statement_cache_size=0` no asyncpg e
+   `prepared_statement_cache_size=0` no dialeto do SQLAlchemy.
+
+   **As duas não bastam**, e isso custou uma suíte inteira de integração vermelha.
+   Mesmo com cache zerado, o asyncpg ainda prepara cada consulta antes de executar e
+   nomeia o statement por contador do lado dele: `__asyncpg_stmt_1__`,
+   `__asyncpg_stmt_2__`… Como cada requisição abre uma conexão nova (`NullPool`), o
+   contador **reinicia do 1**. O pgbouncer, por sua vez, multiplexa várias conexões de
+   cliente sobre a **mesma** conexão de servidor. Duas requisições concorrentes caem no
+   mesmo servidor pedindo `__asyncpg_stmt_1__`, e a segunda leva:
+
+       asyncpg.exceptions.DuplicatePreparedStatementError:
+       prepared statement "__asyncpg_stmt_1__" already exists
+
+   Não é problema de teste: é a configuração de produção. `prepared_statement_name_func`
+   troca o contador por um UUID, e o nome deixa de colidir com o de qualquer outra
+   conexão que esteja compartilhando o servidor.
 
 3. **`DATABASE_URL` deve apontar para a porta 6543** (pooler, modo transaction), não
    para a 5432 (conexão direta). A direta esgota `max_connections` com pouca
    concorrência.
 
-SQLAlchemy entra no modo **Core** — sem ORM. São 19 tabelas com consultas escritas
+SQLAlchemy entra no modo **Core** — sem ORM. São 21 tabelas com consultas escritas
 à mão, várias com agregação que nenhum mapeamento de objeto ajudaria (Princípio I).
 
 Tarefa: T024
 """
 
+import uuid
 from collections.abc import AsyncIterator
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -42,6 +58,15 @@ from app.config import obter_configuracao
 _PARAMETROS_IGNORADOS = {"sslmode", "channel_binding", "options", "target_session_attrs"}
 
 _motor: AsyncEngine | None = None
+
+
+def nome_de_statement() -> str:
+    """Nome único por statement preparado — ver nota 2 no topo.
+
+    Sem isto, o contador interno do asyncpg reinicia a cada conexão nova e colide
+    com o de outra conexão multiplexada no mesmo servidor pelo pgbouncer.
+    """
+    return f"__asyncpg_{uuid.uuid4().hex}__"
 
 
 def _normaliza_url(url: str) -> tuple[str, bool]:
@@ -79,9 +104,10 @@ def obter_motor() -> AsyncEngine:
         url,
         poolclass=NullPool,  # ver nota 1 no topo
         connect_args={
-            # ver nota 2 — cache do asyncpg
+            # ver nota 2 — cache do asyncpg zerado E nome único por statement
             "statement_cache_size": 0,
             "prepared_statement_cache_size": 0,
+            "prepared_statement_name_func": nome_de_statement,
             "ssl": "require" if exige_tls else None,
             # A função da Vercel tem duração limitada (plan.md §Constraints). Melhor
             # falhar rápido e devolver erro que ficar pendurado até o corte da

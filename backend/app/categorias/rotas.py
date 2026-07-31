@@ -279,6 +279,44 @@ async def editar(
 ) -> dict[str, Any]:
     atual = await _exige_categoria(conexao, categoria_id)
 
+    # `vinculo` é único entre as categorias ativas (índice `categorias_vinculo_uidx`), e
+    # tem que ser: `dominio/espelho_subcategoria.py` precisa saber em **qual** categoria
+    # criar a subcategoria espelho quando um cliente é cadastrado. Com duas categorias
+    # `vinculo = 'cliente'`, a pergunta não tem resposta.
+    #
+    # Sem esta checagem o `update` batia direto no índice e o usuário recebia
+    # `500 erro_interno` — "Algo deu errado do nosso lado" para uma ação previsível, com
+    # a explicação só no log. Agora a recusa diz **qual** categoria já ocupa o vínculo,
+    # que é a informação necessária para resolver (`FR-079`, contracts/README.md §Erros).
+    if corpo.vinculo and corpo.vinculo != atual["vinculo"]:
+        ocupante = (
+            (
+                await conexao.execute(
+                    text("""
+                        select nome from categorias
+                        where vinculo = cast(:vinculo as vinculo_subcategoria)
+                          and arquivada_em is null and id <> :id
+                        """),
+                    {"vinculo": corpo.vinculo, "id": str(categoria_id)},
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if ocupante is not None:
+            raise ErroRegraViolada(
+                (
+                    f"A categoria '{ocupante}' já é a categoria especial de "
+                    f"{corpo.vinculo}. Só pode existir uma."
+                ),
+                requisito="FR-079",
+                campos={
+                    "vinculo": (
+                        f"Arquive ou mude o vínculo de '{ocupante}' antes de promover esta."
+                    )
+                },
+            )
+
     await conexao.execute(
         text("""
             update categorias set

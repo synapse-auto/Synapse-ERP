@@ -125,9 +125,19 @@ que está visível na configuração do usuário).
 - `composicao` sempre traz as três situações, mesmo zeradas.
 - `saude_caixa.cobertura` é `null` quando não há despesa fixa no horizonte — mostrar "∞×"
   seria cômodo e enganoso (`dominio/saude_caixa.py`).
-- `card_clientes.inadimplentes` vem `[]` até B4/T100: a situação é derivada de `RN-10`, que
-  ainda não tem módulo. Lista vazia em vez de campo ausente, para o contrato não mudar de
-  forma depois.
+- `card_clientes.inadimplentes` sai de `dominio/inadimplencia.py` — a **mesma** função da
+  lista de clientes, do perfil e do alerta da rotina, para os quatro nunca discordarem
+  (`FR-065`, `FR-083`, `SC-006`). Vem ordenado pelo **maior atraso primeiro**, que é o que a
+  tela destaca em vermelho, e **ignora o filtro de período**, como `alerta_atrasados`.
+  Mensalidade com efetivação automática nunca aparece aqui (`FR-115`, D-05).
+- `card_clientes.comparativo` e `card_funcionarios.comparativo` seguem a mesma régua de
+  período dos demais cards (`FR-055`, `FR-065`, `FR-066`): `variacao_percentual` é `null`
+  quando o período anterior é zero.
+- **Empate de ordem entre a preferência do usuário e o catálogo**: a escolha explícita do
+  usuário vence. Sem esse desempate, mover um card para uma posição já ocupada por um
+  `ordem_padrao` não fazia nada visível (`FR-071`).
+- `resumo_linguagem_natural` traz o aviso de contas vencidas **também quando o período não
+  tem nenhum lançamento efetivado** — é justamente quando ele mais importa (`FR-070`).
 
 ---
 

@@ -479,6 +479,30 @@ Suporta a idempotência e a recuperação na leitura de D-08. `ultimo_resultado`
 rotina fez (quantos efetivados, quantos atrasados) — é o registro de verificação que o
 Princípio VI exige.
 
+### 3.20. `chaves_idempotencia`
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| `usuario_id` | uuid → `usuarios` | Parte da PK |
+| `rota` | text | Parte da PK — a mesma chave em endpoints diferentes é operação diferente |
+| `chave` | text | Parte da PK — o valor do cabeçalho `Idempotency-Key` |
+| `resposta` | jsonb NOT NULL | O corpo devolvido na primeira chamada; a repetição recebe isto |
+| `criado_em` / `expira_em` | timestamptz | Validade de 10 minutos |
+
+PK composta `(usuario_id, rota, chave)`.
+
+**Por que existe** (migração `012`): a Vercel repete a invocação depois de um timeout de
+rede, e a repetição costuma cair em **outra instância**. Guardar a chave em memória — como
+estava até 2026-07-31 — cobria clique duplo na instância quente e falhava exatamente no
+caso que motivou o mecanismo. Dois lançamentos iguais são valor contado em dobro no saldo.
+
+**A PK faz dois trabalhos**: identifica a repetição na leitura e, se duas invocações
+correrem de fato juntas, faz a segunda falhar no `insert` em vez de duplicar a linha.
+
+**Dado temporário**, como `importacoes`: expira em minutos e a rotina diária apaga
+(§5.15). São as **duas únicas** tabelas do sistema em que apagar linha é o certo —
+`RN-08` fala de histórico financeiro, e nenhuma das duas é isso.
+
 ---
 
 ## 4. Ciclo de status (`RN-03`, `RN-04`)
@@ -570,6 +594,23 @@ encadeado a partir da anterior — encadear faria fevereiro contaminar março e 
 escorregaria. `datas_que_o_escopo_alcanca` é o dono de `RN-07`, usado por editar série,
 desativar e arquivar cliente/funcionário, para os três concordarem.
 
+**Apagar para regerar ≠ apagar para sumir** (auditoria de 2026-07-31). Os três usos de
+`remove_futuras_nao_efetivadas` parecem o mesmo e não são:
+
+| Uso | O que vem depois | Remoção |
+|---|---|---|
+| Editar série (`esta_e_futuras`) | **regeração** com a regra nova | **definitiva** |
+| Desativar recorrência | nada | soft delete |
+| Arquivar cliente/funcionário | nada | soft delete |
+
+O primeiro precisa de remoção definitiva por causa do índice único de `§7 / 010`, que não
+filtra `excluido_em`: a linha soft-deleted continua ocupando `(recorrencia_id, data)` e o
+`on conflict do nothing` da materialização não insere nada por cima. O alvo é estreito —
+ocorrência gerada pelo sistema, nunca efetivada, de uma regra que acabou de ser
+substituída —, então não há histórico financeiro em risco (`RN-08` fala do dinheiro que se
+moveu). Ocorrência que o **usuário** apagou à mão continua fora do alcance dos dois
+caminhos, e por isso não é regerada.
+
 ### 5.13. `RN-10` — inadimplência → `dominio/inadimplencia.py`
 Situação **derivada, nunca gravada**: não existe coluna `situacao` em `clientes`. É o que
 faz mudar `configuracoes.inadimplencia_dias_tolerancia` reavaliar todo mundo na hora
@@ -589,6 +630,20 @@ gatilho de regra do projeto está reservado para a imutabilidade de `mundo`.
 que **já está lançada** no futuro, não uma média histórica — o sistema conhece o que vem
 porque as recorrências foram materializadas (D-08), e média daria um número que não
 corresponde a nenhuma conta real. Sem despesa fixa, `cobertura` é `null`, não infinita.
+
+### 5.15. `FR-044` — validade da importação → `rotinas/diaria.py` + `importacao/rotas.py`
+`importacoes` é a **única** tabela do sistema em que apagar linha é o certo: guarda o
+conteúdo do arquivo como rascunho de três etapas, não histórico financeiro (o que vira
+lançamento sai dela e passa a viver em `lancamentos`, que nunca é apagado — `RN-08`).
+
+A validade de 24h precisa das **duas** pontas, e por um tempo não teve nenhuma: `expira_em`
+existia só como `default` de coluna. Hoje `_exige()` recusa mapear ou confirmar depois do
+prazo (`409 regra_violada`), e `_limpa_importacoes_expiradas` apaga as linhas na rotina
+diária. Só a faxina não bastaria — a rotina pode ter falhado no dia; e só a recusa não
+bastaria — o `jsonb` com o arquivo inteiro ficaria na tabela para sempre.
+
+Confirmar hoje um arquivo mapeado semana passada gravaria contra um cadastro de categorias
+e um saldo que já são outros. É esse o risco que o prazo fecha.
 
 ### 5.11. `FR-028` — parcelamento → `dominio/parcelamento.py`
 As primeiras parcelas arredondam para baixo e a **última absorve a diferença**, com
@@ -634,8 +689,9 @@ centavos incomoda menos numa parcela que ninguém anunciou.
 | `007_seed_configuracoes.sql` | tabela `configuracoes` completa (§3.15) |
 | `008_seed_dominio.sql` | 9 categorias, 9 serviços, 2 funcionários — **depende da confirmação do mundo dos funcionários** (§3.6) |
 | `009_seed_anexo_url_assinada.sql` | chave `anexo_url_assinada_segundos` (§3.15). Nasceu em B1/T064: os anexos precisavam de um prazo para a URL assinada, e prazo não mora no código (Princípio VII). Migração nova em vez de editar a `007`, que já estava aplicada |
-| `011_importacoes.sql` | tabela `importacoes` — o estado das três etapas da importação (`FR-044`). **Não estava entre as 19 tabelas do desenho**: a necessidade só ficou clara ao implementar o fluxo de três requisições, que precisa do conteúdo lido sobrevivendo entre elas. Memória não serve (cada requisição da Vercel pode cair numa instância diferente — o mesmo motivo de D-01). Dado **temporário**: expira em 24h |
-| `010_ocorrencia_unica_por_data.sql` | índice único `lancamentos (recorrencia_id, data) where recorrencia_id is not null`. Nasceu em B2/T083: **sem ele a idempotência de D-08 não existe**. É o que permite `insert … on conflict do nothing` em vez de um `select` antes de cada ocorrência (N+1 numa função com duração limitada), e cobre o caso de duas invocações simultâneas. Deliberadamente **não** é parcial em `excluido_em is null`: excluir uma ocorrência não pode fazê-la renascer na próxima execução da rotina (§3.13) |
+| `011_importacoes.sql` | tabela `importacoes` — o estado das três etapas da importação (`FR-044`). **Não estava entre as 19 tabelas do desenho**: a necessidade só ficou clara ao implementar o fluxo de três requisições, que precisa do conteúdo lido sobrevivendo entre elas. Memória não serve (cada requisição da Vercel pode cair numa instância diferente — o mesmo motivo de D-01). Dado **temporário**: expira em 24h — recusado em `importacao/rotas.py` e apagado pela rotina diária (§5.15) |
+| `012_chaves_idempotencia.sql` | tabela `chaves_idempotencia` — o cabeçalho `Idempotency-Key` (contracts/README.md) deixa de viver na memória do processo. Nasceu na auditoria de fim do Boss 2 (2026-07-31), que encontrou aberta a divergência que o README do backend declarava desde B0: memória de função serverless não sobrevive entre invocações, e a repetição após timeout de rede — o caso que o mecanismo existe para cobrir — cai em instância nova. Dado **temporário**: expira em 10 minutos, limpo pela rotina diária. PK `(usuario_id, rota, chave)`; ver §3.20 |
+| `010_ocorrencia_unica_por_data.sql` | índice único `lancamentos (recorrencia_id, data) where recorrencia_id is not null`. Nasceu em B2/T083: **sem ele a idempotência de D-08 não existe**. É o que permite `insert … on conflict do nothing` em vez de um `select` antes de cada ocorrência (N+1 numa função com duração limitada), e cobre o caso de duas invocações simultâneas. Deliberadamente **não** é parcial em `excluido_em is null`: excluir uma ocorrência não pode fazê-la renascer na próxima execução da rotina (§3.13). **Consequência descoberta na auditoria de 2026-07-31**: soft delete não libera a data, então o caminho que apaga **para regerar** — editar a série com `esta_e_futuras` — precisa de remoção definitiva, senão o `on conflict do nothing` não insere nada e a série fica sem futuro em silêncio. Ver §5.10 |
 
 As `003`/`004` têm dependência circular entre `subcategorias.cliente_id` e
 `clientes` — resolvida criando as tabelas primeiro e as FKs no fim do arquivo `003`.

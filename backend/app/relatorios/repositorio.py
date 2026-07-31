@@ -186,8 +186,8 @@ async def matriz_mensal(
                 text(f"""
                     with meses as (
                       select generate_series(
-                        date_trunc('month', :inicio::date),
-                        date_trunc('month', :fim::date),
+                        date_trunc('month', cast(:inicio as date)),
+                        date_trunc('month', cast(:fim as date)),
                         interval '1 month'
                       )::date as mes
                     ),

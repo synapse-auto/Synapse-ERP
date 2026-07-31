@@ -275,6 +275,111 @@ async def test_excluido_sai_da_lista_e_volta_pela_lixeira(conexao_de_teste):
     assert total == 1
 
 
+# ── Idempotência (T028, fechada em 2026-07-31 pela migração `012`) ──────────
+#
+# Estes três viviam em `tests/unidade/test_fundacao_b0.py`, quando a chave morava em
+# memória do processo. Vieram para cá junto com a chave: o ponto do mecanismo é
+# sobreviver à instância, e um teste em memória aprovaria justamente a versão que não
+# sobrevivia.
+
+
+async def test_mesma_chave_devolve_o_resultado_guardado(conexao_de_teste):
+    from app.comum.idempotencia import registra_resposta, resposta_ja_registrada
+
+    usuario = await _usuario(conexao_de_teste)
+    await registra_resposta(
+        conexao_de_teste,
+        "k1",
+        rota="POST /api/lancamentos",
+        usuario_id=str(usuario.id),
+        resposta={"id": "abc"},
+    )
+    guardado = await resposta_ja_registrada(
+        conexao_de_teste, "k1", rota="POST /api/lancamentos", usuario_id=str(usuario.id)
+    )
+    assert guardado == {"id": "abc"}
+
+
+async def test_chave_e_escopada_por_usuario_e_por_rota(conexao_de_teste):
+    from app.comum.idempotencia import registra_resposta, resposta_ja_registrada
+
+    um = await _usuario(conexao_de_teste)
+    outro = await _usuario(conexao_de_teste)
+    await registra_resposta(
+        conexao_de_teste,
+        "k1",
+        rota="POST /api/lancamentos",
+        usuario_id=str(um.id),
+        resposta={"id": "abc"},
+    )
+
+    # Mesma chave, outra pessoa: operação diferente.
+    assert (
+        await resposta_ja_registrada(
+            conexao_de_teste, "k1", rota="POST /api/lancamentos", usuario_id=str(outro.id)
+        )
+        is None
+    )
+    # Mesma chave, outra rota: idem.
+    assert (
+        await resposta_ja_registrada(
+            conexao_de_teste, "k1", rota="POST /api/clientes", usuario_id=str(um.id)
+        )
+        is None
+    )
+
+
+async def test_sem_chave_nunca_reaproveita(conexao_de_teste):
+    """Cabeçalho é opcional; sem ele, cada chamada é uma operação nova."""
+    from app.comum.idempotencia import registra_resposta, resposta_ja_registrada
+
+    usuario = await _usuario(conexao_de_teste)
+    await registra_resposta(
+        conexao_de_teste,
+        None,
+        rota="POST /api/lancamentos",
+        usuario_id=str(usuario.id),
+        resposta={"id": "abc"},
+    )
+    assert (
+        await resposta_ja_registrada(
+            conexao_de_teste, None, rota="POST /api/lancamentos", usuario_id=str(usuario.id)
+        )
+        is None
+    )
+
+
+async def test_repetir_o_post_com_a_mesma_chave_nao_cria_dois_lancamentos(conexao_de_teste):
+    """O caso que o mecanismo existe para cobrir (contracts/README.md §Idempotência)."""
+    usuario = await _usuario(conexao_de_teste)
+    infra = await _categoria(conexao_de_teste, "Infraestrutura")
+
+    corpo = LancamentoEntrada(
+        mundo="digital",
+        tipo="despesa",
+        descricao="Servidor",
+        valor=Decimal("480.00"),
+        data=HOJE,
+        categoria_id=infra,
+    )
+
+    primeiro = await rotas.criar(corpo, usuario, conexao_de_teste, chave="repeticao-de-rede")
+    segundo = await rotas.criar(corpo, usuario, conexao_de_teste, chave="repeticao-de-rede")
+
+    assert primeiro["id"] == segundo["id"]
+
+    quantos = (
+        await conexao_de_teste.execute(
+            text(
+                "select count(*) from lancamentos_ativos "
+                "where criado_por = cast(:u as uuid) and descricao = 'Servidor'"
+            ),
+            {"u": str(usuario.id)},
+        )
+    ).scalar_one()
+    assert quantos == 1
+
+
 # ── `RN-11` — split ─────────────────────────────────────────────────────────
 
 
@@ -294,7 +399,11 @@ async def test_split_com_soma_errada_e_recusado_dizendo_a_diferenca(conexao_de_t
         await rotas.dividir(UUID(criado["id"]), divisao, usuario, conexao_de_teste)
 
     assert capturado.value.requisito == "RN-11"
-    assert "20,00" in capturado.value.mensagem  # a diferença que falta fechar
+    # A diferença que falta fechar vai em `campos.partes`, não na mensagem — é onde
+    # contracts/lancamentos.md §1 a coloca, para a tela grifar o campo certo em vez de
+    # o usuário ter que ler a frase e achar o número.
+    assert "20,00" in capturado.value.campos["partes"]
+    assert "Faltam" in capturado.value.campos["partes"]
 
 
 async def test_depois_do_split_o_pai_sai_dos_totais(conexao_de_teste):

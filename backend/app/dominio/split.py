@@ -7,8 +7,9 @@ R$ 200,00 de Ferramentas.
 Duas garantias, e a segunda é a que mais dá problema quando falta:
 
 1. **`Σ(partes) = valor(pai)`**, comparado em `Decimal`. Diferença é recusada com o
-   valor que falta ou sobra dito na mensagem — "não fecha" sem dizer quanto obriga o
-   usuário a fazer a conta de cabeça.
+   valor que falta ou sobra dito em **`campos.partes`** (contracts/lancamentos.md §1) —
+   "não fecha" sem dizer quanto obriga o usuário a fazer a conta de cabeça. Vai no
+   campo, e não na frase, para a tela grifar o input errado junto do número.
 2. **O pai deixa de contar nos totais quando tem partes.** Sem isso o mesmo dinheiro
    é somado duas vezes, uma no pai e outra nas partes, e o saldo fica com o dobro.
 

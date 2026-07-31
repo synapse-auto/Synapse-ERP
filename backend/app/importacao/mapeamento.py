@@ -18,18 +18,69 @@ sobre dado financeiro.
 Ela é apontada na prévia com a lista do que existe. Criar sozinho encheria a base de
 "Alimentação", "alimentacao" e "ALIMENTAÇÃO" em três meses.
 
+## A sugestão de categoria (`FR-044`) **sugere, não aplica**
+
+`FR-044` e o contrato pedem sugestão de categoria, e por um tempo isto aqui só fazia
+casamento exato de nome: "Ferramentas" batia, "Ferramenta" caía como não reconhecida
+sem nenhuma pista do que o usuário deveria escolher.
+
+Agora cada texto não reconhecido ganha a categoria existente mais parecida, por
+similaridade de string. Duas decisões que valem ser ditas:
+
+1. **A sugestão nunca é aplicada sozinha.** Ela vai na prévia para o usuário aceitar.
+   Adivinhar categoria de lançamento financeiro e gravar é pior que recusar — o erro
+   fica invisível e contamina DRE, relatório por categoria e o card do Dashboard.
+2. **A comparação é em Python, sem tocar o banco.** `pg_trgm` faria o mesmo, mas
+   custaria uma consulta por linha do arquivo e tiraria a testabilidade sem Postgres
+   que este módulo tem de propósito. São dezenas de categorias contra centenas de
+   linhas — cabe na memória com folga.
+
 Tarefa: T135
 """
 
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
+from difflib import SequenceMatcher
 from typing import Any
 
 from app.comum.erros import ErroValidacao
 from app.importacao import csv as leitor_csv
 
 CAMPOS_OBRIGATORIOS = ("data", "descricao", "valor")
+
+# Abaixo disto a "sugestão" viraria chute. 0.6 aceita erro de acento, plural e uma
+# palavra a mais ("Ferramentas de TI" → "Ferramentas/Assinaturas") e recusa duas
+# palavras sem parentesco.
+SIMILARIDADE_MINIMA = 0.6
+
+
+def _normaliza(texto: str) -> str:
+    """Minúsculas sem acento — "Alimentação" e "alimentacao" são a mesma palavra."""
+    sem_acento = unicodedata.normalize("NFKD", texto)
+    return "".join(c for c in sem_acento if not unicodedata.combining(c)).strip().lower()
+
+
+def sugere_categoria(
+    texto: str, categorias_por_nome: dict[str, tuple[str, str]]
+) -> tuple[str, str] | None:
+    """Categoria existente mais parecida com `texto`, ou `None` se nada chega perto.
+
+    Devolve `(id, nome original)` — o nome porque é o que a tela mostra ao perguntar
+    "você quis dizer …?", e com a grafia do cadastro.
+    """
+    alvo = _normaliza(texto)
+    if not alvo:
+        return None
+
+    melhor: tuple[float, str, str] | None = None
+    for chave, (identificador, nome) in categorias_por_nome.items():
+        pontuacao = SequenceMatcher(None, alvo, _normaliza(chave)).ratio()
+        if pontuacao >= SIMILARIDADE_MINIMA and (melhor is None or pontuacao > melhor[0]):
+            melhor = (pontuacao, identificador, nome)
+
+    return (melhor[1], melhor[2]) if melhor else None
 
 
 @dataclass
@@ -41,6 +92,10 @@ class LinhaMapeada:
     tipo: str | None
     categoria_texto: str | None
     categoria_id: str | None = None
+    # `FR-044`: preenchidos só quando o nome não bateu exato. Ficam na prévia para o
+    # usuário aceitar; o `confirmar` nunca os aplica sozinho.
+    categoria_sugerida_id: str | None = None
+    categoria_sugerida_nome: str | None = None
     problemas: list[str] = field(default_factory=list)
 
     @property
@@ -56,6 +111,8 @@ class LinhaMapeada:
             "tipo": self.tipo,
             "categoria_texto": self.categoria_texto,
             "categoria_id": self.categoria_id,
+            "categoria_sugerida_id": self.categoria_sugerida_id,
+            "categoria_sugerida_nome": self.categoria_sugerida_nome,
             "valida": self.valida,
             "problemas": self.problemas,
         }
@@ -119,12 +176,18 @@ def mapeia(
 
         categoria_texto = (linha.get(mapa.get("categoria", ""), "") or "").strip() or None
         categoria_id = None
+        sugerida_id = sugerida_nome = None
         if categoria_texto:
-            categoria_id = categorias_por_nome.get(categoria_texto.strip().lower())
+            achado = categorias_por_nome.get(categoria_texto.strip().lower())
+            categoria_id = achado[0] if achado else None
             if categoria_id is None:
+                sugestao = sugere_categoria(categoria_texto, categorias_por_nome)
+                if sugestao:
+                    sugerida_id, sugerida_nome = sugestao
                 problemas.append(
                     f"Categoria '{categoria_texto}' não existe. Escolha uma existente — a "
                     "importação não cria categoria."
+                    + (f" Parecida: '{sugerida_nome}'." if sugerida_nome else "")
                 )
         elif mapa.get("categoria"):
             problemas.append("Sem categoria nesta linha.")
@@ -138,6 +201,8 @@ def mapeia(
                 tipo=tipo,
                 categoria_texto=categoria_texto,
                 categoria_id=categoria_id,
+                categoria_sugerida_id=sugerida_id,
+                categoria_sugerida_nome=sugerida_nome,
                 problemas=problemas,
             )
         )
@@ -168,12 +233,19 @@ def resumo(mapeadas: list[LinhaMapeada]) -> dict[str, Any]:
         "primeira_data": min(datas).isoformat() if datas else None,
         "ultima_data": max(datas).isoformat() if datas else None,
         # As categorias que faltam, agrupadas: é o que a tela precisa para oferecer o
-        # de-para uma vez em vez de linha a linha.
-        "categorias_nao_reconhecidas": sorted(
-            {
-                linha.categoria_texto
-                for linha in mapeadas
-                if linha.categoria_texto and linha.categoria_id is None
-            }
-        ),
+        # de-para uma vez em vez de linha a linha. Cada uma vem com a sugestão
+        # (`FR-044`) — `sugestao_id` nulo quando nada no cadastro chega perto.
+        "categorias_nao_reconhecidas": [
+            {"texto": texto, "sugestao_id": sugestao[0], "sugestao_nome": sugestao[1]}
+            for texto, sugestao in sorted(
+                {
+                    linha.categoria_texto: (
+                        linha.categoria_sugerida_id,
+                        linha.categoria_sugerida_nome,
+                    )
+                    for linha in mapeadas
+                    if linha.categoria_texto and linha.categoria_id is None
+                }.items()
+            )
+        ],
     }

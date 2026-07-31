@@ -274,8 +274,8 @@ async def criar(
     conexao: Conexao,
     chave: Annotated[str | None, Depends(chave_de_idempotencia)] = None,
 ) -> dict[str, Any]:
-    ja_feito = resposta_ja_registrada(
-        chave, rota="POST /api/lancamentos", usuario_id=str(usuario.id)
+    ja_feito = await resposta_ja_registrada(
+        conexao, chave, rota="POST /api/lancamentos", usuario_id=str(usuario.id)
     )
     if ja_feito is not None:
         return ja_feito
@@ -284,8 +284,8 @@ async def criar(
     tags = await repositorio.tags_de(conexao, [linha["id"]])
     resposta = servico.para_json(linha, tags.get(str(linha["id"]), []))
 
-    registra_resposta(
-        chave, rota="POST /api/lancamentos", usuario_id=str(usuario.id), resposta=resposta
+    await registra_resposta(
+        conexao, chave, rota="POST /api/lancamentos", usuario_id=str(usuario.id), resposta=resposta
     )
     return resposta
 

@@ -88,14 +88,16 @@ os.environ.setdefault("AMBIENTE", "local")
 
 @pytest.fixture(autouse=True)
 def _limpa_estado_entre_testes() -> Iterator[None]:
-    """Zera o que é global no processo, para um teste não influenciar o seguinte."""
-    from app.comum.idempotencia import limpa_memoria
+    """Zera o que é global no processo, para um teste não influenciar o seguinte.
+
+    Antes limpava também a memória de chaves de idempotência. Não existe mais memória a
+    limpar: desde a migração `012` as chaves vivem no banco, e o `rollback` da transação
+    do teste já as desfaz.
+    """
     from app.config import obter_configuracao
 
     obter_configuracao.cache_clear()
-    limpa_memoria()
     yield
-    limpa_memoria()
 
 
 @pytest.fixture
@@ -147,15 +149,21 @@ async def conexao_de_teste() -> AsyncIterator[object]:
     from sqlalchemy.ext.asyncio import create_async_engine
     from sqlalchemy.pool import NullPool
 
-    from app.db import _normaliza_url
+    from app.db import _normaliza_url, nome_de_statement
 
     url_normalizada, exige_tls = _normaliza_url(url)
     motor = create_async_engine(
         url_normalizada,
         poolclass=NullPool,
         connect_args={
+            # Os mesmos três argumentos de `app/db.py` — em especial o
+            # `prepared_statement_name_func`. Sem ele o pgbouncer em modo transaction
+            # devolve `DuplicatePreparedStatementError` assim que dois testes rodam
+            # perto um do outro, e a suíte inteira fica vermelha por motivo de
+            # infraestrutura, escondendo a falha de regra que ela deveria mostrar.
             "statement_cache_size": 0,
             "prepared_statement_cache_size": 0,
+            "prepared_statement_name_func": nome_de_statement,
             "ssl": "require" if exige_tls else None,
         },
     )

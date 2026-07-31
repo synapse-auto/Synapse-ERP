@@ -17,6 +17,18 @@ O semáforo (`RF-46b`) olha 30 dias e classifica em três faixas. Este alerta ol
 saldo cobre as contas da semana que vem? É a pergunta que se responde numa segunda de
 manhã, e por isso a janela é outra.
 
+## O que "conta da semana" inclui — e o que isso corrigiu
+
+A janela tem **fim, não começo**: tudo que está em aberto até `hoje + horizonte`, e não
+apenas o que vence de hoje em diante. A versão anterior filtrava
+`data between hoje and ate` e, com isso, **jogava fora exatamente as contas vencidas** —
+`atrasado`, por definição, tem data no passado e nunca caía na faixa. O alerta calculava
+"o saldo cobre a semana" ignorando o que já estava atrasado, que é o pior jeito
+possível de errar este número.
+
+É a mesma leitura que o Dashboard já fazia para "A pagar" (contracts/consultas.md):
+conta vencida em maio continua a pagar em julho.
+
 Tarefa: T127
 """
 
@@ -109,10 +121,10 @@ async def _saldo_e_compromissos(
                 from lancamentos_ativos l
                 where l.mundo = cast(:mundo as mundo)
                   and l.tipo = 'despesa'
-                  and l.data between :hoje and :ate
+                  and l.data <= :ate
                   and l.status in ('programado','pendente','atrasado')
                 """),
-            {"mundo": mundo, "hoje": hoje, "ate": hoje + timedelta(days=horizonte_dias)},
+            {"mundo": mundo, "ate": hoje + timedelta(days=horizonte_dias)},
         )
     ).scalar_one()
 

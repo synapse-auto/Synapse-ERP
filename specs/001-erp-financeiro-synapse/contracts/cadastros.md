@@ -49,6 +49,12 @@ ativo (`FR-074`, cenário 5 da história 2).
 - **Promover a especial é só isto** (`FR-079`): `PUT` com `especial: true` e `vinculo`. Não
   há deploy envolvido. Ao promover, as subcategorias existentes que não correspondem a um
   cliente/funcionário são apontadas na resposta como pendentes de vínculo.
+- **Um vínculo, uma categoria.** Promover para um `vinculo` que outra categoria ativa já
+  ocupa → `409 regra_violada` / `FR-079`, **nomeando a categoria que ocupa** e dizendo o que
+  fazer (arquivá-la ou mudar o vínculo dela). O limite não é burocracia: o espelho de
+  subcategoria (D-07) precisa saber em qual categoria criar a linha quando um cliente é
+  cadastrado, e com duas a pergunta não tem resposta. Até 2026-07-31 esta tentativa batia no
+  índice do banco e virava `500`.
 - Categoria não aceita `mundo` no corpo → `400 validacao`.
 
 ### `POST /api/categorias/{id}/arquivar` (`RN-06`, `FR-075`)

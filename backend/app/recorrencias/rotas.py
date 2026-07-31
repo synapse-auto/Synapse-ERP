@@ -168,8 +168,8 @@ async def criar(
     conexao: Conexao,
     chave: Annotated[str | None, Depends(chave_de_idempotencia)] = None,
 ) -> dict[str, Any]:
-    ja_feito = resposta_ja_registrada(
-        chave, rota="POST /api/recorrencias", usuario_id=str(usuario.id)
+    ja_feito = await resposta_ja_registrada(
+        conexao, chave, rota="POST /api/recorrencias", usuario_id=str(usuario.id)
     )
     if ja_feito is not None:
         return ja_feito
@@ -236,8 +236,8 @@ async def criar(
 
     atualizada = await servico.exige_recorrencia(conexao, nova["id"])
     resposta = servico.para_json(atualizada) | {"geracao": geracao.como_dicionario()}
-    registra_resposta(
-        chave, rota="POST /api/recorrencias", usuario_id=str(usuario.id), resposta=resposta
+    await registra_resposta(
+        conexao, chave, rota="POST /api/recorrencias", usuario_id=str(usuario.id), resposta=resposta
     )
     return resposta
 
@@ -314,8 +314,13 @@ async def editar(
     hoje = date.today()
     # `RN-07` em duas etapas: apaga só o que é de hoje em diante e ainda não efetivado,
     # depois recua `gerada_ate` para hoje para a materialização refazer esse trecho.
+    #
+    # `definitivo=True` é obrigatório aqui, não uma preferência: o índice único de
+    # `(recorrencia_id, data)` (migração `010`) não filtra `excluido_em`, então soft
+    # delete não libera a data e o `on conflict do nothing` da regeneração não inseria
+    # nada. A edição limpava o futuro e não regerava — ver `remove_futuras_nao_efetivadas`.
     removidas = await repositorio.remove_futuras_nao_efetivadas(
-        conexao, recorrencia_id, a_partir_de=hoje, usuario_id=usuario.id
+        conexao, recorrencia_id, a_partir_de=hoje, usuario_id=usuario.id, definitivo=True
     )
     await repositorio.atualiza(conexao, recorrencia_id, campos=_campos(corpo))
     await conexao.execute(
@@ -457,8 +462,8 @@ async def criar_parcelamento(
     conexao: Conexao,
     chave: Annotated[str | None, Depends(chave_de_idempotencia)] = None,
 ) -> dict[str, Any]:
-    ja_feito = resposta_ja_registrada(
-        chave, rota="POST /api/parcelamentos", usuario_id=str(usuario.id)
+    ja_feito = await resposta_ja_registrada(
+        conexao, chave, rota="POST /api/parcelamentos", usuario_id=str(usuario.id)
     )
     if ja_feito is not None:
         return ja_feito
@@ -566,8 +571,12 @@ async def criar_parcelamento(
     )
 
     resposta = await detalhar_parcelamento(novo["id"], usuario, conexao)
-    registra_resposta(
-        chave, rota="POST /api/parcelamentos", usuario_id=str(usuario.id), resposta=resposta
+    await registra_resposta(
+        conexao,
+        chave,
+        rota="POST /api/parcelamentos",
+        usuario_id=str(usuario.id),
+        resposta=resposta,
     )
     return resposta
 

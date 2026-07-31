@@ -176,16 +176,25 @@ personalizado** — ele envia `Authorization: Bearer $CRON_SECRET` quando a vari
 que ele apareça no `/api/docs` — endpoint que existe e não está documentado é o tipo de
 divergência que T208 trata como bug.
 
-### 2. Idempotência ainda não cobre o caso principal
+### 2. ✅ Resolvida em 2026-07-31 — idempotência agora sobrevive à instância
 
-[`app/comum/idempotencia.py`](app/comum/idempotencia.py) guarda a chave **em memória do
-processo**. Isso cobre clique duplo na mesma instância quente e nada mais. A repetição
-que a Vercel faz após timeout de rede — o motivo de o mecanismo existir — normalmente
-cai em instância nova, com memória vazia.
+Ficou aberta bem mais tempo do que devia. [`app/comum/idempotencia.py`](app/comum/idempotencia.py)
+guardava a chave **em memória do processo**, o que cobria clique duplo na mesma instância
+quente e nada mais — enquanto o caso que o mecanismo existe para cobrir é a repetição que
+a Vercel faz após timeout de rede, que normalmente cai em instância nova, com memória
+vazia. Dois lançamentos iguais, valor contado em dobro no saldo.
 
-**Fechamento**: tabela `chaves_idempotencia` numa migração `009`, exigida a partir de
-`T056` (`POST /api/lancamentos`). Até lá, o mecanismo está incompleto e isso está dito
-no próprio módulo.
+O fechamento estava planejado para `T056` e não aconteceu; a auditoria de fim do Boss 2
+o encontrou ainda aberto.
+
+**Implementado**: tabela `chaves_idempotencia` na migração **`012`** (a `009` já tinha
+sido usada por `anexo_url_assinada_segundos`), com PK `(usuario_id, rota, chave)` — a
+mesma tripla que o módulo já usava. A escrita acontece na **mesma transação** da operação,
+então operação desfeita desfaz a chave junto. A PK também é a trava do caso concorrente:
+duas invocações simultâneas fazem a segunda falhar no `insert` em vez de duplicar a linha.
+
+A rotina diária apaga as chaves vencidas — é estado temporário, como `importacoes`, e são
+as duas únicas tabelas do sistema em que apagar linha é o certo.
 
 ## Variáveis de ambiente
 

@@ -86,6 +86,13 @@ O visual vem do projeto Claude Design **Synapse ERP Financeiro**
   derivada — ver research.md D-12; precisa de aprovação antes da Fase C.
 - Antes de escrever tela nova: procurar pronto (shadcn → Reui → GitHub → só então código
   próprio) e **registrar a pesquisa** (Princípio II).
+- **Fase C entregue em 2026-07-31**: `frontend/` de pé com as 13 rotas. Tokens em
+  `frontend/estilos/tokens.css` (cópia literal) e a escala escura derivada em
+  `tema-escuro.css`. Detalhes, divergências e pendências em
+  [`frontend/README.md`](frontend/README.md).
+- **Hooks se chamam `useAlgo`, não `usarAlgo`** — o `react-hooks/rules-of-hooks` só
+  reconhece hook pelo prefixo `use`, e sem isso a checagem cai no projeto inteiro. O
+  substantivo continua em português.
 
 ## Ao terminar qualquer task
 

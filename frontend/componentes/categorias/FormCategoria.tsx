@@ -1,0 +1,180 @@
+﻿"use client";
+
+import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/componentes/ui/dialog";
+import { Button } from "@/componentes/ui/button";
+import { Input } from "@/componentes/ui/input";
+import { Label } from "@/componentes/ui/label";
+import { Switch } from "@/componentes/ui/switch";
+import { api, ErroApi, mensagemDoErro } from "@/lib/api";
+import { useInvalidarFinanceiro } from "@/lib/consultas";
+import type { Categoria, TipoCategoria, VinculoSubcategoria } from "@/lib/tipos";
+
+/**
+ * Criar e editar categoria (`FR-072`, `FR-079`).
+ *
+ * **Promover a especial é só marcar o interruptor e escolher o vínculo** —
+ * não há deploy envolvido, que é exatamente o que `FR-079` promete. Se outra
+ * categoria ativa já ocupa o vínculo, o servidor responde `409` nomeando
+ * qual é; a mensagem que aparece é a dele.
+ *
+ * Categoria não aceita `mundo`: a lista é a mesma nos dois mundos.
+ */
+export function FormCategoria({
+  aberta,
+  categoria,
+  aoFechar,
+}: {
+  aberta: boolean;
+  categoria: Categoria | null;
+  aoFechar: () => void;
+}) {
+  const invalidar = useInvalidarFinanceiro();
+  const [nome, setNome] = useState("");
+  const [cor, setCor] = useState("#8B6CF0");
+  const [tipo, setTipo] = useState<TipoCategoria>("despesa");
+  const [especial, setEspecial] = useState(false);
+  const [vinculo, setVinculo] = useState<VinculoSubcategoria>("cliente");
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!aberta) return;
+    setErro(null);
+    setNome(categoria?.nome ?? "");
+    setCor(categoria?.cor ?? "#8B6CF0");
+    setTipo(categoria?.tipo ?? "despesa");
+    setEspecial(categoria?.especial ?? false);
+    setVinculo(categoria?.vinculo ?? "cliente");
+  }, [aberta, categoria]);
+
+  const salvar = useMutation({
+    mutationFn: (corpo: Record<string, unknown>) =>
+      categoria
+        ? api.put(`/api/categorias/${categoria.id}`, { corpo })
+        : api.post("/api/categorias", { corpo }),
+    onSuccess: () => {
+      invalidar();
+      toast.success(categoria ? "Categoria atualizada." : "Categoria criada.");
+      aoFechar();
+    },
+    onError: (e) => {
+      setErro(e instanceof ErroApi ? e.message : mensagemDoErro(e));
+    },
+  });
+
+  return (
+    <Dialog open={aberta} onOpenChange={(v) => (!v ? aoFechar() : undefined)}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{categoria ? "Editar categoria" : "Nova categoria"}</DialogTitle>
+          <DialogDescription>
+            A categoria vale nos dois mundos. Quem separa Digital de Infra é o lançamento.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="nome-cat">Nome</Label>
+            <Input id="nome-cat" value={nome} onChange={(e) => setNome(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-[1fr_110px] gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="tipo-cat">Aceita lançamentos de</Label>
+              <select
+                id="tipo-cat"
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value as TipoCategoria)}
+                className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+              >
+                <option value="despesa">Despesa</option>
+                <option value="receita">Receita</option>
+                <option value="ambas">Receita e despesa</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="cor-cat">Cor</Label>
+              <input
+                id="cor-cat"
+                type="color"
+                value={cor}
+                onChange={(e) => setCor(e.target.value)}
+                className="h-9 w-full cursor-pointer rounded-[10px] border border-linha-controle bg-superficie-cartao p-1"
+              />
+            </div>
+          </div>
+
+          <label className="flex items-start justify-between gap-4 rounded-[12px] border border-linha-suave bg-[var(--bg-subtle)] px-4 py-3">
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[13px] font-semibold text-[var(--fg)]">Categoria especial</span>
+              <span className="text-[11.5px] text-suave">
+                As subcategorias passam a nascer do cadastro de clientes ou de funcionários, e o
+                Dashboard ganha o bloco correspondente.
+              </span>
+            </span>
+            <Switch checked={especial} onCheckedChange={setEspecial} />
+          </label>
+
+          {especial ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="vinculo-cat">Vínculo</Label>
+              <select
+                id="vinculo-cat"
+                value={vinculo}
+                onChange={(e) => setVinculo(e.target.value as VinculoSubcategoria)}
+                className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+              >
+                <option value="cliente">Clientes</option>
+                <option value="funcionario">Funcionários</option>
+              </select>
+              <p className="text-[11.5px] text-sutil">
+                Um vínculo, uma categoria. Se outra já ocupa este, o sistema recusa e diz qual é.
+              </p>
+            </div>
+          ) : null}
+
+          {erro ? (
+            <p
+              role="alert"
+              className="rounded-[10px] px-3 py-2 text-[12.5px]"
+              style={{ background: "var(--st-atrasado-bg)", color: "var(--st-atrasado-fg)" }}
+            >
+              {erro}
+            </p>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={aoFechar}>
+            Cancelar
+          </Button>
+          <Button
+            disabled={!nome.trim() || salvar.isPending}
+            onClick={() =>
+              salvar.mutate({
+                nome: nome.trim(),
+                cor,
+                icone: categoria?.icone ?? null,
+                tipo,
+                especial,
+                vinculo: especial ? vinculo : null,
+                ordem: categoria?.ordem ?? 99,
+              })
+            }
+          >
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

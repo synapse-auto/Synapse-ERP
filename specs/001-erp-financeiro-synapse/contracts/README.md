@@ -143,3 +143,14 @@ corpo — o autor vem do token.
 `POST` de criação aceita `Idempotency-Key` opcional. Necessário porque a Vercel pode
 repetir uma invocação após timeout de rede — sem isso, um clique lento cria dois
 lançamentos.
+
+A chave é escopada por **usuário e rota**: a mesma chave vinda de pessoas diferentes, ou
+em endpoints diferentes, são operações diferentes. Repetição dentro de **10 minutos**
+devolve a resposta guardada da primeira chamada, com o mesmo status; passado o prazo, é
+tratada como tentativa nova. Chave acima de 200 caracteres → `400 validacao`.
+
+A chave é gravada na **mesma transação** da operação: se a criação falha e volta atrás, a
+chave volta junto, e repetir depois de um erro é tentativa nova — que é o certo.
+
+Aceitam o cabeçalho hoje: `POST /api/lancamentos`, `POST /api/recorrencias` e
+`POST /api/parcelamentos`.

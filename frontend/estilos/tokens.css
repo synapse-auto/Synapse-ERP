@@ -1,0 +1,245 @@
+/* ============================================================
+   Synapse Design System — Colors & Type
+   Soft purple, clean, serious. Portuguese-first.
+
+   CÓPIA LITERAL de
+   `_ds/synapse-design-system-f0753210-7ef6-4679-8cf4-eead029f7871/colors_and_type.css`
+   do projeto Claude Design "Synapse ERP Financeiro"
+   (f5d2a73f-43fc-4d92-b46a-b3ef8d637164).
+
+   Nenhum valor foi reinterpretado (CLAUDE.md §Design, T142).
+   Única mudança: o `@import` do Google Fonts saiu daqui — as três famílias
+   são carregadas por `next/font/google` em `app/layout.tsx` (T145), o que
+   evita requisição de terceiro em tempo de renderização. Os nomes das
+   famílias em `--font-display` / `--font-body` / `--font-mono` continuam
+   exatamente os mesmos.
+   ============================================================ */
+
+:root {
+  /* ---------- Brand / Purple scale ---------- */
+  --purple-50: #f6f3fe;
+  --purple-100: #ede6fd;
+  --purple-200: #dccffb;
+  --purple-300: #c4b2fd; /* soft lilac — hero tint */
+  --purple-400: #a78bfa; /* primary light */
+  --purple-500: #8b6cf0; /* PRIMARY (soft, clean) */
+  --purple-600: #7c5ce0; /* primary hover */
+  --purple-700: #6a47c7; /* primary press */
+  --purple-800: #4f3299;
+  --purple-900: #2e1a66;
+
+  /* ---------- Ink (serious, almost-black with a purple undertone) ---------- */
+  --ink-900: #14102b; /* titles */
+  --ink-800: #1e1633; /* body strong */
+  --ink-700: #2b2347;
+  --ink-600: #4a4263;
+  --ink-500: #6b6384; /* body */
+  --ink-400: #8e87a4; /* secondary */
+  --ink-300: #b6b0c6; /* tertiary / hairlines-on-light */
+  --ink-200: #dad5e4; /* dividers */
+  --ink-100: #edeaf2; /* subtle bg */
+  --ink-50: #f7f5fb; /* surface */
+  --white: #ffffff;
+
+  /* ---------- Semantic ---------- */
+  --success-500: #2bae76;
+  --success-50: #e6f6ee;
+  --warn-500: #e0a018;
+  --warn-50: #fbf2de;
+  --danger-500: #d64545;
+  --danger-50: #fbe9e9;
+  --info-500: #4f7df3;
+  --info-50: #e8eefd;
+
+  /* ---------- Foreground / background roles ---------- */
+  --bg: var(--white);
+  --bg-subtle: var(--ink-50);
+  --bg-muted: var(--ink-100);
+  --bg-invert: var(--ink-900);
+
+  --fg: var(--ink-800); /* primary text */
+  --fg-strong: var(--ink-900); /* headings */
+  --fg-muted: var(--ink-500); /* body secondary */
+  --fg-subtle: var(--ink-400); /* captions */
+  --fg-onbrand: #ffffff;
+
+  --border: var(--ink-200);
+  --border-strong: var(--ink-300);
+  --border-brand: var(--purple-200);
+
+  --brand: var(--purple-500);
+  --brand-hover: var(--purple-600);
+  --brand-press: var(--purple-700);
+  --brand-tint: var(--purple-50);
+  --brand-tint-2: var(--purple-100);
+
+  /* ---------- Gradients ---------- */
+  --grad-brand: linear-gradient(135deg, #a78bfa 0%, #7c5ce0 100%);
+  --grad-brand-soft: linear-gradient(135deg, #f6f3fe 0%, #ede6fd 100%);
+  --grad-hero:
+    radial-gradient(1200px 600px at 20% -10%, #ede6fd 0%, rgba(237, 230, 253, 0) 60%),
+    radial-gradient(900px 500px at 110% 10%, #f6f3fe 0%, rgba(246, 243, 254, 0) 55%), #ffffff;
+  --grad-surface: linear-gradient(180deg, #ffffff 0%, #f7f5fb 100%);
+
+  /* ---------- Radii ---------- */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-2xl: 28px;
+  --r-pill: 999px;
+
+  /* ---------- Spacing (4pt base) ---------- */
+  --s-0: 0;
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+  --s-20: 80px;
+  --s-24: 96px;
+
+  /* ---------- Shadows (soft, purple-tinted) ---------- */
+  --shadow-xs: 0 1px 2px rgba(30, 22, 51, 0.05);
+  --shadow-sm: 0 1px 3px rgba(30, 22, 51, 0.06), 0 1px 2px rgba(30, 22, 51, 0.04);
+  --shadow-md: 0 6px 16px -4px rgba(30, 22, 51, 0.08), 0 2px 4px rgba(30, 22, 51, 0.04);
+  --shadow-lg: 0 16px 40px -12px rgba(47, 26, 102, 0.14), 0 4px 8px rgba(30, 22, 51, 0.04);
+  --shadow-xl: 0 32px 64px -20px rgba(47, 26, 102, 0.22);
+  --shadow-brand: 0 12px 32px -8px rgba(124, 92, 224, 0.35);
+  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --ring-brand: 0 0 0 4px rgba(139, 108, 240, 0.18);
+  --ring-focus: 0 0 0 3px rgba(139, 108, 240, 0.35);
+
+  /* ---------- Type ---------- */
+  --font-display: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Scale — major-second-ish, tuned for product UIs */
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --fs-30: 30px;
+  --fs-36: 36px;
+  --fs-44: 44px;
+  --fs-56: 56px;
+  --fs-72: 72px;
+
+  --lh-tight: 1.1;
+  --lh-snug: 1.25;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.65;
+
+  --tracking-tight: -0.02em;
+  --tracking-snug: -0.01em;
+  --tracking-wide: 0.04em;
+
+  /* ---------- Motion ---------- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur-base: 220ms;
+  --dur-slow: 360ms;
+}
+
+/* ============================================================
+   Medidas do mockup `Synapse ERP Financeiro.dc.html` que o design
+   system não nomeia, mas que a tela depende (CLAUDE.md §Design).
+   Lidas do estilo inline do mockup, não estimadas.
+   ============================================================ */
+
+:root {
+  --barra-lateral-largura: 246px;
+  --cabecalho-altura: 64px;
+  --conteudo-largura-max: 1580px;
+
+  /* Superfícies e hairlines do mockup — variam de propósito do token
+     genérico: a barra lateral é #FBFAFE (não #F7F5FB) e as bordas de
+     chrome são #E9E5F3/#E3DEEE (não #DAD5E4). */
+  --superficie-app: #f7f5fb; /* fundo do <main> */
+  --superficie-lateral: #fbfafe; /* fundo do <aside> */
+  --superficie-cartao: #ffffff;
+  --linha-chrome: #e9e5f3; /* borda do header e do aside */
+  --linha-controle: #e3deee; /* borda de botão/campo do header */
+  --linha-suave: #edeaf2; /* divisores internos */
+  --lateral-ativo-bg: #ede6fd;
+  --lateral-ativo-fg: #4f3299;
+  --lateral-hover-bg: #f1edfb;
+  --lateral-hover-fg: #2b2347;
+  --segmento-bg: #f4f1fa; /* trilho dos seletores mundo/período */
+
+  /* Cores por mundo — o ponto colorido do seletor e dos badges */
+  --mundo-digital: #8b6cf0;
+  --mundo-infra: #4f7df3;
+  --mundo-ambos: #8e87a4;
+
+  /* Sombras específicas do mockup */
+  --sombra-cartao: 0 1px 3px rgba(30, 22, 51, 0.05);
+  --sombra-destaque: 0 10px 28px -18px rgba(47, 26, 102, 0.32);
+  --sombra-acao: 0 8px 20px -8px rgba(124, 92, 224, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  --sombra-painel: 0 24px 60px -24px rgba(47, 26, 102, 0.28);
+}
+
+/* ============================================================
+   Estados do lançamento e mundos — mapas `ST` e `MW` do mockup,
+   copiados hexa a hexa do `<script data-dc-script>` de
+   `Synapse ERP Financeiro.dc.html`.
+
+   Ficam em CSS (e não em TypeScript) por um motivo: assim o tema escuro
+   sobrescreve as mesmas variáveis e nenhum componente precisa saber que
+   existe tema (research.md D-12, regra 5).
+
+   Cor de categoria, de serviço e de tag NÃO estão aqui: vêm do banco
+   (`categorias.cor`, `tags.cor`) e chegam pela API (`RNF-02`).
+   ============================================================ */
+
+:root {
+  --st-efetivado-bg: #e6f6ee;
+  --st-efetivado-fg: #1f7e55;
+  --st-efetivado-dot: #2bae76;
+
+  --st-programado-bg: #e8eefd;
+  --st-programado-fg: #2547a9;
+  --st-programado-dot: #4f7df3;
+
+  --st-pendente-bg: #fbf2de;
+  --st-pendente-fg: #8a620a;
+  --st-pendente-dot: #e0a018;
+
+  --st-atrasado-bg: #fbe9e9;
+  --st-atrasado-fg: #9c2b2b;
+  --st-atrasado-dot: #d64545;
+
+  --st-cancelado-bg: #edeaf2;
+  --st-cancelado-fg: #4a4263;
+  --st-cancelado-dot: #8e87a4;
+
+  /* Receita e despesa: o verde e o vermelho do valor na tabela */
+  --receita-fg: #1f7e55;
+  --receita-bg: #e6f6ee;
+  --despesa-fg: #9c2b2b;
+  --despesa-bg: #fbe9e9;
+  /* Valor de lançamento ainda não efetivado sai em cinza (`RN-05`) */
+  --valor-previsto-fg: #8e87a4;
+
+  --mundo-digital-bg: #ede6fd;
+  --mundo-digital-fg: #4f3299;
+  --mundo-infra-bg: #e8eefd;
+  --mundo-infra-fg: #2547a9;
+
+  /* Linha da tabela: selecionada e marcada (mockup, `bgLinha`) */
+  --linha-selecionada: #f6f3fe;
+  --linha-marcada: #fbfafe;
+  --linha-hover: #fbfafe;
+}

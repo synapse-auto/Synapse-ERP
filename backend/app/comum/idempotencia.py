@@ -8,29 +8,39 @@ financeiro isso é um valor contado em dobro no saldo — não um incômodo de i
 registra a chave junto do resultado. Repetição com a mesma chave devolve o resultado
 guardado, sem executar de novo.
 
-**Onde a chave é guardada**: na própria tabela `execucoes_rotina`? Não. Numa tabela
-nova? Também não — Princípio I. A chave vive numa tabela dedicada mínima, criada
-sob demanda pela primeira migração que precisar dela. **Até B1 existir, este módulo
-guarda em memória do processo** e diz isso em voz alta abaixo, porque memória de
-função serverless não sobrevive entre invocações — que é justamente o caso que a
-idempotência precisa cobrir.
+## Onde a chave é guardada — e por que mudou
 
-⚠️ **LIMITAÇÃO CONHECIDA, a fechar em T056.** O armazenamento em memória protege
-contra clique duplo dentro da mesma instância quente, e só. A repetição que a Vercel
-faz após timeout costuma cair em instância nova, onde a memória está vazia — o caso
-principal ainda não está coberto. O fechamento é uma tabela `chaves_idempotencia`
-(`chave` PK, `usuario_id`, `rota`, `resposta` jsonb, `criado_em`) numa migração
-`009`, e `T056` (POST /api/lancamentos) é onde ela passa a ser exigida. Registrado
-aqui para não passar por pronto o que não está.
+Até 2026-07-31 este módulo guardava em **memória do processo**, e dizia em voz alta que
+isso não fechava o caso principal: a repetição que a Vercel faz depois de um timeout cai
+normalmente numa instância nova, com a memória vazia. Ou seja, o mecanismo cobria clique
+duplo na mesma instância quente e falhava exatamente no cenário para o qual foi escrito.
+O README do backend listava isso como divergência aberta desde B0.
 
-Tarefa: T028
+Agora a chave vive na tabela `chaves_idempotencia` (migração `012`), com PK
+`(usuario_id, rota, chave)` — a mesma tripla de antes. A escrita acontece **na mesma
+transação** da operação auditada: se a criação volta atrás, a chave volta junto, e uma
+repetição depois de um erro é tratada como tentativa nova, que é o certo.
+
+**O que a PK resolve além da leitura**: se duas invocações correrem de fato ao mesmo
+tempo, a segunda falha no `insert` em vez de criar a linha duplicada. Falhar é o
+comportamento desejado — o cliente repete e, a essa altura, a primeira já commitou e a
+resposta guardada é devolvida.
+
+**O que continua fora do alcance**: duas invocações simultâneas em que a segunda lê antes
+de a primeira commitar veem o banco sem a chave. Aí a proteção é a PK acima, não a
+leitura. Para 3 usuários, a janela é teórica; está escrito para não passar por resolvido
+o que é apenas improvável.
+
+Tarefa: T028 (fechada em 2026-07-31)
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+import json
+from datetime import timedelta
 from typing import Annotated, Any
 
 from fastapi import Header
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.comum.erros import ErroValidacao
 
@@ -40,38 +50,6 @@ from app.comum.erros import ErroValidacao
 VALIDADE = timedelta(minutes=10)
 
 TAMANHO_MAXIMO = 200
-
-
-@dataclass
-class _Registro:
-    resposta: Any
-    criado_em: datetime
-
-
-@dataclass
-class _MemoriaDeChaves:
-    """Guarda em memória do processo. Ver a limitação declarada no topo do módulo."""
-
-    registros: dict[tuple[str, str, str], _Registro] = field(default_factory=dict)
-
-    def _limpa_expirados(self, agora: datetime) -> None:
-        vencidos = [
-            chave for chave, reg in self.registros.items() if agora - reg.criado_em > VALIDADE
-        ]
-        for chave in vencidos:
-            del self.registros[chave]
-
-    def obter(self, chave: tuple[str, str, str]) -> Any | None:
-        agora = datetime.now(timezone.utc)
-        self._limpa_expirados(agora)
-        registro = self.registros.get(chave)
-        return registro.resposta if registro else None
-
-    def guardar(self, chave: tuple[str, str, str], resposta: Any) -> None:
-        self.registros[chave] = _Registro(resposta=resposta, criado_em=datetime.now(timezone.utc))
-
-
-_memoria = _MemoriaDeChaves()
 
 
 def chave_de_idempotencia(
@@ -91,24 +69,65 @@ def chave_de_idempotencia(
     return chave
 
 
-def resposta_ja_registrada(chave: str | None, *, rota: str, usuario_id: str) -> Any | None:
-    """Resultado guardado desta chave, se houver.
+async def resposta_ja_registrada(
+    conexao: AsyncConnection, chave: str | None, *, rota: str, usuario_id: str
+) -> Any | None:
+    """Resultado guardado desta chave, se houver e se ainda estiver no prazo.
 
     A chave é escopada por rota e por usuário: a mesma chave em endpoints
     diferentes, ou vinda de pessoas diferentes, são operações diferentes.
     """
     if chave is None:
         return None
-    return _memoria.obter((usuario_id, rota, chave))
+
+    linha = (
+        await conexao.execute(
+            text("""
+                select resposta from chaves_idempotencia
+                where usuario_id = cast(:usuario as uuid)
+                  and rota = :rota and chave = :chave
+                  and expira_em > now()
+                """),
+            {"usuario": usuario_id, "rota": rota, "chave": chave},
+        )
+    ).scalar_one_or_none()
+    return linha
 
 
-def registra_resposta(chave: str | None, *, rota: str, usuario_id: str, resposta: Any) -> None:
-    """Guarda o resultado para que a repetição devolva o mesmo, sem executar de novo."""
+async def registra_resposta(
+    conexao: AsyncConnection,
+    chave: str | None,
+    *,
+    rota: str,
+    usuario_id: str,
+    resposta: Any,
+) -> None:
+    """Guarda o resultado para que a repetição devolva o mesmo, sem executar de novo.
+
+    Sem `on conflict`: conflito aqui significa duas invocações concorrentes com a mesma
+    chave, e nesse caso falhar é o certo — ver o topo do módulo. Silenciar com
+    `do nothing` esconderia justamente a corrida que a PK existe para pegar.
+    """
     if chave is None:
         return
-    _memoria.guardar((usuario_id, rota, chave), resposta)
 
-
-def limpa_memoria() -> None:
-    """Só para os testes — deixa o estado limpo entre casos."""
-    _memoria.registros.clear()
+    await conexao.execute(
+        text("""
+            insert into chaves_idempotencia (usuario_id, rota, chave, resposta, expira_em)
+            values (
+              cast(:usuario as uuid), :rota, :chave, cast(:resposta as jsonb),
+              now() + make_interval(secs => :validade_segundos)
+            )
+            """),
+        {
+            "usuario": usuario_id,
+            "rota": rota,
+            "chave": chave,
+            "resposta": json.dumps(resposta, ensure_ascii=False, default=str),
+            # `make_interval` em vez de `cast(:validade as interval)`: com o cast, o
+            # asyncpg infere o parâmetro como `interval` e exige um `timedelta` — passar
+            # a string "600 seconds" morre em `'str' object has no attribute 'days'`.
+            # Com segundos, o parâmetro é numérico e não há ambiguidade de tipo.
+            "validade_segundos": VALIDADE.total_seconds(),
+        },
+    )

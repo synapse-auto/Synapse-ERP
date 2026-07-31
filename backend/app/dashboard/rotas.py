@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from app.comum import periodo as mod_periodo
 from app.dashboard import repositorio
 from app.db import obter_conexao
+from app.dominio import inadimplencia as mod_inadimplencia
 from app.dominio import mundo as mod_mundo
 from app.dominio import saude_caixa as mod_saude
 from app.lancamentos.servico import le_configuracao
@@ -113,17 +114,38 @@ async def _cards_configurados(conexao: AsyncConnection, usuario: UsuarioAutentic
     }
 
     escolhidos = []
-    for definicao in catalogo:
+    for posicao, definicao in enumerate(catalogo):
         do_usuario = preferencia.get(definicao["id"], {})
         escolhidos.append(
             {
                 **definicao,
                 "visivel": do_usuario.get("visivel", definicao.get("visivel_padrao", True)),
                 "ordem": do_usuario.get("ordem", definicao.get("ordem_padrao", 99)),
+                # Só para o desempate abaixo — não sai na resposta.
+                "_escolhido_pelo_usuario": "ordem" in do_usuario,
+                "_posicao_no_catalogo": posicao,
             }
         )
-    escolhidos.sort(key=lambda item: item["ordem"])
-    return escolhidos
+
+    # Desempate: **a escolha explícita do usuário vence o padrão do catálogo**. Sem
+    # isto, pôr "A pagar" na posição 2 não fazia nada — "Receitas do período" já tinha
+    # `ordem_padrao: 2`, a ordenação é estável e o catálogo ganhava por chegar antes.
+    # O usuário reordenava e a tela não mudava (`FR-071`).
+    escolhidos.sort(
+        key=lambda item: (
+            item["ordem"],
+            0 if item["_escolhido_pelo_usuario"] else 1,
+            item["_posicao_no_catalogo"],
+        )
+    )
+    return [
+        {
+            chave: valor
+            for chave, valor in item.items()
+            if chave not in ("_escolhido_pelo_usuario", "_posicao_no_catalogo")
+        }
+        for item in escolhidos
+    ]
 
 
 def _resumo_em_portugues(
@@ -144,16 +166,21 @@ def _resumo_em_portugues(
     rotulo = MESES_PT.get(janela.inicio.month, "o período").capitalize()
 
     if receitas == 0 and despesas == 0:
-        return f"{rotulo} ainda não tem nenhum lançamento efetivado."
+        frase = f"{rotulo} ainda não tem nenhum lançamento efetivado."
+    else:
+        sinal = "positivo" if resultado > 0 else ("negativo" if resultado < 0 else "no zero a zero")
+        frase = f"{rotulo} fechou {sinal} em {formata_dinheiro(abs(resultado))}"
 
-    sinal = "positivo" if resultado > 0 else ("negativo" if resultado < 0 else "no zero a zero")
-    frase = f"{rotulo} fechou {sinal} em {formata_dinheiro(abs(resultado))}"
+        margem = _percentual(resultado, receitas)
+        if margem is not None and resultado > 0:
+            frase += f", margem de {margem.replace('.', ',')}%"
+        frase += "."
 
-    margem = _percentual(resultado, receitas)
-    if margem is not None and resultado > 0:
-        frase += f", margem de {margem.replace('.', ',')}%"
-    frase += "."
-
+    # O aviso de vencido vem **depois do `if`, não dentro dele**. Período sem nada
+    # efetivado com contas vencidas é justamente quando o alerta mais importa; antes,
+    # o retorno antecipado engolia o "principal ponto de atenção" que `FR-070` pede.
+    # Os atrasados ignoram o filtro de período (contracts/consultas.md), então a frase
+    # continua verdadeira mesmo num mês vazio.
     if atrasados["quantidade"]:
         plural = "s" if atrasados["quantidade"] > 1 else ""
         frase += (
@@ -358,6 +385,62 @@ async def obter(
     total_clientes = sum((_d(item["valor"]) for item in clientes), Decimal("0"))
     total_funcionarios = sum((_d(item["valor"]) for item in funcionarios), Decimal("0"))
 
+    # Comparativo dos blocos especiais (`FR-065`, `FR-066`). Mesma régua de período do
+    # resto do painel — `comum/periodo.py` já devolveu a janela anterior.
+    clientes_antes = await repositorio.por_vinculo_de_categoria(
+        conexao,
+        mundos=mundos,
+        inicio=janela.inicio_anterior,
+        fim=janela.fim_anterior,
+        vinculo="cliente",
+    )
+    funcionarios_antes = await repositorio.por_vinculo_de_categoria(
+        conexao,
+        mundos=mundos,
+        inicio=janela.inicio_anterior,
+        fim=janela.fim_anterior,
+        vinculo="funcionario",
+    )
+    total_clientes_antes = sum((_d(item["valor"]) for item in clientes_antes), Decimal("0"))
+    total_funcionarios_antes = sum((_d(item["valor"]) for item in funcionarios_antes), Decimal("0"))
+
+    # Inadimplentes do card Clientes (`FR-065`, `FR-083`, `SC-006`). A situação é
+    # derivada pela **mesma** função da lista e do perfil (`dominio/inadimplencia.py`),
+    # para os três nunca discordarem.
+    tolerancia = int(
+        await le_configuracao(
+            conexao,
+            "inadimplencia_dias_tolerancia",
+            padrao=mod_inadimplencia.PADRAO_DIAS_TOLERANCIA,
+        )
+    )
+    inadimplentes = []
+    for cliente in await repositorio.em_aberto_por_cliente(conexao, mundos=mundos):
+        situacao = mod_inadimplencia.avalia(
+            [
+                {
+                    "data": date.fromisoformat(item["data"]),
+                    "valor": item["valor"],
+                    "status": item["status"],
+                    "efetivar_automaticamente": item["efetivar_automaticamente"],
+                }
+                for item in (cliente["em_aberto"] or [])
+            ],
+            tolerancia_dias=tolerancia,
+            hoje=hoje,
+        )
+        if situacao.situacao == "atrasado":
+            inadimplentes.append(
+                {
+                    "cliente_id": str(cliente["cliente_id"]),
+                    "nome": cliente["nome"],
+                    "valor_atrasado": f"{situacao.valor_atrasado:.2f}",
+                    "dias_atraso": situacao.dias_atraso,
+                }
+            )
+    # O mais atrasado primeiro: é o que a tela destaca em vermelho.
+    inadimplentes.sort(key=lambda item: item["dias_atraso"], reverse=True)
+
     # ── Linha do tempo de 7 dias (`FR-067`) ────────────────────────────────
     proximos = await repositorio.proximos_dias(
         conexao, mundos=mundos, hoje=hoje, ate=hoje + timedelta(days=DIAS_DA_LINHA_DO_TEMPO)
@@ -456,7 +539,7 @@ async def obter(
         ],
         "card_clientes": {
             "total_recebido": _dinheiro(total_clientes),
-            "comparativo": {},
+            "comparativo": _comparativo(total_clientes, total_clientes_antes),
             "clientes_ativos": len(clientes),
             "top_clientes": [
                 {
@@ -467,14 +550,11 @@ async def obter(
                 }
                 for item in clientes[:5]
             ],
-            # Chega em B4 (T100/T126): a situação é derivada de `RN-10`, que ainda não
-            # tem módulo. Lista vazia em vez de campo ausente para o contrato não mudar
-            # de forma depois.
-            "inadimplentes": [],
+            "inadimplentes": inadimplentes,
         },
         "card_funcionarios": {
             "custo_total": _dinheiro(total_funcionarios),
-            "comparativo": {},
+            "comparativo": _comparativo(total_funcionarios, total_funcionarios_antes),
             "percentual_sobre_despesas": _percentual(total_funcionarios, despesas),
             "por_funcionario": [
                 {

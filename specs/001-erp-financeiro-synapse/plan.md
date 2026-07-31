@@ -106,7 +106,7 @@ Vercel.
 
 **Scale/Scope**: 3 usuários simultâneos, dezenas a centenas de lançamentos/mês, dimensionado
 para milhares acumulados. 116 requisitos funcionais, ~10 telas mais painéis e formulários,
-19 tabelas, ~75 endpoints.
+19 tabelas no desenho — **20 depois de `importacoes` (migração `011`)** —, ~75 endpoints.
 
 ---
 
@@ -213,7 +213,7 @@ specs/001-erp-financeiro-synapse/
 ├── plan.md              # Este arquivo
 ├── spec.md              # Especificação (atualizada: FR-114/115/116 resolvidos)
 ├── research.md          # Fase 0 — decisões D-01…D-13 com alternativas
-├── data-model.md        # Fase 1 — 19 tabelas, enums, regras, migrações
+├── data-model.md        # Fase 1 — 20 tabelas, enums, regras, migrações
 ├── quickstart.md        # Fase 1 — como rodar e verificar
 ├── contracts/           # Fase 1 — contratos de API acordados
 │   ├── README.md        #   convenções, erros, paginação, papéis
