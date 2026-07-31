@@ -23,6 +23,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.anexos.rotas import roteador as roteador_anexos
+from app.anexos.rotas import roteador_upload as roteador_anexos_upload
 from app.cadastros.centros_custo import roteador as roteador_centros_custo
 from app.cadastros.servicos import roteador as roteador_servicos
 from app.cadastros.tags import roteador as roteador_tags
@@ -177,6 +179,12 @@ async def trata_erro_inesperado(request: Request, erro: Exception) -> JSONRespon
 
 app.include_router(roteador_sessao)
 app.include_router(roteador_lancamentos)
+# Depois de `roteador_lancamentos`: as duas usam o prefixo `/api/lancamentos` e o
+# FastAPI casa na ordem de registro. Como o upload é `/{id}/anexos` e não colide com
+# nenhuma rota de lançamento, a ordem aqui é só higiene — a que importa de verdade
+# está dentro de `lancamentos/rotas.py` (`/lote` e `/exportacao` antes de `/{id}`).
+app.include_router(roteador_anexos_upload)
+app.include_router(roteador_anexos)
 app.include_router(roteador_lixeira)
 app.include_router(roteador_saldo)
 app.include_router(roteador_categorias)

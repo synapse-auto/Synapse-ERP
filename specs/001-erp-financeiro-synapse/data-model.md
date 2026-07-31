@@ -390,8 +390,9 @@ diferença de arredondamento absorvida na última parcela.
 | `atualizado_em` | timestamptz NOT NULL |
 
 Tabela que materializa `RNF-02`/`FR-106`/Princípio VII. **Seed completo** — a tabela abaixo tem
-16 linhas, mas a última declara **duas** chaves, então o total é **17 chaves**. Conferido no
-banco em 2026-07-30: `select count(*) from configuracoes` devolve `17`.
+17 linhas, mas a linha de câmbio declara **duas** chaves, então o total é **18 chaves**.
+Conferido no banco em 2026-07-30 (`17`, migração `007`) e de novo em 2026-07-30 depois da
+migração `009` (`18`): `select count(*) from configuracoes` devolve `18`.
 
 | Chave | Valor padrão | Requisito |
 |---|---|---|
@@ -403,6 +404,7 @@ banco em 2026-07-30: `select count(*) from configuracoes` devolve `17`.
 | `lixeira_retencao_dias` | `90` | `RN-08` |
 | `anexo_tamanho_max_mb` | `10` | Assumptions |
 | `anexo_mime_permitidos` | `["image/png","image/jpeg","image/webp","application/pdf"]` | `FR-013` |
+| `anexo_url_assinada_segundos` | `300` | `FR-013` — validade do link de download; bucket privado, essa é a única janela de acesso (migração `009`, T064) |
 | `variacao_destaque_percentual` | `20` | `RF-72` |
 | `recorrencia_horizonte_meses` | `12` | §3.13 |
 | `recorrencia_aviso_ocorrencias` | `24` | `FR-027` — a partir de quantas ocorrências avisar |
@@ -594,6 +596,7 @@ Permitido, mas exige confirmação explícita (o endpoint recebe
 | `006_rls.sql` | RLS ligada com negação para `anon`/`authenticated` (D-03a) |
 | `007_seed_configuracoes.sql` | tabela `configuracoes` completa (§3.15) |
 | `008_seed_dominio.sql` | 9 categorias, 9 serviços, 2 funcionários — **depende da confirmação do mundo dos funcionários** (§3.6) |
+| `009_seed_anexo_url_assinada.sql` | chave `anexo_url_assinada_segundos` (§3.15). Nasceu em B1/T064: os anexos precisavam de um prazo para a URL assinada, e prazo não mora no código (Princípio VII). Migração nova em vez de editar a `007`, que já estava aplicada |
 
 As `003`/`004` têm dependência circular entre `subcategorias.cliente_id` e
 `clientes` — resolvida criando as tabelas primeiro e as FKs no fim do arquivo `003`.

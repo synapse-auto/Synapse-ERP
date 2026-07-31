@@ -15,7 +15,7 @@ from decimal import Decimal
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 TipoLancamento = Literal["receita", "despesa"]
 StatusLancamento = Literal["programado", "pendente", "efetivado", "atrasado", "cancelado"]
@@ -103,3 +103,71 @@ class DivisaoEntrada(BaseModel):
     """Corpo do `POST /api/lancamentos/{id}/dividir` (`RN-11`)."""
 
     partes: list[ParteDoSplit] = Field(min_length=2)
+
+
+# ── Lote e ações em massa — contracts/lancamentos.md §1 (T062, T063) ─────────
+#
+# Os tetos de 200 e 500 abaixo **não são regra de negócio** e por isso não moram em
+# `configuracoes` (Princípio VII fala de parâmetro de negócio: prazo, limiar, rótulo).
+# São guarda da plataforma: a função da Vercel tem duração máxima (plan.md
+# §Constraints) e um lote sem teto acabaria cortado no meio pela plataforma — que é
+# justamente o "meio lote gravado" que o contrato proíbe.
+
+
+class LoteEntrada(BaseModel):
+    """Corpo do `POST /api/lancamentos/lote` (`FR-021`).
+
+    **Tudo ou nada**: uma linha inválida recusa o lote inteiro. Meio lote gravado numa
+    tabela editável é pior que nenhum — o usuário não saberia quais linhas repetir.
+    """
+
+    lancamentos: list[LancamentoEntrada] = Field(min_length=1, max_length=200)
+
+
+AcaoEmMassa = Literal[
+    "excluir", "mudar_categoria", "mudar_status", "adicionar_tags", "remover_tags"
+]
+
+# `RN-03`: das transições do ciclo, só estas duas são pedidas por pessoa. As outras
+# (`programado` → `pendente` → `atrasado`) são da rotina diária, na data — não são ação
+# de usuário e por isso não entram aqui (data-model §5.8).
+StatusEmMassa = Literal["efetivado", "cancelado"]
+
+
+class ParametrosAcaoEmMassa(BaseModel):
+    """O que cada ação precisa. Qual campo é obrigatório depende da `acao`."""
+
+    categoria_id: UUID | None = None
+    subcategoria_id: UUID | None = None
+    status: StatusEmMassa | None = None
+    tag_ids: list[UUID] = Field(default_factory=list)
+
+
+class AcoesEmMassaEntrada(BaseModel):
+    """Corpo do `POST /api/lancamentos/acoes-em-massa` (`FR-040`).
+
+    Também tudo-ou-nada. Exportar em massa não passa por aqui: é
+    `GET /api/lancamentos/exportacao`, que já respeita os filtros da tela.
+    """
+
+    lancamento_ids: list[UUID] = Field(min_length=1, max_length=500)
+    acao: AcaoEmMassa
+    parametros: ParametrosAcaoEmMassa = Field(default_factory=ParametrosAcaoEmMassa)
+
+    @model_validator(mode="after")
+    def _exige_o_parametro_da_acao(self) -> "AcoesEmMassaEntrada":
+        """Recusa no corpo o que só falharia lá na frente, no meio do lote.
+
+        Sem isto, `mudar_categoria` sem `categoria_id` só quebraria ao gravar o
+        primeiro lançamento — depois de o usuário já ter esperado a requisição.
+        """
+        faltando = {
+            "mudar_categoria": ("categoria_id", self.parametros.categoria_id is None),
+            "mudar_status": ("status", self.parametros.status is None),
+            "adicionar_tags": ("tag_ids", not self.parametros.tag_ids),
+            "remover_tags": ("tag_ids", not self.parametros.tag_ids),
+        }.get(self.acao)
+
+        if faltando and faltando[1]:
+            raise ValueError(f"A ação '{self.acao}' exige `parametros.{faltando[0]}`.")
+        return self

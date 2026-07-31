@@ -157,20 +157,41 @@ conferir zero vazamento.
 - [X] T059 [US1] Implementar `DELETE /api/lancamentos/{id}` (soft delete) mais `GET /api/lixeira` e `POST /api/lixeira/{id}/restaurar` em `backend/app/lancamentos/rotas.py` (`FR-017`, `RN-08`)
 - [X] T060 [US1] Implementar `POST /api/lancamentos/{id}/efetivar`, `/cancelar` e `/duplicar` (`FR-018`, `FR-030`, `FR-042`)
 - [X] T061 [US1] Implementar `POST /api/lancamentos/{id}/dividir` recusando soma inconsistente com a diferença na mensagem (`FR-019`, `FR-020`, `RN-11`)
-- [ ] T062 [US1] Implementar `POST /api/lancamentos/lote` para a tabela editável (`FR-021`)
-- [ ] T063 [US1] Implementar `POST /api/lancamentos/acoes-em-massa`: excluir, mudar categoria, mudar status, adicionar/remover tags (`FR-040`)
-- [ ] T064 [US1] Implementar `backend/app/anexos/` — upload multipart para o bucket privado, `GET /api/anexos/{id}` com URL assinada de curta validade, `DELETE`, `413` acima do limite e `415` para MIME não permitido (`FR-013`)
-- [ ] T065 [US1] Implementar `GET /api/lancamentos/exportacao?formato=csv` respeitando os filtros ativos (`FR-045`)
+- [X] T062 [US1] Implementar `POST /api/lancamentos/lote` para a tabela editável (`FR-021`)
+- [X] T063 [US1] Implementar `POST /api/lancamentos/acoes-em-massa`: excluir, mudar categoria, mudar status, adicionar/remover tags (`FR-040`)
+- [X] T064 [US1] Implementar `backend/app/anexos/` — upload multipart para o bucket privado, `GET /api/anexos/{id}` com URL assinada de curta validade, `DELETE`, `413` acima do limite e `415` para MIME não permitido (`FR-013`)
+- [X] T065 [US1] Implementar `GET /api/lancamentos/exportacao?formato=csv` respeitando os filtros ativos (`FR-045`)
 - [X] T066 🟢 [US2] Implementar `GET /api/saldo?mundo=` com consolidado e quebra Digital/Infra (`FR-007`, `RN-16`)
-- [ ] T067 [US2] Aplicar o parâmetro `?mundo=digital|infra|ambos` em todos os endpoints de leitura já criados e cobrir o trigger de imutabilidade com teste de integração (`RF-101`, `FR-005`)
+- [X] T067 [US2] Aplicar o parâmetro `?mundo=digital|infra|ambos` em todos os endpoints de leitura já criados e cobrir o trigger de imutabilidade com teste de integração (`RF-101`, `FR-005`)
 
 ### Fechamento
 
-- [ ] T068 [US1] Escrever os testes de integração de lançamentos contra Postgres real em `backend/tests/integracao/test_lancamentos.py`
-- [ ] T069 [US1] Escrever os testes de contrato conferindo as respostas contra `contracts/lancamentos.md` em `backend/tests/contrato/test_lancamentos.py`
-- [ ] T070 Verificar documentação de B1: `/api/docs` bate com `contracts/lancamentos.md`? algo mudou no data-model ou no documento-mestre? Registrar a resposta, mesmo que seja "nada a mudar" (Princípio V)
+- [X] T068 [US1] Escrever os testes de integração de lançamentos contra Postgres real em `backend/tests/integracao/test_lancamentos.py`
+- [X] T069 [US1] Escrever os testes de contrato conferindo as respostas contra `contracts/lancamentos.md` em `backend/tests/contrato/test_lancamentos.py`
+- [X] T070 Verificar documentação de B1: `/api/docs` bate com `contracts/lancamentos.md`? algo mudou no data-model ou no documento-mestre? Registrar a resposta, mesmo que seja "nada a mudar" (Princípio V)
+
+> **Resposta de T070 (2026-07-30)** — não era "nada a mudar". Seis ajustes, todos feitos:
+>
+> 1. `contracts/lancamentos.md` §1 — `POST` ganhou a regra de a categoria ter que **aceitar
+>    o `tipo`** do lançamento (`categorias.tipo`). Era um furo real: nada impedia lançar
+>    despesa em categoria de receita. Fechado no dono da regra (`valida_classificacao`), o
+>    que faz valer em criar, editar, dividir e mudar em massa.
+> 2. `contracts/lancamentos.md` §1 — detalhe: `anexos[].url` passou a ser o **endpoint**
+>    `/api/anexos/{id}`, não a URL assinada; e o campo `serie` foi removido do contrato,
+>    porque `origem` já cumpre o papel (dois campos para a mesma coisa divergiriam).
+> 3. `contracts/lancamentos.md` §1 — lote e ações em massa ganharam o formato de sucesso, a
+>    tabela de parâmetro por ação e os tetos de 200/500 com o motivo.
+> 4. `contracts/lancamentos.md` §5 e §6 — anexos (validação antes de qualquer upload, recusa
+>    em parte de split) e o CSV da exportação (formato brasileiro, teto de 20.000).
+> 5. `data-model.md` §3.15 e §7 — 18 chaves de configuração e a migração `009`.
+> 6. `quickstart.md` — a conferência de seed passou a esperar 18 configurações.
+>
+> **Documento-mestre**: nada a mudar. Nenhum `RF-xx`/`RN-xx` mudou de significado — a
+> checagem de tipo de categoria é aplicação de `RN-01` como já estava escrito, não regra nova.
 
 **✅ Checkpoint B1**: o núcleo funciona ponta a ponta pela API. É o MVP de backend.
+Ressalva registrada: os 21 testes de integração de B1 estão escritos e **pulam** sem
+`DATABASE_URL_TESTE` — falta um Postgres de teste (não pode ser o de produção).
 
 ## Sub-fase B2 — US3 Programar o futuro e recuperar o histórico (P1)
 

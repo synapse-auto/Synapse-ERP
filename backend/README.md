@@ -61,7 +61,7 @@ ruff check . ; black --check .
 | `app/comum/` | Erro, paginação, período, idempotência, auditoria |
 | `app/seguranca/` | `auth.py` valida o token; `rbac.py` decide o papel |
 | `app/<dominio>/` | `rotas.py` → `servico.py` → `repositorio.py`, nessa ordem de dependência |
-| `migracoes/` | SQL versionado, `001`…`008` (data-model §7) |
+| `migracoes/` | SQL versionado, `001`…`009` (data-model §7) |
 | `api/index.py` | Só reexporta o app para a Vercel |
 
 Camada de tela **nunca** fala com o banco, e `repositorio.py` **nunca** contém regra de
@@ -88,6 +88,22 @@ entre no sistema.
 **RLS está ligada sem nenhuma política, e é assim de propósito.** Ver
 [`migracoes/006_rls.sql`](migracoes/006_rls.sql). O linter do Supabase aponta
 `rls_enabled_no_policy` nas 19 tabelas; é o resultado esperado.
+
+**A ordem das rotas em `app/lancamentos/rotas.py` é significativa.** `/lote`,
+`/acoes-em-massa` e `/exportacao` são declaradas **antes** de `/{lancamento_id}`. O FastAPI
+casa a rota na ordem de registro: invertendo, `GET /api/lancamentos/exportacao` tentaria ler
+"exportacao" como UUID e responderia `400`. O `/api/docs` continuaria listando as duas rotas
+normalmente, então o bug só apareceria em produção — por isso há teste de contrato para essa
+ordem.
+
+**O Storage é chamado por HTTP direto, sem a `supabase-py`.** São três operações (subir,
+assinar, apagar) e a biblioteca arrasta `storage3`, `gotrue` e `postgrest` junto — peso que
+o pacote da função não comporta. Ver o cabeçalho de
+[`app/anexos/armazenamento.py`](app/anexos/armazenamento.py).
+
+**O CSV da exportação é o único lugar da API em formato brasileiro.** `;` como separador,
+`1.234,50`, `dd/mm/aaaa` e BOM UTF-8. O resto da API transporta ISO e decimal em string
+(contracts/README.md); aquele arquivo é aberto no Excel por uma pessoa, então vale `RNF-03`.
 
 ## Por que `vercel.json` não tem `rewrites`
 

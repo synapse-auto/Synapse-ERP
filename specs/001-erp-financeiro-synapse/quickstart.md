@@ -8,8 +8,11 @@ que deu certo**.
 
 > **Estado atual (2026-07-30, fim da Fase A)**: o projeto Supabase (`frpbowkoibdgigekrhor`,
 > PostgreSQL 17.6) está **com o banco de pé**: 19 tabelas, 12 tipos, a view
-> `lancamentos_ativos`, RLS de negação para as chaves públicas, 17 configurações e os dados
+> `lancamentos_ativos`, RLS de negação para as chaves públicas, **18** configurações e os dados
 > iniciais aplicados e conferidos por consulta. Bucket privado `anexos` criado.
+>
+> A 18ª configuração (`anexo_url_assinada_segundos`) veio da migração `009`, aplicada em
+> 2026-07-30 junto com os anexos da sub-fase B1 (T064).
 >
 > **Falta, e depende do painel do Supabase** (não há API para isso):
 >
@@ -94,8 +97,8 @@ de migrações do projeto.
 **Como saber que deu certo** — três conferências, não uma:
 
 ```sql
--- 1. As 17 chaves de configuração existem (Princípio VII)
-select count(*) from configuracoes;                          -- esperado: 17
+-- 1. As chaves de configuração existem (Princípio VII)
+select count(*) from configuracoes;                          -- esperado: 17 até a 008, 18 com a 009
 
 -- 2. As categorias especiais nasceram com vínculo (FR-077, FR-078)
 select nome, especial, vinculo from categorias where especial;

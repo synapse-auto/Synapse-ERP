@@ -11,13 +11,21 @@ from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.anexos.rotas import lista_do_lancamento
 from app.comum import periodo as mod_periodo
 from app.comum.auditoria import registra_auditoria
-from app.comum.erros import ErroConflitoVersao, ErroNaoEncontrado, ErroRegraViolada
+from app.comum.erros import (
+    ErroConflitoVersao,
+    ErroDaApi,
+    ErroNaoEncontrado,
+    ErroRegraViolada,
+    ErroValidacao,
+)
 from app.comum.idempotencia import chave_de_idempotencia, registra_resposta, resposta_ja_registrada
 from app.comum.paginacao import Paginacao, envelope, parametros_de_paginacao
 from app.db import obter_conexao
@@ -25,14 +33,27 @@ from app.dominio import cambio
 from app.dominio import lixeira as mod_lixeira
 from app.dominio import mundo as mod_mundo
 from app.dominio import split as mod_split
-from app.lancamentos import repositorio, servico
-from app.lancamentos.esquemas import DivisaoEntrada, LancamentoEdicao, LancamentoEntrada
+from app.lancamentos import exportacao_csv, repositorio, servico
+from app.lancamentos.esquemas import (
+    AcoesEmMassaEntrada,
+    DivisaoEntrada,
+    LancamentoEdicao,
+    LancamentoEntrada,
+    LoteEntrada,
+)
 from app.seguranca.auth import UsuarioAutenticado
 from app.seguranca.rbac import exige_papel
 
 roteador = APIRouter(prefix="/api/lancamentos", tags=["Lançamentos"])
 roteador_lixeira = APIRouter(prefix="/api/lixeira", tags=["Lançamentos"])
 roteador_saldo = APIRouter(prefix="/api/saldo", tags=["Consultas"])
+
+# Teto da exportação por filtro. **Não é regra de negócio** — é o que cabe na memória e
+# na duração de uma invocação da Vercel (plan.md §Constraints) montando o arquivo
+# inteiro antes de responder. Acima disso a resposta manda estreitar o filtro ou usar a
+# exportação completa (T137), que roda por lote com cursor. Dimensionado com folga sobre
+# os 5.000 lançamentos de `SC-007`.
+TETO_EXPORTACAO = 20_000
 
 Autenticado = Annotated[UsuarioAutenticado, Depends(exige_papel("gestor", "operador"))]
 Conexao = Annotated[AsyncConnection, Depends(obter_conexao)]
@@ -136,7 +157,10 @@ async def _grava_lancamento(
 ) -> dict[str, Any]:
     mundo_validado = mod_mundo.exige("lancamentos", corpo.mundo)
     categoria = await servico.valida_classificacao(
-        conexao, categoria_id=corpo.categoria_id, subcategoria_id=corpo.subcategoria_id
+        conexao,
+        categoria_id=corpo.categoria_id,
+        subcategoria_id=corpo.subcategoria_id,
+        tipo=corpo.tipo,
     )
     await servico.valida_vinculos_de_mundo(
         conexao,
@@ -260,6 +284,351 @@ async def criar(
     return resposta
 
 
+# ── T062 · POST /api/lancamentos/lote ───────────────────────────────────────
+#
+# ⚠️ Ordem de declaração importa: `/lote`, `/acoes-em-massa` e `/exportacao` vêm ANTES
+# de `/{lancamento_id}`. O FastAPI casa a rota na ordem em que foi registrada — com
+# `/{lancamento_id}` na frente, `GET /api/lancamentos/exportacao` tentaria ler
+# "exportacao" como UUID e responderia 400 em vez de exportar.
+
+
+@roteador.post(
+    "/lote",
+    summary="Cria vários lançamentos de uma vez (tabela editável)",
+    description=(
+        "Papel: gestor, operador. **Tudo ou nada** (`FR-021`): uma linha inválida "
+        "recusa o lote inteiro e a resposta aponta o índice de **cada** linha com "
+        "problema, para a tabela marcar todas de uma vez. Sucesso → `201`; qualquer "
+        "recusa → `400` com `{criados: 0, erros: [...]}`."
+    ),
+    responses={
+        400: {
+            "description": "Nenhum lançamento foi criado. `erros` traz o índice de cada linha.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "criados": 0,
+                        "erros": [
+                            {
+                                "indice": 3,
+                                "codigo": "regra_violada",
+                                "requisito": "RN-01",
+                                "mensagem": "Escolha qual cliente neste lançamento de Clientes.",
+                                "campos": {"subcategoria_id": "Obrigatório em Clientes."},
+                            }
+                        ],
+                    }
+                }
+            },
+        }
+    },
+)
+async def criar_em_lote(corpo: LoteEntrada, usuario: Autenticado, conexao: Conexao) -> JSONResponse:
+    # Dois níveis de SAVEPOINT. O de fora desfaz o lote inteiro; o de dentro desfaz
+    # UMA linha para que a seguinte ainda possa ser tentada — dentro de uma transação,
+    # o Postgres recusa qualquer comando depois de um erro até voltar a um savepoint.
+    # É esse segundo nível que permite devolver todas as linhas com problema numa
+    # resposta só, em vez de o usuário corrigir uma, reenviar e descobrir a próxima.
+    erros: list[dict[str, Any]] = []
+    criados: list[dict[str, Any]] = []
+
+    lote = await conexao.begin_nested()
+    for indice, item in enumerate(corpo.lancamentos):
+        linha_sp = await conexao.begin_nested()
+        try:
+            linha = await _grava_lancamento(conexao, item, usuario)
+        except ErroDaApi as erro:
+            await linha_sp.rollback()
+            erros.append(
+                {
+                    "indice": indice,
+                    "codigo": erro.codigo,
+                    "requisito": erro.requisito,
+                    "mensagem": erro.mensagem,
+                    "campos": erro.campos,
+                }
+            )
+        else:
+            await linha_sp.commit()
+            criados.append(servico.para_json(linha))
+
+    if erros:
+        await lote.rollback()
+        return JSONResponse(status_code=400, content={"criados": 0, "erros": erros})
+
+    await lote.commit()
+    ids = [UUID(item["id"]) for item in criados]
+    tags = await repositorio.tags_de(conexao, ids)
+    for item in criados:
+        item["tags"] = tags.get(item["id"], [])
+
+    return JSONResponse(
+        status_code=201, content={"criados": len(criados), "erros": [], "itens": criados}
+    )
+
+
+# ── T063 · POST /api/lancamentos/acoes-em-massa ─────────────────────────────
+
+
+@roteador.post(
+    "/acoes-em-massa",
+    summary="Aplica uma ação a vários lançamentos selecionados",
+    description=(
+        "Papel: gestor, operador. `FR-040`. Ações: `excluir`, `mudar_categoria`, "
+        "`mudar_status`, `adicionar_tags`, `remover_tags`. **Tudo ou nada**: se um "
+        "lançamento recusar, nenhum é alterado. Exportar em massa não passa por aqui — "
+        "é `GET /api/lancamentos/exportacao`, que já respeita os filtros da tela."
+    ),
+)
+async def acoes_em_massa(
+    corpo: AcoesEmMassaEntrada, usuario: Autenticado, conexao: Conexao
+) -> dict[str, Any]:
+    ids = [str(x) for x in dict.fromkeys(corpo.lancamento_ids)]  # sem repetir, mantendo a ordem
+
+    encontrados = (
+        (
+            await conexao.execute(
+                text("""
+                    select l.id, l.mundo, l.tipo, l.status, l.descricao, l.categoria_id
+                    from lancamentos_ativos l where l.id = any(cast(:ids as uuid[]))
+                    """),
+                {"ids": ids},
+            )
+        )
+        .mappings()
+        .all()
+    )
+    if len(encontrados) != len(ids):
+        # Recusa em vez de aplicar no que sobrou: "12 de 15 alterados" numa ação em
+        # massa deixa o usuário sem saber quais três ficaram de fora.
+        raise ErroNaoEncontrado(
+            f"{len(ids) - len(encontrados)} dos lançamentos selecionados não existem mais. "
+            "Atualize a lista e selecione de novo."
+        )
+
+    if corpo.acao == "excluir":
+        for linha in encontrados:
+            await excluir(linha["id"], usuario, conexao)
+        return {"acao": corpo.acao, "afetados": len(encontrados)}
+
+    if corpo.acao == "mudar_categoria":
+        # `RN-01` uma vez por TIPO presente na seleção, não uma vez por lançamento:
+        # a categoria de destino é a mesma para todos, e o que varia entre eles é só
+        # se é receita ou despesa. Categoria especial sem `subcategoria_id` cai aqui
+        # na primeira volta e a seleção inteira é recusada.
+        for tipo_selecionado in {linha["tipo"] for linha in encontrados}:
+            await servico.valida_classificacao(
+                conexao,
+                categoria_id=corpo.parametros.categoria_id,  # type: ignore[arg-type]
+                subcategoria_id=corpo.parametros.subcategoria_id,
+                tipo=tipo_selecionado,
+            )
+        await conexao.execute(
+            text("""
+                update lancamentos
+                set categoria_id = :categoria_id, subcategoria_id = :subcategoria_id,
+                    versao = versao + 1, atualizado_por = cast(:usuario as uuid)
+                where id = any(cast(:ids as uuid[]))
+                """),
+            {
+                "ids": ids,
+                "categoria_id": str(corpo.parametros.categoria_id),
+                "subcategoria_id": (
+                    str(corpo.parametros.subcategoria_id)
+                    if corpo.parametros.subcategoria_id
+                    else None
+                ),
+                "usuario": str(usuario.id),
+            },
+        )
+        for linha in encontrados:
+            await registra_auditoria(
+                conexao,
+                entidade="lancamentos",
+                entidade_id=linha["id"],
+                acao="edicao",
+                usuario_id=usuario.id,
+                alteracoes={
+                    "categoria_id": {
+                        "de": str(linha["categoria_id"]),
+                        "para": str(corpo.parametros.categoria_id),
+                    }
+                },
+            )
+        return {"acao": corpo.acao, "afetados": len(encontrados)}
+
+    if corpo.acao == "mudar_status":
+        destino = corpo.parametros.status
+        for linha in encontrados:
+            if linha["status"] == "cancelado" and destino == "efetivado":
+                raise ErroRegraViolada(
+                    (
+                        f"'{linha['descricao']}' está cancelado e não pode ser efetivado. "
+                        "Tire-o da seleção ou reabra o lançamento antes."
+                    ),
+                    requisito="RN-03",
+                    campos={"lancamento_ids": "Há lançamento cancelado na seleção."},
+                )
+        if destino == "efetivado":
+            await conexao.execute(
+                text("""
+                    update lancamentos
+                    set status = 'efetivado', efetivado_em = now(),
+                        efetivado_por = cast(:usuario as uuid),
+                        versao = versao + 1, atualizado_por = cast(:usuario as uuid)
+                    where id = any(cast(:ids as uuid[])) and status <> 'efetivado'
+                    """),
+                {"ids": ids, "usuario": str(usuario.id)},
+            )
+        else:
+            await conexao.execute(
+                text("""
+                    update lancamentos
+                    set status = 'cancelado', versao = versao + 1,
+                        atualizado_por = cast(:usuario as uuid)
+                    where id = any(cast(:ids as uuid[])) and status <> 'cancelado'
+                    """),
+                {"ids": ids, "usuario": str(usuario.id)},
+            )
+        for linha in encontrados:
+            await registra_auditoria(
+                conexao,
+                entidade="lancamentos",
+                entidade_id=linha["id"],
+                acao="edicao",
+                usuario_id=usuario.id,
+                alteracoes={"status": {"de": linha["status"], "para": destino}},
+            )
+        return {"acao": corpo.acao, "afetados": len(encontrados)}
+
+    tag_ids = [str(x) for x in corpo.parametros.tag_ids]
+    existentes = (
+        await conexao.execute(
+            text("select count(*) from tags where id = any(cast(:ids as uuid[]))"),
+            {"ids": tag_ids},
+        )
+    ).scalar_one()
+    if existentes != len(set(tag_ids)):
+        raise ErroValidacao(
+            "Uma ou mais tags não existem.", campos={"tag_ids": "Verifique as tags escolhidas."}
+        )
+
+    if corpo.acao == "adicionar_tags":
+        await conexao.execute(
+            text("""
+                insert into lancamentos_tags (lancamento_id, tag_id)
+                select l.id, t.id
+                from unnest(cast(:ids as uuid[])) as l(id)
+                cross join unnest(cast(:tags as uuid[])) as t(id)
+                on conflict do nothing
+                """),
+            {"ids": ids, "tags": tag_ids},
+        )
+    else:
+        await conexao.execute(
+            text("""
+                delete from lancamentos_tags
+                where lancamento_id = any(cast(:ids as uuid[]))
+                  and tag_id = any(cast(:tags as uuid[]))
+                """),
+            {"ids": ids, "tags": tag_ids},
+        )
+
+    for linha in encontrados:
+        await registra_auditoria(
+            conexao,
+            entidade="lancamentos",
+            entidade_id=linha["id"],
+            acao="edicao",
+            usuario_id=usuario.id,
+            alteracoes={corpo.acao: {"de": None, "para": tag_ids}},
+        )
+    return {"acao": corpo.acao, "afetados": len(encontrados)}
+
+
+# ── T065 · GET /api/lancamentos/exportacao ──────────────────────────────────
+
+
+@roteador.get(
+    "/exportacao",
+    summary="Exporta a lista filtrada em CSV",
+    description=(
+        "Papel: gestor, operador. `FR-045`. Aceita **os mesmos filtros** de "
+        "`GET /api/lancamentos` — o arquivo é exatamente o que está na tela, não a "
+        "base inteira. Para a base inteira existe `POST /api/exportacoes/completa`."
+    ),
+    response_class=Response,
+    responses={200: {"content": {"text/csv": {}}, "description": "Arquivo CSV."}},
+)
+async def exportar(
+    usuario: Autenticado,
+    conexao: Conexao,
+    formato: Annotated[str, Query(description="Hoje só `csv`.")] = "csv",
+    mundo: Annotated[str | None, Query()] = None,
+    periodo: Annotated[str | None, Query()] = None,
+    data_inicio: Annotated[date | None, Query()] = None,
+    data_fim: Annotated[date | None, Query()] = None,
+    tipo: Annotated[str | None, Query()] = None,
+    categoria_id: Annotated[list[UUID] | None, Query()] = None,
+    subcategoria_id: Annotated[list[UUID] | None, Query()] = None,
+    servico_id: Annotated[list[UUID] | None, Query()] = None,
+    centro_custo_id: Annotated[list[UUID] | None, Query()] = None,
+    tag_id: Annotated[list[UUID] | None, Query()] = None,
+    status: Annotated[list[str] | None, Query()] = None,
+    valor_min: Annotated[Decimal | None, Query()] = None,
+    valor_max: Annotated[Decimal | None, Query()] = None,
+    busca: Annotated[str | None, Query()] = None,
+) -> Response:
+    if formato != "csv":
+        raise ErroValidacao(
+            f"Formato '{formato}' não é exportável aqui.",
+            requisito="FR-045",
+            campos={"formato": "Use csv."},
+        )
+
+    mundos = mod_mundo.resolve_filtro(mundo)
+    janela = mod_periodo.resolve(periodo, data_inicio=data_inicio, data_fim=data_fim)
+    condicoes, parametros = repositorio.monta_filtros(
+        mundos=mundos,
+        inicio=janela.inicio,
+        fim=janela.fim,
+        tipo=tipo,
+        categoria_ids=categoria_id,
+        subcategoria_ids=subcategoria_id,
+        servico_ids=servico_id,
+        centro_custo_ids=centro_custo_id,
+        tag_ids=tag_id,
+        status=status,
+        valor_min=valor_min,
+        valor_max=valor_max,
+        busca=busca,
+    )
+
+    agregado = await repositorio.conta_e_soma(conexao, condicoes=condicoes, parametros=parametros)
+    if agregado["quantidade"] > TETO_EXPORTACAO:
+        raise ErroValidacao(
+            (
+                f"São {agregado['quantidade']} lançamentos, acima do limite de "
+                f"{TETO_EXPORTACAO} desta exportação. Estreite o período ou os filtros — "
+                "ou use a exportação completa, que roda em segundo plano."
+            ),
+            requisito="FR-045",
+            campos={"filtros": "Resultado grande demais para um arquivo só."},
+        )
+
+    linhas = await repositorio.para_exportacao(
+        conexao, condicoes=condicoes, parametros=parametros, limite=TETO_EXPORTACAO
+    )
+    csv = exportacao_csv.monta(linhas)
+    nome = exportacao_csv.nome_do_arquivo(janela.inicio, janela.fim, mundo)
+
+    return Response(
+        content=csv,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
+
+
 # ── T057 · GET /api/lancamentos/{id} ────────────────────────────────────────
 
 
@@ -332,6 +701,13 @@ async def detalhar(lancamento_id: UUID, usuario: Autenticado, conexao: Conexao) 
         }
         for h in historico
     ]
+    # `RF-013a`: parte de split não tem anexo próprio — mostra o do pai, que é o mesmo
+    # comprovante. Vai no detalhe em vez de um endpoint separado porque `FR-041` pede
+    # os anexos junto do resto, e endpoint que `contracts/` não declara é divergência
+    # (T208).
+    detalhe["anexos"] = await lista_do_lancamento(
+        conexao, lancamento_id, lancamento_pai_id=linha["lancamento_pai_id"]
+    )
     detalhe["acoes_disponiveis"] = servico.acoes_disponiveis(linha)
     return detalhe
 
@@ -371,7 +747,10 @@ async def editar(
         )
 
     categoria = await servico.valida_classificacao(
-        conexao, categoria_id=corpo.categoria_id, subcategoria_id=corpo.subcategoria_id
+        conexao,
+        categoria_id=corpo.categoria_id,
+        subcategoria_id=corpo.subcategoria_id,
+        tipo=corpo.tipo,
     )
     await servico.valida_vinculos_de_mundo(
         conexao,
@@ -720,8 +1099,13 @@ async def dividir(
     mod_split.valida_soma(Decimal(str(pai["valor"])), [parte.valor for parte in corpo.partes])
 
     for parte in corpo.partes:
+        # A parte herda o `tipo` do pai (contracts §1), então é o tipo dele que a
+        # categoria da parte precisa aceitar.
         await servico.valida_classificacao(
-            conexao, categoria_id=parte.categoria_id, subcategoria_id=parte.subcategoria_id
+            conexao,
+            categoria_id=parte.categoria_id,
+            subcategoria_id=parte.subcategoria_id,
+            tipo=pai["tipo"],
         )
         await servico.valida_vinculos_de_mundo(
             conexao, mundo=pai["mundo"], servico_id=None, centro_custo_id=parte.centro_custo_id

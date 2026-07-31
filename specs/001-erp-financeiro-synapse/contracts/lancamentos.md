@@ -70,6 +70,9 @@ Todos combináveis. `[]` aceita repetição do parâmetro.
   falhou; nesse caso a resposta marca `cotacao_manual: true`.
 - `data` no passado ou hoje → nasce `efetivado`. Futura → `programado` (`FR-024`).
 - Categoria especial exige `subcategoria_id` (`RN-01`) → `409 regra_violada` / `RN-01`.
+- A categoria precisa **aceitar o `tipo`** do lançamento (`categorias.tipo`: `receita`,
+  `despesa` ou `ambas`) → `409 regra_violada` / `RN-01`. Vale igual em `PUT`, em
+  `/dividir` e em `acoes-em-massa` (implementado em B1/T063).
 - `mundo` ausente → o cliente é obrigado a mandar; o servidor não adivinha do último uso.
   O **padrão do formulário** (mundo ativo, `FR-004`) é do frontend.
 
@@ -83,17 +86,28 @@ Acrescenta ao formato da lista:
 
 ```json
 {
-  "anexos": [{ "id": "…", "nome_arquivo": "nf-1234.pdf", "mime_type": "application/pdf", "tamanho_bytes": 184320, "url": "<assinada, expira>" }],
+  "anexos": [{ "id": "…", "nome_arquivo": "nf-1234.pdf", "mime_type": "application/pdf", "tamanho_bytes": 184320, "criado_em": "…", "url": "/api/anexos/{id}" }],
   "partes_split": [{ "id": "…", "descricao": "…", "valor": "300.00", "categoria": {} }],
   "lancamento_pai": null,
-  "serie": { "tipo": "recorrencia", "id": "…", "posicao": null, "total": null, "rotulo": "Mensal, dia 10" },
-  "historico": [{ "acao": "edicao", "usuario": { "id": "…", "nome": "Lucas" }, "criado_em": "…", "alteracoes": { "valor": { "de": "1800.00", "para": "2000.00" } } }],
+  "historico": [{ "acao": "edicao", "usuario": { "id": "…", "nome": "Lucas" }, "criado_em": "…", "alteracoes": { "valor": { "de": "1800.00", "para": "2000.00" } }, "alteracao_historica": false }],
   "acoes_disponiveis": ["editar", "duplicar", "dividir", "excluir", "confirmar_efetivacao"]
 }
 ```
 
 `acoes_disponiveis` é calculado no servidor a partir do status e do papel — o frontend não
 decide quando mostrar "confirmar recebimento" (`FR-042`).
+
+**`anexos[].url` é o endpoint, não a URL assinada** (ajustado em B1/T064). Assinar na hora
+de montar o detalhe custaria uma ida ao Storage por anexo e entregaria um link que expira
+com o painel aberto. O frontend aponta o download para `/api/anexos/{id}`, que responde
+`302` para a URL assinada **no momento do clique** (§5).
+
+**Não existe campo `serie`** no detalhe: `origem` — que já vem no formato da lista, com
+`tipo`, `id` e `rotulo` — cumpre exatamente esse papel, e dois campos para a mesma coisa
+divergiriam (Princípio III).
+
+`anexos` de uma **parte de split** traz os anexos do **pai** (`RF-013a`); `quantidade_anexos`
+segue a mesma herança.
 
 ### `PUT /api/lancamentos/{id}` — editar (`FR-016`, `RN-07`)
 
@@ -165,11 +179,23 @@ totais** — só as partes contam.
 **Tudo ou nada**: uma linha inválida recusa o lote inteiro, apontando o índice.
 Meio lote gravado em tabela editável é pior que nenhum.
 
-**207 / 400**:
+**201** — todas gravadas:
 
 ```json
-{ "criados": 0, "erros": [{ "indice": 3, "codigo": "regra_violada", "requisito": "RN-01", "mensagem": "…" }] }
+{ "criados": 3, "erros": [], "itens": [ { …lançamento no formato da lista… } ] }
 ```
+
+**400** — nenhuma gravada. Traz **todas** as linhas com problema de uma vez, não só a
+primeira: a tabela editável marca tudo numa passada, em vez de o usuário corrigir uma,
+reenviar e descobrir a próxima (decidido em B1/T062).
+
+```json
+{ "criados": 0, "erros": [{ "indice": 3, "codigo": "regra_violada", "requisito": "RN-01", "mensagem": "…", "campos": { "subcategoria_id": "…" } }] }
+```
+
+Máximo de **200 lançamentos** por chamada. Não é regra de negócio: é o que cabe na duração
+máxima da função da Vercel (plan.md §Constraints) sem ser cortado no meio — que seria
+exatamente o "meio lote gravado" que este endpoint existe para impedir.
 
 ### `POST /api/lancamentos/acoes-em-massa` (`FR-040`)
 
@@ -185,6 +211,29 @@ Meio lote gravado em tabela editável é pior que nenhum.
 
 `acao`: `excluir` | `mudar_categoria` | `mudar_status` | `adicionar_tags` | `remover_tags`.
 Também tudo-ou-nada. Exportar em massa usa `GET /api/lancamentos/exportacao`.
+
+Parâmetro exigido por ação (recusado no corpo com `400 validacao` quando falta):
+
+| `acao` | `parametros` |
+|---|---|
+| `excluir` | — |
+| `mudar_categoria` | `categoria_id` (+ `subcategoria_id` quando a categoria é especial) |
+| `mudar_status` | `status`: `efetivado` ou `cancelado` |
+| `adicionar_tags` / `remover_tags` | `tag_ids[]` |
+
+`mudar_status` aceita **só** `efetivado` e `cancelado`: as outras transições do ciclo
+(`programado` → `pendente` → `atrasado`) são da rotina diária, na data, e não são ação de
+usuário (`RN-03`, data-model §5.8).
+
+**200**:
+
+```json
+{ "acao": "mudar_categoria", "afetados": 12 }
+```
+
+Um id que não existe mais recusa a chamada inteira com `404` — "12 de 15 alterados" deixaria
+o usuário sem saber quais três ficaram de fora. Máximo de **500 ids** por chamada, pelo mesmo
+motivo do lote.
 
 ---
 
@@ -282,9 +331,17 @@ a **última absorve a diferença**, garantindo soma exata.
 
 Acima de `configuracoes.anexo_tamanho_max_mb` → `413 arquivo_grande` com o limite na
 mensagem. MIME fora de `anexo_mime_permitidos` → `415 formato_nao_suportado`. Nunca falha em
-silêncio (*edge case*).
+silêncio (*edge case*). **Os arquivos são validados todos antes de qualquer upload**: recusar
+no meio deixaria metade deles no bucket sem registro.
 
-O bucket é privado; não existe URL pública (data-model §3.12).
+O bucket é privado; não existe URL pública (data-model §3.12). A validade do `302` vem de
+`configuracoes.anexo_url_assinada_segundos` (padrão 300 s, migração `009`) — prazo é dado,
+não código (Princípio VII).
+
+`POST /api/lancamentos/{id}/anexos` **201**: `{ "itens": [ { …anexo… } ] }`.
+
+Anexar numa **parte de split** → `409 regra_violada` / `RF-013a`, apontando o lançamento-pai:
+o comprovante mora no pai e vale para todas as partes.
 
 ---
 
@@ -302,3 +359,19 @@ nulo.
 
 A importação **não** deduz mundo nem cria categorias novas: categoria não reconhecida é
 apontada na prévia para o usuário escolher o destino.
+
+### `GET /api/lancamentos/exportacao` (`FR-045`, implementado em B1/T065)
+
+Aceita **exatamente** os mesmos filtros de `GET /api/lancamentos`. Responde `text/csv` com
+`Content-Disposition: attachment` e nome descritivo
+(`lancamentos-digital-2026-07-01-a-2026-07-31.csv`).
+
+O arquivo é **apresentação, não transporte**: separador `;`, decimal `1.234,50`, data
+`dd/mm/aaaa`, BOM UTF-8 e rótulos em PT-BR ("Synapse Digital", "Despesa", "Efetivado"). É o
+único lugar da API onde `RNF-03` vale em vez das convenções de contracts/README.md — porque
+quem abre o arquivo é uma pessoa no Excel, não um programa. Sem o `;` e sem o BOM, o Excel
+brasileiro joga a linha inteira numa célula e troca os acentos.
+
+Acima de **20.000 linhas** → `400 validacao` mandando estreitar o filtro ou usar
+`POST /api/exportacoes/completa`, que roda por lote com cursor. É o que cabe numa invocação
+da função montando o arquivo inteiro na memória (plan.md §Constraints).

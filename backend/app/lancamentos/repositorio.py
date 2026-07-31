@@ -54,7 +54,10 @@ _SELECAO = """
   s.cliente_id as subcategoria_cliente_id, s.funcionario_id as subcategoria_funcionario_id,
   sv.id as servico_id, sv.nome as servico_nome, sv.mundo as servico_mundo,
   cc.id as centro_custo_id, cc.nome as centro_custo_nome, cc.mundo as centro_custo_mundo,
-  (select count(*) from anexos a where a.lancamento_id = l.id) as quantidade_anexos,
+  -- `RF-013a`: o anexo fica no pai e as partes do split leem por herança. Contar só
+  -- pelo próprio id faria a parte aparecer "sem comprovante" tendo um.
+  (select count(*) from anexos a
+   where a.lancamento_id = coalesce(l.lancamento_pai_id, l.id)) as quantidade_anexos,
   exists (select 1 from lancamentos p
           where p.lancamento_pai_id = l.id and p.excluido_em is null) as tem_partes
 """
@@ -227,6 +230,56 @@ async def quebra_por_mundo(
     for linha in linhas:
         resultado[linha["mundo"]] = f"{linha['resultado']:.2f}"
     return resultado
+
+
+async def para_exportacao(
+    conexao: AsyncConnection,
+    *,
+    condicoes: list[str],
+    parametros: dict[str, Any],
+    limite: int,
+) -> list[dict[str, Any]]:
+    """Linhas achatadas para o CSV (`FR-045`), com os mesmos filtros da lista.
+
+    Nome em vez de id em toda coluna: o arquivo é lido por uma pessoa numa planilha,
+    onde `uuid` não diz nada. As tags vêm concatenadas numa coluna só, porque CSV não
+    tem lista.
+
+    `string_agg` numa junção lateral evita repetir a linha do lançamento uma vez por
+    tag — sem isso, um lançamento com 3 tags viraria 3 linhas no arquivo e as somas da
+    planilha ficariam erradas.
+    """
+    onde = " and ".join(condicoes)
+    linhas = (
+        (
+            await conexao.execute(
+                text(f"""
+                    select l.data, l.mundo, l.tipo, l.descricao, l.valor, l.status,
+                           c.nome as categoria, s.nome as subcategoria,
+                           sv.nome as servico, cc.nome as centro_custo,
+                           coalesce(tg.tags, '') as tags,
+                           l.moeda_origem, l.valor_origem, l.cotacao, l.observacoes
+                    from lancamentos_ativos l
+                    join categorias c on c.id = l.categoria_id
+                    left join subcategorias s on s.id = l.subcategoria_id
+                    left join servicos sv on sv.id = l.servico_id
+                    left join centros_custo cc on cc.id = l.centro_custo_id
+                    left join lateral (
+                      select string_agg(t.nome, ', ' order by lower(t.nome)) as tags
+                      from lancamentos_tags lt join tags t on t.id = lt.tag_id
+                      where lt.lancamento_id = l.id
+                    ) tg on true
+                    where {onde}
+                    order by l.data, l.criado_em
+                    limit :limite_exportacao
+                    """),
+                parametros | {"limite_exportacao": limite},
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(linha) for linha in linhas]
 
 
 async def por_id(

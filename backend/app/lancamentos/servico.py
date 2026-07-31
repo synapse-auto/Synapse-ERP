@@ -45,8 +45,15 @@ async def valida_classificacao(
     *,
     categoria_id: UUID,
     subcategoria_id: UUID | None,
+    tipo: str | None = None,
 ) -> dict[str, Any]:
-    """`RN-01`: sem categoria não salva; categoria especial exige subcategoria."""
+    """`RN-01`: sem categoria não salva; categoria especial exige subcategoria.
+
+    `tipo` confere se a categoria aceita receita, despesa ou as duas
+    (`categorias.tipo`, enum `tipo_categoria`). Fica aqui, e não em cada rota, para
+    criar, editar, dividir e mudar em massa aplicarem a mesma checagem — regra em
+    quatro lugares é regra que vai divergir (Princípio III).
+    """
     categoria = (
         (
             await conexao.execute(
@@ -69,6 +76,14 @@ async def valida_classificacao(
             f"A categoria '{categoria['nome']}' está arquivada e não aceita lançamentos novos.",
             requisito="RN-06",
             campos={"categoria_id": "Escolha uma categoria ativa."},
+        )
+
+    if tipo is not None and categoria["tipo"] != "ambas" and categoria["tipo"] != tipo:
+        aceita = "receitas" if categoria["tipo"] == "receita" else "despesas"
+        raise ErroRegraViolada(
+            f"A categoria '{categoria['nome']}' é de {aceita} e não aceita este lançamento.",
+            requisito="RN-01",
+            campos={"categoria_id": f"Só aceita {aceita}."},
         )
 
     if categoria["especial"] and subcategoria_id is None:
