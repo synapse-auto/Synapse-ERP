@@ -55,9 +55,13 @@ projeto em 2026-07-29:
 Cada escolha, com alternativas descartadas e o motivo, em [research.md](./research.md) §5
 (exigência do Princípio II).
 
-**Storage**: PostgreSQL gerenciado pelo Supabase. 19 tabelas, **12** tipos enumerados, uma view
-(`lancamentos_ativos`), o gatilho de imutabilidade de `mundo`. Anexos em bucket privado do
+**Storage**: PostgreSQL gerenciado pelo Supabase. **20** tabelas, **12** tipos enumerados, uma
+view (`lancamentos_ativos`), o gatilho de imutabilidade de `mundo`. Anexos em bucket privado do
 Supabase Storage. Esquema completo em [data-model.md](./data-model.md).
+
+> São **20**, não 19: `importacoes` nasceu em B6 (migração `011`), quando o fluxo de três
+> requisições da importação (`FR-044`) mostrou que o conteúdo lido precisa sobreviver entre
+> elas. Aplicada e conferida em 2026-07-31.
 
 > Corrigido em 2026-07-30 (Fase A aplicada): são **12** `CREATE TYPE`, não 13. data-model §2
 > lista 13 nomes, mas `escopo_edicao_serie` é parâmetro de endpoint e não coluna — está lá por

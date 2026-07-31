@@ -87,7 +87,10 @@ entre no sistema.
 
 **RLS está ligada sem nenhuma política, e é assim de propósito.** Ver
 [`migracoes/006_rls.sql`](migracoes/006_rls.sql). O linter do Supabase aponta
-`rls_enabled_no_policy` nas 19 tabelas; é o resultado esperado.
+`rls_enabled_no_policy` nas **20** tabelas (19 do desenho + `importacoes`, da migração
+`011`); é o resultado esperado, conferido pela última vez em 2026-07-31. Nenhum ERROR nem
+WARN. Quem "consertar" isso adicionando política estará abrindo as finanças da empresa
+para a chave que vive no navegador.
 
 **A ordem das rotas em `app/lancamentos/rotas.py` é significativa.** `/lote`,
 `/acoes-em-massa` e `/exportacao` são declaradas **antes** de `/{lancamento_id}`. O FastAPI

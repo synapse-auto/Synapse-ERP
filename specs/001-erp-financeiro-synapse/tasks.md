@@ -400,9 +400,20 @@ direta**, não só pelo menu escondido.
 >
 > **Documento-mestre**: nada a mudar.
 >
-> ⚠️ **Pendência aberta**: a migração `011` **não foi aplicada** no Supabase — o MCP
-> desconectou no meio da sub-fase. Sem ela, os três endpoints de importação respondem erro
-> de tabela inexistente. É a única coisa que separa B6 de estar completo em produção.
+> ✅ **Pendência resolvida em 2026-07-31**: a migração `011` foi aplicada e conferida no
+> Supabase depois de o MCP voltar. O banco tem **20 tabelas**. Verificado de verdade, não por
+> leitura de código:
+>
+> - Estrutura: 13 colunas, 3 índices, RLS ligada com **0 políticas** (negação, igual às
+>   outras 19).
+> - **Ciclo de três etapas exercitado no banco real** — enviar, mapear com `mundo`, confirmar
+>   avançando o cursor até 200 —, mais o `CHECK` de formato recusando `pdf` e a expiração de
+>   24h. Tudo dentro de uma transação desfeita: `importacoes`, `usuarios` e `lancamentos`
+>   seguem em 0.
+> - **Segurança**: assumindo o papel `anon`, leitura e escrita respondem "sem permissão". A
+>   tabela nasceu sem grant nenhum para `anon`/`authenticated`, herdando o revoke de `006`.
+> - `get_advisors(security)`: 20 avisos `INFO / rls_enabled_no_policy` — um por tabela, que é
+>   o resultado esperado por D-03a. Zero ERROR, zero WARN.
 
 **✅ Checkpoint Boss 2**: os ~75 endpoints no ar, os 7 testes obrigatórios passando,
 `/api/docs` batendo com `contracts/`.

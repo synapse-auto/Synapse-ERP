@@ -6,13 +6,27 @@ que deu certo**.
 
 **Pré-requisitos**: Python 3.12, Node 22, conta na Vercel, conta no Supabase, CLI do Supabase.
 
-> **Estado atual (2026-07-30, fim da Fase A)**: o projeto Supabase (`frpbowkoibdgigekrhor`,
-> PostgreSQL 17.6) está **com o banco de pé**: 19 tabelas, 12 tipos, a view
+> **Estado atual (2026-07-31, fim do Boss 2)**: o projeto Supabase (`frpbowkoibdgigekrhor`,
+> PostgreSQL 17.6) está **com o banco de pé**: **20 tabelas**, 12 tipos, a view
 > `lancamentos_ativos`, RLS de negação para as chaves públicas, **18** configurações e os dados
 > iniciais aplicados e conferidos por consulta. Bucket privado `anexos` criado.
 >
-> A 18ª configuração (`anexo_url_assinada_segundos`) veio da migração `009`, aplicada em
-> 2026-07-30 junto com os anexos da sub-fase B1 (T064).
+> Três migrações nasceram depois da Fase A, cada uma no commit em que passou a ser necessária:
+>
+> | Migração | Quando | Por quê |
+> |---|---|---|
+> | `009_seed_anexo_url_assinada` | B1/T064 | A URL assinada de anexo precisava de um prazo, e prazo não mora no código (é a 18ª configuração) |
+> | `010_ocorrencia_unica_por_data` | B2/T083 | Sem o índice único, a idempotência de D-08 não existe |
+> | `011_importacoes` | B6/T133 | A importação em três requisições precisa do conteúdo lido sobrevivendo entre elas (é a 20ª tabela) |
+>
+> **`list_migrations` devolve 12 registros para 11 arquivos**, e isso é esperado: a
+> `006a_rls_revoga_execute_rls_auto_enable` foi aplicada à parte quando o `revoke execute`
+> entrou no `006_rls.sql` — o arquivo do repositório **já contém** a linha (006, l. 77), então
+> recriar o banco pela sequência do repositório chega ao mesmo estado.
+>
+> **Conferido em 2026-07-31**: zero tabelas sem RLS, zero `EXECUTE` de `rls_auto_enable` para
+> `anon`/`authenticated`, e `get_advisors(security)` com 20 avisos `INFO
+> rls_enabled_no_policy` — um por tabela, o resultado que D-03a prevê. Nenhum ERROR ou WARN.
 >
 > **Falta, e depende do painel do Supabase** (não há API para isso):
 >
