@@ -570,6 +570,19 @@ encadeado a partir da anterior — encadear faria fevereiro contaminar março e 
 escorregaria. `datas_que_o_escopo_alcanca` é o dono de `RN-07`, usado por editar série,
 desativar e arquivar cliente/funcionário, para os três concordarem.
 
+### 5.13. `RN-10` — inadimplência → `dominio/inadimplencia.py`
+Situação **derivada, nunca gravada**: não existe coluna `situacao` em `clientes`. É o que
+faz mudar `configuracoes.inadimplencia_dias_tolerancia` reavaliar todo mundo na hora
+(`FR-105`), em vez de exigir uma varredura que reescreve a base. Só conta como atraso o
+lançamento com `efetivar_automaticamente = false` (D-05) — o automático se efetiva na data e
+nunca chega a `atrasado`, então mensalidade automática **nunca** gera alerta.
+
+### 5.14. D-07 — subcategoria espelho → `dominio/espelho_subcategoria.py`
+Cadastrar cliente/funcionário cria a subcategoria; renomear renomeia; arquivar arquiva —
+sempre na mesma transação. A checagem "subcategoria com `cliente_id` só existe em categoria
+com `vinculo = cliente`" mora aqui porque `CHECK` não alcança outra tabela (§3.3) e o único
+gatilho de regra do projeto está reservado para a imutabilidade de `mundo`.
+
 ### 5.12. `RF-46b` — semáforo de saúde do caixa → `dominio/saude_caixa.py`
 `cobertura = saldo ÷ despesas fixas do horizonte`, classificada contra
 `configuracoes.saude_caixa_multiplicadores` e `saude_caixa_horizonte_dias`. "Despesa fixa" é a

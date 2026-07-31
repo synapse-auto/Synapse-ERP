@@ -292,22 +292,38 @@ automática e inadimplência derivada.
 **Teste independente**: 3 clientes (um recorrente) e 2 funcionários cadastrados; um pagamento
 vence além da tolerância e o cliente aparece marcado no Dashboard, na lista e no perfil.
 
-- [ ] T100 [P] [US5] Implementar `backend/app/dominio/inadimplencia.py` — situação **derivada**, nunca gravada: lançamento atrasado há mais de `inadimplencia_dias_tolerancia` e só com efetivação manual (`RN-10`, `FR-115`) — com teste em `backend/tests/unidade/dominio/test_inadimplencia.py`
-- [ ] T101 [P] [US5] Implementar `backend/app/dominio/arquivamento.py`: arquivar categoria com lançamentos exige `destino_lancamentos` **ou** `manter_somente_leitura`, nunca órfão; cliente e funcionário só arquivam (`RN-06`, `FR-075`) — com teste unitário
-- [ ] T102 [US5] Implementar o espelho de subcategoria em `backend/app/dominio/espelho_subcategoria.py`: criar cliente/funcionário cria a subcategoria, arquivar arquiva, renomear renomeia — tudo na mesma transação (research.md D-07)
-- [ ] T103 🟢 [US5] Completar o CRUD de categorias em `backend/app/categorias/rotas.py` (`POST`, `PUT`, `POST /{id}/arquivar` com o fluxo `422`) — o `GET` veio de T050
-- [ ] T104 [US5] Implementar as rotas de subcategorias em `backend/app/categorias/rotas.py`, recusando criação manual em categoria com `vinculo` e explicando onde criar (contracts/cadastros.md §2)
-- [ ] T105 🟢 [US5] Implementar `backend/app/clientes/repositorio.py` com o filtro de mundo **derivado da movimentação** e o cliente sem lançamento aparecendo nos três estados (`FR-002`, research.md D-04)
-- [ ] T106 [US5] Implementar as 6 rotas de clientes em `backend/app/clientes/rotas.py` (contracts/cadastros.md §3), com `mundo_cobranca` obrigatório quando `tipo_cobranca = recorrente`
-- [ ] T107 [US5] Implementar `GET /api/clientes/{id}` — perfil com total recebido, receita mensal, lançamentos, próximos recebimentos, situação e quebra por mundo (`FR-081`)
-- [ ] T108 [US5] Ligar o cadastro de cliente recorrente à criação da recorrência de mensalidade no `mundo_cobranca`, e o arquivamento à remoção das ocorrências futuras não efetivadas (`FR-082`, data-model §3.13)
-- [ ] T109 [US6] Implementar `backend/app/funcionarios/` com as 5 rotas de contracts/cadastros.md §4, criando subcategoria espelho e recorrência da folha na mesma transação e recusando mudança de `mundo` (`FR-088`, `RN-15`)
-- [ ] T110 [US6] Implementar `GET /api/funcionarios/{id}` — perfil com custo histórico e do período, pagamentos e próximos, somando bônus e vales avulsos da mesma subcategoria (`FR-087`)
-- [ ] T111 🟢 [P] [US6] Completar o CRUD de gestor de serviços e centros de custo em `backend/app/cadastros/` (`POST`, `PUT`, `arquivar`) — as leituras vieram de T049/T051
-- [ ] T112 [US5] Escrever integração e contrato de cadastros em `backend/tests/integracao/test_cadastros.py` e `backend/tests/contrato/test_cadastros.py`
-- [ ] T113 Verificar documentação de B4 e registrar a resposta (Princípio V)
+- [X] T100 [P] [US5] Implementar `backend/app/dominio/inadimplencia.py` — situação **derivada**, nunca gravada: lançamento atrasado há mais de `inadimplencia_dias_tolerancia` e só com efetivação manual (`RN-10`, `FR-115`) — com teste em `backend/tests/unidade/dominio/test_inadimplencia.py`
+- [X] T101 [P] [US5] Implementar `backend/app/dominio/arquivamento.py`: arquivar categoria com lançamentos exige `destino_lancamentos` **ou** `manter_somente_leitura`, nunca órfão; cliente e funcionário só arquivam (`RN-06`, `FR-075`) — com teste unitário
+- [X] T102 [US5] Implementar o espelho de subcategoria em `backend/app/dominio/espelho_subcategoria.py`: criar cliente/funcionário cria a subcategoria, arquivar arquiva, renomear renomeia — tudo na mesma transação (research.md D-07)
+- [X] T103 🟢 [US5] Completar o CRUD de categorias em `backend/app/categorias/rotas.py` (`POST`, `PUT`, `POST /{id}/arquivar` com o fluxo `422`) — o `GET` veio de T050
+- [X] T104 [US5] Implementar as rotas de subcategorias em `backend/app/categorias/rotas.py`, recusando criação manual em categoria com `vinculo` e explicando onde criar (contracts/cadastros.md §2)
+- [X] T105 🟢 [US5] Implementar `backend/app/clientes/repositorio.py` com o filtro de mundo **derivado da movimentação** e o cliente sem lançamento aparecendo nos três estados (`FR-002`, research.md D-04)
+- [X] T106 [US5] Implementar as 6 rotas de clientes em `backend/app/clientes/rotas.py` (contracts/cadastros.md §3), com `mundo_cobranca` obrigatório quando `tipo_cobranca = recorrente`
+- [X] T107 [US5] Implementar `GET /api/clientes/{id}` — perfil com total recebido, receita mensal, lançamentos, próximos recebimentos, situação e quebra por mundo (`FR-081`)
+- [X] T108 [US5] Ligar o cadastro de cliente recorrente à criação da recorrência de mensalidade no `mundo_cobranca`, e o arquivamento à remoção das ocorrências futuras não efetivadas (`FR-082`, data-model §3.13)
+- [X] T109 [US6] Implementar `backend/app/funcionarios/` com as 5 rotas de contracts/cadastros.md §4, criando subcategoria espelho e recorrência da folha na mesma transação e recusando mudança de `mundo` (`FR-088`, `RN-15`)
+- [X] T110 [US6] Implementar `GET /api/funcionarios/{id}` — perfil com custo histórico e do período, pagamentos e próximos, somando bônus e vales avulsos da mesma subcategoria (`FR-087`)
+- [X] T111 🟢 [P] [US6] Completar o CRUD de gestor de serviços e centros de custo em `backend/app/cadastros/` (`POST`, `PUT`, `arquivar`) — as leituras vieram de T049/T051
+- [X] T112 [US5] Escrever integração e contrato de cadastros em `backend/tests/integracao/test_cadastros.py` e `backend/tests/contrato/test_cadastros.py`
+- [X] T113 Verificar documentação de B4 e registrar a resposta (Princípio V)
+
+> **Resposta de T113 (2026-07-30)** — três ajustes:
+>
+> 1. `contracts/cadastros.md` §2 — `PUT /api/subcategorias/{id}` e `.../arquivar` recusam
+>    quando a subcategoria é **espelho**. O nome vem do cadastro; mexer só de um lado faria a
+>    tela de clientes e o Dashboard discordarem.
+> 2. `contracts/cadastros.md` §3 e §4 — resposta do `POST /api/clientes` (com
+>    `subcategoria_id`, `recorrencia.rotulo` e `aviso_inadimplencia`), a situação achatada no
+>    item com `tolerancia_dias` junto, a existência de `/desarquivar` e o motivo de ele **não**
+>    recriar a recorrência. Na folha, o `efetivar_automaticamente = true` e o porquê.
+> 3. `data-model.md` §5.13 e §5.14 — `dominio/inadimplencia.py` e
+>    `dominio/espelho_subcategoria.py` no mapa de regras.
+>
+> **Documento-mestre**: nada a mudar. `RN-10` já dizia que a situação é derivada e `RF-101`
+> já registrava o filtro de cliente derivado (T021 alinhou isso na Fase A).
 
 **✅ Checkpoint B4**: quem paga e quanto custa a equipe, com alerta de quem atrasou.
+Ressalva: 21 testes de integração de B4 escritos e **pulando** por falta de banco de teste.
 
 ## Sub-fase B5 — US8 Relatórios e fechamento (P3)
 

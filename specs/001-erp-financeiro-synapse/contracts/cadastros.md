@@ -83,6 +83,11 @@ Em categoria com `vinculo`, criar subcategoria manualmente é recusado
 (`409 regra_violada` / `RF-055`): a subcategoria nasce do cadastro do cliente ou do
 funcionário (data-model D-07). O erro explica onde criar.
 
+**Precisões de B4 (T104)**: `PUT /api/subcategorias/{id}` e `.../arquivar` também recusam
+(`409` / D-07) quando a subcategoria é **espelho** — tem `cliente_id` ou `funcionario_id`.
+O nome e o arquivamento vêm do cadastro; mexer só de um lado faria a tela de clientes e o
+Dashboard mostrarem coisas diferentes.
+
 ---
 
 ## 3. Clientes (`FR-080`–`FR-084`)
@@ -132,6 +137,19 @@ funcionário (data-model D-07). O erro explica onde criar.
   "efetivar_automaticamente": null }
 ```
 
+**Precisões de B4 (T106–T108)**, todas conferidas por teste:
+
+- A resposta do `POST` traz `subcategoria_id` e o bloco `recorrencia`, com `rotulo`
+  ("Mensal, dia 10"), `efetivar_automaticamente` **efetivo** e um `aviso_inadimplencia` em
+  PT-BR explicando a consequência. É texto de negócio montado no servidor: a tela precisa
+  poder dizer por que um cliente com mensalidade automática nunca aparece como inadimplente.
+- A situação vem achatada no item — `situacao`, `dias_atraso`, `valor_atrasado`,
+  `quantidade_em_atraso` e `tolerancia_dias`. A tolerância vai junto para a tela **explicar
+  o critério**, não só mostrar o rótulo. `dias_atraso` é `null`, não `0`, quando não há
+  atraso.
+- **Existe `POST /api/clientes/{id}/desarquivar`**, e ele **não** recria a recorrência: as
+  ocorrências futuras foram removidas ao arquivar, e trazê-las de volta sem o usuário pedir
+  reativaria cobranças que ele desligou. A mensagem manda editar o cliente.
 - `tipo_cobranca: "recorrente"` exige `valor_recorrente`, `dia_cobranca` e
   `mundo_cobranca` → `400 validacao`.
 - Criar cliente **cria a subcategoria espelho** na categoria com `vinculo=cliente` (D-07) e,
@@ -185,6 +203,10 @@ Mesma forma dos clientes, com uma diferença de modelagem: **funcionário tem `m
 
 Cria a subcategoria espelho e a **recorrência mensal da folha** (`FR-088`) na mesma
 transação. `PUT` com `mundo` diferente → `409 regra_violada` / `RN-15`.
+
+A folha nasce com **`efetivar_automaticamente = true`** (decidido em B4/T109): é despesa
+certa, e deixá-la pendente encheria a caixa de confirmações mensais sem informação nenhuma.
+É o oposto da mensalidade de cliente, onde o manual é que faz a cobrança existir (D-05).
 
 ### `GET /api/funcionarios/{id}` — perfil (`FR-087`)
 

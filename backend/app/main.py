@@ -29,11 +29,14 @@ from app.cadastros.centros_custo import roteador as roteador_centros_custo
 from app.cadastros.servicos import roteador as roteador_servicos
 from app.cadastros.tags import roteador as roteador_tags
 from app.categorias.rotas import roteador as roteador_categorias
+from app.categorias.rotas import roteador_subcategorias
+from app.clientes.rotas import roteador as roteador_clientes
 from app.comum.erros import ErroDaApi, ErroValidacao
 from app.config import obter_configuracao
 from app.dashboard.rotas import roteador as roteador_dashboard
 from app.db import banco_responde, encerrar_motor
 from app.extrato.rotas import roteador as roteador_extrato
+from app.funcionarios.rotas import roteador as roteador_funcionarios
 from app.lancamentos.rotas import roteador as roteador_lancamentos
 from app.lancamentos.rotas import roteador_lixeira, roteador_saldo
 from app.recorrencias.rotas import roteador as roteador_recorrencias
@@ -198,6 +201,9 @@ app.include_router(roteador_recorrencias)
 app.include_router(roteador_parcelamentos)
 app.include_router(roteador_rotinas)
 app.include_router(roteador_categorias)
+app.include_router(roteador_subcategorias)
+app.include_router(roteador_clientes)
+app.include_router(roteador_funcionarios)
 app.include_router(roteador_tags)
 app.include_router(roteador_centros_custo)
 app.include_router(roteador_servicos)
