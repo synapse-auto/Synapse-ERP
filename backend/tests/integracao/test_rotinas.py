@@ -4,8 +4,10 @@ Duas propriedades, e as duas só se provam com banco: **rodar duas vezes no mesm
 duplica nada** (o `UNIQUE (usuario_id, chave_deduplicacao)` é quem garante) e **um dia
 perdido é recuperado** na execução seguinte.
 
-    $env:DATABASE_URL_TESTE = "postgresql://...:6543/postgres"   # NUNCA o de produção
     .venv/Scripts/python -m pytest tests/integracao -q
+
+⚠️ Rodam contra o banco de **produção**; a transação desfeita do `conftest` é o
+que protege os dados. Ver o aviso no topo de `tests/conftest.py`.
 
 Tarefa: T128
 """

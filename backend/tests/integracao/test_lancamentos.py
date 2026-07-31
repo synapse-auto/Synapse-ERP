@@ -8,18 +8,16 @@ arredonda como float (`RN-11`) e os SAVEPOINTs que fazem o lote ser tudo-ou-nada
 
 ## Como rodar
 
-    $env:DATABASE_URL_TESTE = "postgresql://...:6543/postgres"   # NUNCA o de produção
     .venv/Scripts/python -m pytest tests/integracao -q
 
-Sem a variável, **pulam com aviso** (conftest) — nunca passam em silêncio. O banco
-apontado precisa ter as migrações `001`…`009` aplicadas; os testes criam e apagam só
-o que usam, dentro de uma transação desfeita no fim.
+⚠️ Rodam contra o banco de **produção**; a transação desfeita do `conftest` é o
+que protege os dados. Ver o aviso no topo de `tests/conftest.py`.
 
-Chamam as funções de rota direto, passando a conexão da transação de teste. É de
-propósito: subir o `TestClient` abriria uma conexão própria, fora da transação, e o
-`rollback` do fim não desfaria nada — o banco de teste acumularia lixo a cada
-execução. A camada HTTP (papel, formato de erro, rota) é coberta pelos testes de
-contrato.
+Chamam as funções de rota direto, passando a conexão da transação. É de propósito, e
+importa mais agora que rodam contra produção: subir o `TestClient` abriria uma conexão
+**própria**, fora da transação, e aí o `rollback` do fim não desfaria nada — a escrita
+ficaria no banco. A camada HTTP (papel, formato de erro, rota) é coberta pelos testes de
+contrato, que não tocam banco.
 
 Tarefas: T067 (gatilho de `mundo`), T068
 """
@@ -73,14 +71,14 @@ async def _usuario(conexao) -> UsuarioAutenticado:
 
 
 async def _categoria(conexao, nome: str) -> UUID:
-    """Categoria do seed `008`. Falha explicando, se o banco de teste não tiver o seed."""
+    """Categoria do seed `008`. Falha explicando, se o seed não tiver sido aplicado."""
     achada = (
         await conexao.execute(text("select id from categorias where nome = :nome"), {"nome": nome})
     ).scalar_one_or_none()
     if achada is None:
         pytest.fail(
-            f"A categoria '{nome}' não existe no banco de teste. Aplique as migrações "
-            "001…009, inclusive o seed 008 (quickstart.md §3)."
+            f"A categoria '{nome}' não existe. Aplique as migrações 001…011, "
+            "inclusive o seed 008 (quickstart.md §3)."
         )
     return achada
 

@@ -90,8 +90,8 @@ de migrações do projeto.
 > `db push` simplesmente não os encontraria. Versão anterior deste guia mandava rodar
 > `supabase db push`; era um comando que nunca teria funcionado.
 >
-> **Para aplicar em um banco novo** (recriar o projeto, ou montar o Postgres de teste da §6),
-> rode os arquivos na ordem por conexão direta:
+> **Para aplicar em um banco novo** (recriar o projeto do zero), rode os arquivos na ordem
+> por conexão direta:
 >
 > ```powershell
 > # $env:DATABASE_URL = conexão do passo 2
@@ -216,16 +216,44 @@ login, a barra lateral com as 7 abas de `FR-107` e o seletor de mundo no topo.
 ## 6. Testes
 
 ```powershell
-# Backend — precisa de um Postgres de teste (Supabase local ou banco separado)
 cd backend
-pytest                             # tudo
+pytest                             # tudo (integrações pulam sem DATABASE_URL)
+pytest -m "not integracao"         # só o que não toca banco — é o que roda sempre
 pytest tests/unidade/dominio -v    # as regras de negócio críticas
 pytest -k "recorrencia_retroativa" # RN-05a isolado
+pytest -m lento                    # medição de SC-007 — ver o aviso abaixo
 
 # Frontend
 cd frontend
 npm run test
 ```
+
+### ⚠️ As integrações rodam contra o banco de produção
+
+**Decisão do dono do projeto (2026-07-31): não haverá banco separado para teste.** Não é
+o arranjo usual, então a proteção precisa estar escrita onde não dá para ignorar.
+
+**O que protege os dados é a transação desfeita.** Cada teste de integração roda dentro de
+uma transação que termina em `rollback`, num `finally` — vale inclusive quando o teste
+falha no meio. Nada do que eles escrevem chega a existir para qualquer outra conexão.
+
+**O que a proteção não cobre**, e vale saber antes de escrever teste novo:
+
+| Risco | Situação hoje |
+|---|---|
+| `commit` explícito dentro de um teste | Nenhum tem. Seria a única forma de furar o rollback |
+| Bloqueio de linha durante a execução | Os testes criam os próprios dados em vez de mexer nos existentes — por isso fazem assim |
+| `analyze`, sequências e o marcador de migração | Não voltam atrás. São estatística e contador, inofensivos |
+
+**Regra para teste novo em `tests/integracao/`**: cria o que precisa (usuário, cliente,
+lançamento) e **nunca altera nem apaga linha que já estava lá**. Quem precisar de um dado
+existente, leia — não escreva.
+
+**`pytest -m lento` insere milhares de linhas** para medir `SC-007`. Está fora da execução
+padrão de propósito: rodá-lo é decisão consciente, e não com alguém usando o sistema.
+
+O lado bom de medir contra produção: o número **vale**. É o Supabase de verdade, com rede
+no meio e pooler em modo *transaction* — exatamente o que `SC-007` cobra.
 
 **Os 6 testes que a constituição exige passar** (Princípio VI):
 

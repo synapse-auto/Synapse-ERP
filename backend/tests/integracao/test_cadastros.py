@@ -6,8 +6,10 @@ derivado — a consequência de `clientes` não ter `mundo` (D-04) — devolve o
 inclusive o cliente sem lançamento nenhum, que é o caso que some sozinho se o `exists` for
 escrito errado.
 
-    $env:DATABASE_URL_TESTE = "postgresql://...:6543/postgres"   # NUNCA o de produção
     .venv/Scripts/python -m pytest tests/integracao -q
+
+⚠️ Rodam contra o banco de **produção**; a transação desfeita do `conftest` é o
+que protege os dados. Ver o aviso no topo de `tests/conftest.py`.
 
 Tarefa: T112
 """

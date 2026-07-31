@@ -8,9 +8,9 @@ O teste **descobre** os endpoints a partir do `/api/docs`, em vez de listá-los 
 Assim, endpoint novo de gestor entra na cobertura sozinho: quem esquecer o
 `exige_papel("gestor")` numa rota nova vê o teste quebrar, não descobre em produção.
 
-Roda sem banco: o `403` do RBAC acontece **antes** de qualquer consulta — é justamente o
-que se quer provar, e é por isso que este arquivo não está entre os que pulam sem
-`DATABASE_URL_TESTE`.
+Roda **sem banco**: o `403` do RBAC acontece antes de qualquer consulta — é justamente o
+que se quer provar. Por isso este arquivo não pula quando não há `DATABASE_URL`, e não
+escreve nada em lugar nenhum.
 
 Tarefa: T138
 """

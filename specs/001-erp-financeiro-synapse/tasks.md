@@ -108,7 +108,7 @@ erro de modelagem descoberto só na tela custaria retrabalho nas três fases.
 - [X] T033 [P] Implementar `GET /api/saude` em `backend/app/main.py` devolvendo `{status, banco, versao}` (contracts/plataforma.md §7)
 - [X] T034 Implementar `backend/app/usuarios/rotas.py` com `GET /api/sessao` e `POST /api/sessao/preferencias` (tema e ordem de cards em `usuarios.preferencias`) — contracts/plataforma.md §1
 - [X] T035 Criar `backend/api/index.py` expondo o app ASGI e `backend/vercel.json` com runtime Python e a declaração do cron diário
-- [X] T036 Configurar `backend/tests/conftest.py` com pytest-asyncio, httpx e um Postgres de teste isolado (quickstart.md §6)
+- [X] T036 Configurar `backend/tests/conftest.py` com pytest-asyncio, httpx e a conexão das integrações (quickstart.md §6). ⚠️ **Revisto em 2026-07-31**: não haverá Postgres de teste isolado — as integrações rodam contra produção, e o que protege os dados é a transação desfeita no `finally`
 - [X] T037 [P] Configurar lint e formatação do backend (ruff + black) em `backend/pyproject.toml`
 - [ ] T038 Criar o projeto `synapse-erp-api` na Vercel (root `backend`), publicar e confirmar `GET /api/saude` respondendo em produção (quickstart.md §7)
 
@@ -190,8 +190,9 @@ conferir zero vazamento.
 > checagem de tipo de categoria é aplicação de `RN-01` como já estava escrito, não regra nova.
 
 **✅ Checkpoint B1**: o núcleo funciona ponta a ponta pela API. É o MVP de backend.
-Ressalva registrada: os 21 testes de integração de B1 estão escritos e **pulam** sem
-`DATABASE_URL_TESTE` — falta um Postgres de teste (não pode ser o de produção).
+Ressalva: os 21 testes de integração de B1 rodam contra o banco de produção, dentro de
+transação desfeita (decisão do dono do projeto, 2026-07-31 — quickstart §6). Pulam sem
+`DATABASE_URL` no ambiente.
 
 ## Sub-fase B2 — US3 Programar o futuro e recuperar o histórico (P1)
 
@@ -239,8 +240,8 @@ ocorrências efetivadas mais as futuras programadas, e o saldo bate com o histó
 > descreviam.
 
 **✅ Checkpoint B2**: o histórico entra sozinho e o futuro se resolve na data.
-Ressalva: os testes de integração de B2 (20 casos) estão escritos e **pulam** sem
-`DATABASE_URL_TESTE` — mesma situação de B1, por decisão do dono do projeto.
+Ressalva: os 20 testes de integração de B2 rodam contra produção, em transação desfeita —
+mesma situação de B1 (quickstart §6).
 
 ## Sub-fase B3 — US4 Saúde do caixa + US7 Extrato (P1/P2)
 
@@ -276,13 +277,13 @@ acumulado do último grupo do Extrato é igual ao saldo final do período.
 > implementados como estavam escritos.
 >
 > **Ressalva de T097**: a medição de `SC-007`/`SC-002` está escrita
-> (`tests/integracao/test_desempenho.py`, marcada `lento`) e **não foi executada** — depende
-> do banco de teste que ainda não existe. O arquivo diz, no próprio cabeçalho, que medir
-> contra Postgres local dá número otimista e que o critério só vale contra um banco
-> equivalente ao de produção.
+> (`tests/integracao/test_desempenho.py`, marcada `lento`) e **não foi executada**. Ela insere
+> milhares de linhas no banco de produção — a transação desfeita garante que nada sobrevive,
+> mas a carga chega ao servidor. Rodá-la é decisão consciente, fora do horário de uso.
 
 **✅ Checkpoint B3**: dá para responder "como está o caixa?" só pela API.
-Ressalva: 16 testes de integração de B3 escritos e **pulando** por falta de banco de teste.
+Ressalva: 16 testes de integração de B3 escritos; rodam contra produção em transação
+desfeita (quickstart §6).
 
 ## Sub-fase B4 — US5 Clientes + US6 Funcionários (P2)
 
@@ -323,7 +324,8 @@ vence além da tolerância e o cliente aparece marcado no Dashboard, na lista e 
 > já registrava o filtro de cliente derivado (T021 alinhou isso na Fase A).
 
 **✅ Checkpoint B4**: quem paga e quanto custa a equipe, com alerta de quem atrasou.
-Ressalva: 21 testes de integração de B4 escritos e **pulando** por falta de banco de teste.
+Ressalva: 21 testes de integração de B4 escritos; rodam contra produção em transação
+desfeita (quickstart §6).
 
 ## Sub-fase B5 — US8 Relatórios e fechamento (P3)
 
@@ -355,7 +357,8 @@ categorias e exportar em CSV com os mesmos números.
 > **Documento-mestre**: nada a mudar. `FR-090`–`FR-095` foram implementados como escritos.
 >
 > **✅ Checkpoint B5**: dá para fechar o mês sem planilha. Ressalva: os relatórios não foram
-> exercitados contra dados reais — falta o banco de teste.
+> exercitados contra dados reais — o banco de produção está vazio, então não há o que agregar
+> até o histórico entrar.
 
 ## Sub-fase B6 — US9 Avisos + US10 Papéis e configuração (P3)
 

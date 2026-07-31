@@ -378,7 +378,7 @@ def test_metodo_errado_tambem_sai_no_formato_unico(cliente):
 
 
 def test_saude_e_publico_sem_token(cliente):
-    """contracts/plataforma.md §7. Aqui o banco de teste não existe → degradado."""
+    """contracts/plataforma.md §7. Aqui não há banco alcançável → degradado."""
     resposta = cliente.get("/api/saude")
     assert resposta.status_code == 200
     corpo = resposta.json()

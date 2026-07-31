@@ -7,10 +7,14 @@ faz as parcelas somarem exato. Um dublê aprovaria os três estando errados.
 
 ## Como rodar
 
-    $env:DATABASE_URL_TESTE = "postgresql://...:6543/postgres"   # NUNCA o de produção
+⚠️ **Rodam contra o banco de PRODUÇÃO** (decisão do dono do projeto, 2026-07-31 — não há
+banco separado). O que protege os dados é a transação desfeita do `conftest`: nada do que
+os testes escrevem chega a existir para outra conexão. Leia o aviso no topo de
+`tests/conftest.py` antes de escrever teste novo aqui.
+
     .venv/Scripts/python -m pytest tests/integracao -q
 
-Sem a variável, pulam com aviso (conftest). O banco precisa das migrações `001`…`010`.
+Sem `DATABASE_URL` no ambiente, pulam com aviso — nunca passam em silêncio.
 
 Tarefa: T086
 """

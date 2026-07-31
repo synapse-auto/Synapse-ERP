@@ -11,14 +11,16 @@ Os dois números que a spec cobra:
 Populam 5.000 linhas. Não é teste de rodar a cada salvamento; é a conferência que
 T097 pede e que T204 repete na interface real, já com o frontend no meio.
 
-    $env:DATABASE_URL_TESTE = "postgresql://...:6543/postgres"
     .venv/Scripts/python -m pytest tests/integracao/test_desempenho.py -q -m lento
 
-⚠️ **Medir contra um Postgres local dá um número otimista.** O banco de produção é o
-Supabase, com rede no meio e pooler em modo transaction. O número que vale para
-`SC-007` é o medido contra um banco equivalente ao de produção — o local serve para
-pegar regressão grosseira (um índice que sumiu, um N+1 novo), não para declarar o
-critério atendido.
+⚠️ **Este arquivo insere milhares de linhas no banco de PRODUÇÃO.** A transação desfeita
+do `conftest` garante que nada sobrevive, mas a carga chega ao servidor: são milhares de
+INSERTs e um `analyze`, e o `analyze` não volta atrás (é estatística, inofensiva). Por
+isso está marcado `lento` e **fora da execução padrão** — rodá-lo é decisão consciente.
+Não rode com alguém usando o sistema.
+
+O lado bom de medir contra produção: o número **vale**. É o Supabase de verdade, com rede
+no meio e pooler em modo transaction, que é exatamente o que `SC-007` cobra.
 
 Tarefa: T097
 """
@@ -63,7 +65,7 @@ async def _popula(conexao, quantidade: int = QUANTIDADE) -> UsuarioAutenticado:
         .all()
     )
     if not categorias:
-        pytest.fail("Sem categorias no banco de teste — aplique o seed 008.")
+        pytest.fail("Sem categorias — aplique o seed 008 (quickstart.md §3).")
 
     # `generate_series` gera as 5.000 linhas dentro do banco: 5.000 INSERTs pela rede
     # levariam minutos e mediriam a latência da rede, não a consulta.
