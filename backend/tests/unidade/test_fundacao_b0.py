@@ -465,6 +465,7 @@ def test_permissoes_do_operador_nao_incluem_configuracoes():
 
 def test_segredo_de_rotina_errado_e_recusado():
     from app.comum.erros import ErroSemPermissao
+    from app.config import obter_configuracao
     from app.seguranca.rbac import exige_segredo_de_rotina
 
     with pytest.raises(ErroSemPermissao):
@@ -472,21 +473,29 @@ def test_segredo_de_rotina_errado_e_recusado():
     with pytest.raises(ErroSemPermissao):
         exige_segredo_de_rotina(None)
 
-    # O certo passa sem levantar (definido em conftest.py)
-    exige_segredo_de_rotina("segredo-de-teste")
+    # O certo passa sem levantar. O valor vem da configuração, não fixado aqui: o
+    # ambiente local pode ter um `.env` com outro segredo, e o teste é sobre a
+    # comparação, não sobre qual string está configurada.
+    exige_segredo_de_rotina(obter_configuracao().segredo_rotina)
 
 
 # ── Configuração e banco (T023, T024) ────────────────────────────────────────
 
 
 def test_url_do_jwks_derivada_do_supabase_url():
-    """research.md D-03 resolvido: chave pública buscada, não segredo guardado."""
+    """research.md D-03 resolvido: chave pública buscada, não segredo guardado.
+
+    Confere a **derivação**, não uma URL literal: o ambiente local pode ter um
+    `.env` apontando para o projeto de verdade, e fixar o endereço aqui faria o
+    teste falhar por um motivo que não tem nada a ver com o que ele prova.
+    """
     from app.config import obter_configuracao
 
     configuracao = obter_configuracao()
-    assert configuracao.url_jwks == (
-        "https://projeto-de-teste.supabase.co/auth/v1/.well-known/jwks.json"
-    )
+    assert configuracao.url_jwks == (f"{configuracao.supabase_url}/auth/v1/.well-known/jwks.json")
+    # O que importa de verdade: é chave pública, e não há segredo de JWT guardado.
+    assert configuracao.url_jwks.endswith("/.well-known/jwks.json")
+    assert not hasattr(configuracao, "supabase_jwt_segredo")
 
 
 def test_barra_final_no_supabase_url_nao_duplica():

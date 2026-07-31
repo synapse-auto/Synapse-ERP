@@ -44,12 +44,41 @@ Tarefa: T036
 
 import os
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 
 import pytest
 
-# Ambiente mínimo, definido ANTES de qualquer import de `app`: `app.config` valida
-# na construção, então importar sem isso quebraria a coleta dos testes de unidade —
-# que não precisam de banco nenhum.
+
+def _carrega_env() -> None:
+    """Lê `backend/.env` para o ambiente, **antes** dos `setdefault` abaixo.
+
+    Sem isto o `.env` seria ignorado: `setdefault` preencheria `DATABASE_URL` com o
+    espaço reservado, o pydantic-settings daria prioridade à variável de ambiente
+    sobre o arquivo, e as integrações pulariam mesmo com o `.env` no lugar — sem
+    dizer por quê. Custou uma investigação inteira descobrir isso.
+
+    Valor vazio é ignorado de propósito: `.env.exemplo` tem todas as chaves em
+    branco, e copiá-lo sem preencher não deve mascarar os padrões daqui.
+    """
+    arquivo = Path(__file__).resolve().parent.parent / ".env"
+    if not arquivo.exists():
+        return
+
+    for linha in arquivo.read_text(encoding="utf-8").splitlines():
+        limpa = linha.strip()
+        if not limpa or limpa.startswith("#") or "=" not in limpa:
+            continue
+        chave, _, valor = limpa.partition("=")
+        valor = valor.strip().strip('"').strip("'")
+        if valor:
+            os.environ.setdefault(chave.strip(), valor)
+
+
+_carrega_env()
+
+# Ambiente mínimo, definido depois do `.env`: `app.config` valida na construção,
+# então importar sem isso quebraria a coleta dos testes de unidade — que não
+# precisam de banco nenhum.
 os.environ.setdefault("DATABASE_URL", "postgresql://sem-banco@localhost:5432/indisponivel")
 os.environ.setdefault("SUPABASE_URL", "https://projeto-de-teste.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "chave-de-teste-nao-usada")
@@ -101,9 +130,18 @@ async def conexao_de_teste() -> AsyncIterator[object]:
     url = os.environ.get("DATABASE_URL")
     if not url or url == _URL_DE_ESPACO_RESERVADO:
         pytest.skip(
-            "DATABASE_URL não definida — teste de integração pulado. Defina-a "
-            "(backend/.env ou variável de ambiente) para rodar as integrações. "
-            "Ver quickstart.md §6."
+            "DATABASE_URL não definida — teste de integração pulado. Defina-a em "
+            "backend/.env (ver .env.exemplo) para rodar as integrações. quickstart.md §6."
+        )
+
+    # A string copiada do painel do Supabase vem com a senha por preencher. Sem esta
+    # checagem, a tentativa de conexão falharia com "password authentication failed" —
+    # um erro que manda procurar no lugar errado.
+    if "[YOUR-PASSWORD]" in url or "[SUA-SENHA]" in url:
+        pytest.fail(
+            "A DATABASE_URL ainda tem o marcador de senha do painel do Supabase. "
+            "Substitua `[YOUR-PASSWORD]` pela senha real em backend/.env. "
+            "Se a senha tiver caractere especial, codifique em percent-encoding."
         )
 
     from sqlalchemy.ext.asyncio import create_async_engine
