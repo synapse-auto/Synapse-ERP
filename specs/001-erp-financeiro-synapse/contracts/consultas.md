@@ -109,6 +109,26 @@ que está visível na configuração do usuário).
 - Período sem dados devolve valores `"0.00"` e listas vazias com `periodo_vazio: true`,
   nunca campo ausente (*edge case* "estado vazio explicativo").
 
+**Precisões de B3 (T090–T094)**, todas conferidas por teste:
+
+- Cada card traz **`rotulo`, `grupo` e `ordem`** junto do valor, vindos de
+  `configuracoes.dashboard_cards_disponiveis` cruzados com `usuarios.preferencias`. A
+  resposta também traz **`cards_disponiveis`** — o catálogo inteiro, inclusive os ocultos,
+  para a tela "Configurar cards" (`FR-071`) não precisar de outra requisição.
+- `margem_operacional` traz `"unidade": "percentual"`. Sem isso a tela teria que deduzir a
+  unidade pelo id do card, que é regra escondida no frontend.
+- **`variacao_percentual` é `null`, não `"0.0"`, quando o período anterior é zero.** Zero por
+  cento e "não dá para calcular" são coisas diferentes e a tela mostra as duas de forma
+  diferente. Vale para todo percentual da resposta.
+- `a_receber`/`a_pagar` e `alerta_atrasados` **ignoram o filtro de período**: conta vencida em
+  maio continua a pagar em julho.
+- `composicao` sempre traz as três situações, mesmo zeradas.
+- `saude_caixa.cobertura` é `null` quando não há despesa fixa no horizonte — mostrar "∞×"
+  seria cômodo e enganoso (`dominio/saude_caixa.py`).
+- `card_clientes.inadimplentes` vem `[]` até B4/T100: a situação é derivada de `RN-10`, que
+  ainda não tem módulo. Lista vazia em vez de campo ausente, para o contrato não mudar de
+  forma depois.
+
 ---
 
 ## 2. Extrato

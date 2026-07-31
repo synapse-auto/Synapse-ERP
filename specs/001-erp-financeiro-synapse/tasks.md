@@ -250,20 +250,39 @@ agrupado.
 **Teste independente**: com 12 meses carregados, cada card bate com o cálculo manual e o saldo
 acumulado do último grupo do Extrato é igual ao saldo final do período.
 
-- [ ] T088 [P] [US4] Implementar `backend/app/dominio/saude_caixa.py`: semáforo sobre as despesas fixas de `saude_caixa_horizonte_dias`, com os multiplicadores vindos de `configuracoes` (`FR-069`, `RNF-02`)
-- [ ] T089 🟢 [US4] Implementar `backend/app/dashboard/repositorio.py` — **todas as agregações em uma requisição**; conferir os índices com a Skill, porque é aqui que `SC-002` se ganha ou se perde
-- [ ] T090 [US4] Implementar `GET /api/dashboard` em `backend/app/dashboard/rotas.py` com os 7 cards de `FR-054`, comparativo de período e mini-gráficos de tendência (`FR-055`, `FR-057`)
-- [ ] T091 🟢 [US4] Implementar as séries do Dashboard: fluxo de caixa de 12 meses com projeção distinta, evolução do saldo final, comparativo mês atual × anterior, despesas por categoria e top 5 despesas (`FR-059`–`FR-063`)
-- [ ] T092 🟢 [US4] Implementar os blocos especiais do Dashboard resolvidos por `categorias.vinculo` — Clientes e Funcionários — sem nenhum `if nome == 'Clientes'` no código (`FR-065`, `FR-066`, `FR-079`)
-- [ ] T093 [US4] Implementar o alerta fixo de atrasados, a linha do tempo de 7 dias e o resumo do período em linguagem natural (`FR-067`, `FR-068`, `FR-070`)
-- [ ] T094 [US4] Implementar a visibilidade e a ordem dos cards a partir de `usuarios.preferencias` × `configuracoes.dashboard_cards_disponiveis`, devolvendo os rótulos junto do dado (`FR-071`, `FR-106`)
-- [ ] T095 🟢 [US7] Implementar `backend/app/extrato/servico.py` com agrupamento por dia, semana ou mês e saldo acumulado ao fim de cada grupo (`FR-047`)
-- [ ] T096 [US7] Implementar `GET /api/extrato` com cabeçalho-resumo comparativo, grupos futuros marcados como previstos e a seção "A pagar / A receber" (`FR-048`, `FR-051`, `FR-052`)
-- [ ] T097 [US4] Medir `SC-007` e `SC-002`: popular 5.000 lançamentos de teste e conferir filtro em menos de 2 s e Dashboard em uma requisição — ajustar índices se falhar, com a Skill acionada
-- [ ] T098 [US7] Escrever integração e contrato de dashboard e extrato em `backend/tests/integracao/` e `backend/tests/contrato/`
-- [ ] T099 Verificar documentação de B3 e registrar a resposta (Princípio V)
+- [X] T088 [P] [US4] Implementar `backend/app/dominio/saude_caixa.py`: semáforo sobre as despesas fixas de `saude_caixa_horizonte_dias`, com os multiplicadores vindos de `configuracoes` (`FR-069`, `RNF-02`)
+- [X] T089 🟢 [US4] Implementar `backend/app/dashboard/repositorio.py` — **todas as agregações em uma requisição**; conferir os índices com a Skill, porque é aqui que `SC-002` se ganha ou se perde
+- [X] T090 [US4] Implementar `GET /api/dashboard` em `backend/app/dashboard/rotas.py` com os 7 cards de `FR-054`, comparativo de período e mini-gráficos de tendência (`FR-055`, `FR-057`)
+- [X] T091 🟢 [US4] Implementar as séries do Dashboard: fluxo de caixa de 12 meses com projeção distinta, evolução do saldo final, comparativo mês atual × anterior, despesas por categoria e top 5 despesas (`FR-059`–`FR-063`)
+- [X] T092 🟢 [US4] Implementar os blocos especiais do Dashboard resolvidos por `categorias.vinculo` — Clientes e Funcionários — sem nenhum `if nome == 'Clientes'` no código (`FR-065`, `FR-066`, `FR-079`)
+- [X] T093 [US4] Implementar o alerta fixo de atrasados, a linha do tempo de 7 dias e o resumo do período em linguagem natural (`FR-067`, `FR-068`, `FR-070`)
+- [X] T094 [US4] Implementar a visibilidade e a ordem dos cards a partir de `usuarios.preferencias` × `configuracoes.dashboard_cards_disponiveis`, devolvendo os rótulos junto do dado (`FR-071`, `FR-106`)
+- [X] T095 🟢 [US7] Implementar `backend/app/extrato/servico.py` com agrupamento por dia, semana ou mês e saldo acumulado ao fim de cada grupo (`FR-047`)
+- [X] T096 [US7] Implementar `GET /api/extrato` com cabeçalho-resumo comparativo, grupos futuros marcados como previstos e a seção "A pagar / A receber" (`FR-048`, `FR-051`, `FR-052`)
+- [X] T097 [US4] Medir `SC-007` e `SC-002`: popular 5.000 lançamentos de teste e conferir filtro em menos de 2 s e Dashboard em uma requisição — ajustar índices se falhar, com a Skill acionada
+- [X] T098 [US7] Escrever integração e contrato de dashboard e extrato em `backend/tests/integracao/` e `backend/tests/contrato/`
+- [X] T099 Verificar documentação de B3 e registrar a resposta (Princípio V)
+
+> **Resposta de T099 (2026-07-30)** — dois ajustes, e uma ressalva que não é ajuste:
+>
+> 1. `contracts/consultas.md` §1 — os cards passaram a trazer `rotulo`/`grupo`/`ordem` junto
+>    do valor e a resposta ganhou `cards_disponiveis` (o catálogo inteiro, para "Configurar
+>    cards" não precisar de outra requisição). Documentado também que **percentual é `null`,
+>    não `"0.0"`, quando o anterior é zero**, e que `card_clientes.inadimplentes` fica `[]`
+>    até B4/T100.
+> 2. `data-model.md` — `dominio/saude_caixa.py` entrou no mapa de regras (§5).
+>
+> **Documento-mestre**: nada a mudar. `FR-053`–`FR-071` e `FR-047`–`FR-052` foram
+> implementados como estavam escritos.
+>
+> **Ressalva de T097**: a medição de `SC-007`/`SC-002` está escrita
+> (`tests/integracao/test_desempenho.py`, marcada `lento`) e **não foi executada** — depende
+> do banco de teste que ainda não existe. O arquivo diz, no próprio cabeçalho, que medir
+> contra Postgres local dá número otimista e que o critério só vale contra um banco
+> equivalente ao de produção.
 
 **✅ Checkpoint B3**: dá para responder "como está o caixa?" só pela API.
+Ressalva: 16 testes de integração de B3 escritos e **pulando** por falta de banco de teste.
 
 ## Sub-fase B4 — US5 Clientes + US6 Funcionários (P2)
 

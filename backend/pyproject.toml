@@ -124,6 +124,7 @@ asyncio_mode = "auto"
 markers = [
   "integracao: precisa de um Postgres real (quickstart.md §6)",
   "contrato: confere a resposta contra os arquivos de contracts/",
+  "lento: popula milhares de linhas para medir SC-007/SC-002 (T097). Rode sob demanda",
 ]
 # Silencia o aviso de escopo do pytest-asyncio; o padrão (function) é o que queremos.
 asyncio_default_fixture_loop_scope = "function"

@@ -31,7 +31,9 @@ from app.cadastros.tags import roteador as roteador_tags
 from app.categorias.rotas import roteador as roteador_categorias
 from app.comum.erros import ErroDaApi, ErroValidacao
 from app.config import obter_configuracao
+from app.dashboard.rotas import roteador as roteador_dashboard
 from app.db import banco_responde, encerrar_motor
+from app.extrato.rotas import roteador as roteador_extrato
 from app.lancamentos.rotas import roteador as roteador_lancamentos
 from app.lancamentos.rotas import roteador_lixeira, roteador_saldo
 from app.recorrencias.rotas import roteador as roteador_recorrencias
@@ -190,6 +192,8 @@ app.include_router(roteador_anexos_upload)
 app.include_router(roteador_anexos)
 app.include_router(roteador_lixeira)
 app.include_router(roteador_saldo)
+app.include_router(roteador_dashboard)
+app.include_router(roteador_extrato)
 app.include_router(roteador_recorrencias)
 app.include_router(roteador_parcelamentos)
 app.include_router(roteador_rotinas)

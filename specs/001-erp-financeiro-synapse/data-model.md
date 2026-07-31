@@ -570,6 +570,13 @@ encadeado a partir da anterior — encadear faria fevereiro contaminar março e 
 escorregaria. `datas_que_o_escopo_alcanca` é o dono de `RN-07`, usado por editar série,
 desativar e arquivar cliente/funcionário, para os três concordarem.
 
+### 5.12. `RF-46b` — semáforo de saúde do caixa → `dominio/saude_caixa.py`
+`cobertura = saldo ÷ despesas fixas do horizonte`, classificada contra
+`configuracoes.saude_caixa_multiplicadores` e `saude_caixa_horizonte_dias`. "Despesa fixa" é a
+que **já está lançada** no futuro, não uma média histórica — o sistema conhece o que vem
+porque as recorrências foram materializadas (D-08), e média daria um número que não
+corresponde a nenhuma conta real. Sem despesa fixa, `cobertura` é `null`, não infinita.
+
 ### 5.11. `FR-028` — parcelamento → `dominio/parcelamento.py`
 As primeiras parcelas arredondam para baixo e a **última absorve a diferença**, com
 conferência da soma antes de devolver. A primeira é a que vai na proposta; a diferença de
