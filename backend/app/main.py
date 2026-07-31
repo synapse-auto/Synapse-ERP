@@ -34,6 +34,9 @@ from app.config import obter_configuracao
 from app.db import banco_responde, encerrar_motor
 from app.lancamentos.rotas import roteador as roteador_lancamentos
 from app.lancamentos.rotas import roteador_lixeira, roteador_saldo
+from app.recorrencias.rotas import roteador as roteador_recorrencias
+from app.recorrencias.rotas import roteador_parcelamentos
+from app.rotinas.rotas import roteador as roteador_rotinas
 from app.usuarios.rotas import roteador as roteador_sessao
 
 registrador = logging.getLogger("synapse.erp")
@@ -187,6 +190,9 @@ app.include_router(roteador_anexos_upload)
 app.include_router(roteador_anexos)
 app.include_router(roteador_lixeira)
 app.include_router(roteador_saldo)
+app.include_router(roteador_recorrencias)
+app.include_router(roteador_parcelamentos)
+app.include_router(roteador_rotinas)
 app.include_router(roteador_categorias)
 app.include_router(roteador_tags)
 app.include_router(roteador_centros_custo)

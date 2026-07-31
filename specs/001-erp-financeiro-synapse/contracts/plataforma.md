@@ -160,8 +160,19 @@ usuário na chamada. Segredo em variável de ambiente (Princípio VII).
 | Endpoint | O quê | Requisitos |
 |---|---|---|
 | `POST /api/rotinas/diaria` | Materializa recorrências, aplica o ciclo de status, reavalia inadimplência, gera alertas de vencimento e de caixa baixo | `FR-030`, `FR-032`, `FR-082`, `FR-083`, `FR-096`, `FR-097`, `RN-03`, `RN-10` |
+| `GET /api/rotinas/diaria` | **O mesmo**, para o Vercel Cron | idem |
 | `POST /api/rotinas/semanal` | Resumo semanal de segunda | `FR-098` |
 | `GET /api/rotinas/estado` | Última execução e resultado (papel: gestor) | Princípio VI |
+
+> **Divergência entre o contrato e a plataforma, resolvida em B2/T084.** Este documento
+> especificava só o `POST` com `X-Segredo-Rotina`. O **Vercel Cron não envia cabeçalho
+> personalizado**: ele invoca o caminho com `GET` e manda `Authorization: Bearer $CRON_SECRET`.
+> Aceitar só o `POST` deixaria o cron sem conseguir se autenticar.
+>
+> A dependência `exige_segredo_da_rotina` aceita os **dois** cabeçalhos e confere o **mesmo**
+> segredo, com comparação de tempo constante. Na Vercel, `CRON_SECRET` e `SEGREDO_ROTINA`
+> recebem o mesmo valor. O `GET` aparece no `/api/docs` — endpoint que existe e não está
+> documentado é divergência, e T208 trata divergência como bug.
 
 ### `POST /api/rotinas/diaria`
 
@@ -174,11 +185,22 @@ usuário na chamada. Segredo em variável de ambiente (Princípio VII).
     "efetivados_automaticamente": 3,
     "movidos_para_pendente": 1,
     "movidos_para_atrasado": 2,
+    "recorrencias_processadas": 7,
+    "recorrencias_pendentes_de_geracao": 0,
     "clientes_marcados_inadimplentes": 1,
-    "notificacoes_criadas": 5
+    "notificacoes_criadas": 5,
+    "avisos": []
   },
   "duracao_ms": 820 }
 ```
+
+`recorrencias_pendentes_de_geracao` e `avisos` foram acrescentados em B2/T083. O primeiro
+conta as séries que não couberam numa invocação e continuam na próxima (D-02a); `avisos` traz
+frases em PT-BR sobre o que **não** foi ideal — dia perdido recuperado, teto de recorrências
+atingido. Sem eles, uma execução parcial pareceria idêntica a uma completa.
+
+`clientes_marcados_inadimplentes` e `notificacoes_criadas` já vêm no corpo, sempre `0` até
+B6 (T125–T127) — o contrato não muda de forma quando eles forem implementados.
 
 **Idempotente**: rodar duas vezes no mesmo dia não duplica nada — cada passo traz o estado
 até hoje em vez de avançar um dia, e as notificações são desduplicadas por

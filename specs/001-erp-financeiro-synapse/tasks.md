@@ -201,25 +201,46 @@ sozinho.
 **Teste independente**: recorrência mensal de R$ 1.200 com início 5 meses atrás gera 5
 ocorrências efetivadas mais as futuras programadas, e o saldo bate com o histórico real.
 
-- [ ] T071 [P] [US3] `backend/tests/unidade/dominio/test_ciclo_status.py` — programado → efetivado/pendente → atrasado; cancelado preserva histórico (`RN-03`)
-- [ ] T072 [P] [US3] `backend/tests/unidade/dominio/test_recorrencia_retroativa.py` — início 12 meses atrás gera exatamente 12 ocorrências `efetivado` (`RN-05a`, `SC-004`)
-- [ ] T073 [P] [US3] `backend/tests/unidade/dominio/test_recorrencia_dia_31_em_fevereiro.py` — mensal "todo dia 31" cai no último dia do mês (quickstart.md §6)
-- [ ] T074 [P] [US3] `backend/tests/unidade/dominio/test_escopo_edicao_serie.py` — `esta_e_futuras` nunca altera ocorrência passada (`RN-07`)
-- [ ] T075 [US3] Implementar `backend/app/dominio/status.py`: ciclo de `RN-03`/`RN-04`, `atrasado` só alcançável com `efetivar_automaticamente = false`, e edição histórica exigindo `confirmar_alteracao_historica` (data-model §5.8)
-- [ ] T076 [US3] Implementar `backend/app/dominio/recorrencia.py` com python-dateutil: geração idempotente por `gerada_ate`, horizonte de `recorrencia_horizonte_meses`, clamp do dia do mês, retroativas nascendo `efetivado` (`FR-025`, `FR-026`, `RN-05a`, `RN-07`)
-- [ ] T077 [P] [US3] Implementar `backend/app/dominio/parcelamento.py`: N parcelas com a diferença de arredondamento absorvida na última (`FR-028`)
-- [ ] T078 🟢 [US3] Implementar `backend/app/recorrencias/repositorio.py` e `servico.py`
-- [ ] T079 [US3] Implementar em `backend/app/recorrencias/rotas.py` as rotas `GET /api/recorrencias`, `GET /{id}`, `POST`, `PUT /{id}` (com `escopo_serie` obrigatório), `POST /{id}/desativar` e `DELETE /{id}` (contracts/lancamentos.md §3)
-- [ ] T080 [US3] Implementar `POST /api/recorrencias/previa` e a resposta `422 confirmacao_necessaria` com `previa` quando a contagem passa de `recorrencia_aviso_ocorrencias` (`FR-027`)
-- [ ] T081 [US3] Implementar a geração em lotes com cursor e `POST /api/recorrencias/{id}/continuar-geracao`, devolvendo `{concluida, cursor, geradas, total}` (research.md D-02a)
-- [ ] T082 [US3] Implementar `POST /api/parcelamentos` e `GET /api/parcelamentos/{id}` em `backend/app/lancamentos/rotas.py` (contracts/lancamentos.md §4)
-- [ ] T083 🟢 [US3] Implementar `backend/app/rotinas/diaria.py`: materializa recorrências, aplica o ciclo de status e grava `execucoes_rotina.ultimo_resultado`; idempotente e recuperando de `ultima_data_processada` até hoje (research.md D-08)
-- [ ] T084 [US3] Implementar `backend/app/rotinas/rotas.py` com `POST /api/rotinas/diaria` protegido por `X-Segredo-Rotina`, `GET /api/rotinas/estado` (gestor) e o cron declarado em `backend/vercel.json`
-- [ ] T085 [US3] Implementar a chamada implícita da rotina em `/api/dashboard`, `/api/extrato`, `/api/lancamentos` e `/api/saldo` quando ela não rodou hoje (contracts/plataforma.md §6)
-- [ ] T086 [US3] Escrever integração e contrato de recorrências e parcelamentos em `backend/tests/integracao/test_recorrencias.py` e `backend/tests/contrato/test_recorrencias.py`
-- [ ] T087 Verificar documentação de B2 e registrar a resposta (Princípio V)
+- [X] T071 [P] [US3] `backend/tests/unidade/dominio/test_ciclo_status.py` — programado → efetivado/pendente → atrasado; cancelado preserva histórico (`RN-03`)
+- [X] T072 [P] [US3] `backend/tests/unidade/dominio/test_recorrencia_retroativa.py` — início 12 meses atrás gera exatamente 12 ocorrências `efetivado` (`RN-05a`, `SC-004`)
+- [X] T073 [P] [US3] `backend/tests/unidade/dominio/test_recorrencia_dia_31_em_fevereiro.py` — mensal "todo dia 31" cai no último dia do mês (quickstart.md §6)
+- [X] T074 [P] [US3] `backend/tests/unidade/dominio/test_escopo_edicao_serie.py` — `esta_e_futuras` nunca altera ocorrência passada (`RN-07`)
+- [X] T075 [US3] Implementar `backend/app/dominio/status.py`: ciclo de `RN-03`/`RN-04`, `atrasado` só alcançável com `efetivar_automaticamente = false`, e edição histórica exigindo `confirmar_alteracao_historica` (data-model §5.8)
+- [X] T076 [US3] Implementar `backend/app/dominio/recorrencia.py` com python-dateutil: geração idempotente por `gerada_ate`, horizonte de `recorrencia_horizonte_meses`, clamp do dia do mês, retroativas nascendo `efetivado` (`FR-025`, `FR-026`, `RN-05a`, `RN-07`)
+- [X] T077 [P] [US3] Implementar `backend/app/dominio/parcelamento.py`: N parcelas com a diferença de arredondamento absorvida na última (`FR-028`)
+- [X] T078 🟢 [US3] Implementar `backend/app/recorrencias/repositorio.py` e `servico.py`
+- [X] T079 [US3] Implementar em `backend/app/recorrencias/rotas.py` as rotas `GET /api/recorrencias`, `GET /{id}`, `POST`, `PUT /{id}` (com `escopo_serie` obrigatório), `POST /{id}/desativar` e `DELETE /{id}` (contracts/lancamentos.md §3)
+- [X] T080 [US3] Implementar `POST /api/recorrencias/previa` e a resposta `422 confirmacao_necessaria` com `previa` quando a contagem passa de `recorrencia_aviso_ocorrencias` (`FR-027`)
+- [X] T081 [US3] Implementar a geração em lotes com cursor e `POST /api/recorrencias/{id}/continuar-geracao`, devolvendo `{concluida, cursor, geradas, total}` (research.md D-02a)
+- [X] T082 [US3] Implementar `POST /api/parcelamentos` e `GET /api/parcelamentos/{id}` em `backend/app/lancamentos/rotas.py` (contracts/lancamentos.md §4)
+- [X] T083 🟢 [US3] Implementar `backend/app/rotinas/diaria.py`: materializa recorrências, aplica o ciclo de status e grava `execucoes_rotina.ultimo_resultado`; idempotente e recuperando de `ultima_data_processada` até hoje (research.md D-08)
+- [X] T084 [US3] Implementar `backend/app/rotinas/rotas.py` com `POST /api/rotinas/diaria` protegido por `X-Segredo-Rotina`, `GET /api/rotinas/estado` (gestor) e o cron declarado em `backend/vercel.json`
+- [X] T085 [US3] Implementar a chamada implícita da rotina em `/api/dashboard`, `/api/extrato`, `/api/lancamentos` e `/api/saldo` quando ela não rodou hoje (contracts/plataforma.md §6)
+- [X] T086 [US3] Escrever integração e contrato de recorrências e parcelamentos em `backend/tests/integracao/test_recorrencias.py` e `backend/tests/contrato/test_recorrencias.py`
+- [X] T087 Verificar documentação de B2 e registrar a resposta (Princípio V)
+
+> **Resposta de T087 (2026-07-30)** — cinco ajustes:
+>
+> 1. `contracts/plataforma.md` §6 — **`GET /api/rotinas/diaria` documentado**. Fechou a
+>    divergência nº 1 do README do backend: o Vercel Cron não envia cabeçalho personalizado,
+>    ele chama com `GET` e `Authorization: Bearer $CRON_SECRET`. Os dois caminhos conferem o
+>    mesmo segredo, e há teste de contrato exigindo que o `GET` apareça no `/api/docs`.
+> 2. `contracts/plataforma.md` §6 — o resultado da rotina ganhou `recorrencias_processadas`,
+>    `recorrencias_pendentes_de_geracao` e `avisos`. Sem eles, execução parcial pareceria
+>    idêntica a execução completa.
+> 3. `contracts/lancamentos.md` §3 — o `cursor` é o `gerada_ate` (não um token opaco);
+>    `escopo_serie` aceita só `esta_e_futuras` no `PUT`; formato de `POST /previa`.
+> 4. `contracts/lancamentos.md` §4 — resposta do `GET /api/parcelamentos/{id}`, valores de
+>    `intervalo`, tetos de parcelas.
+> 5. `data-model.md` §5.9–§5.11 e §7 — os três módulos de domínio novos e a migração `010`.
+>
+> **Documento-mestre**: nada a mudar. O ciclo de status, a recorrência retroativa e o
+> parcelamento foram implementados como `RF-15`/`RF-16`/`RF-17a`/`RN-03`/`RN-05a`/`RN-07` já
+> descreviam.
 
 **✅ Checkpoint B2**: o histórico entra sozinho e o futuro se resolve na data.
+Ressalva: os testes de integração de B2 (20 casos) estão escritos e **pulam** sem
+`DATABASE_URL_TESTE` — mesma situação de B1, por decisão do dono do projeto.
 
 ## Sub-fase B3 — US4 Saúde do caixa + US7 Extrato (P1/P2)
 

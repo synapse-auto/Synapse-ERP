@@ -61,7 +61,7 @@ ruff check . ; black --check .
 | `app/comum/` | Erro, paginação, período, idempotência, auditoria |
 | `app/seguranca/` | `auth.py` valida o token; `rbac.py` decide o papel |
 | `app/<dominio>/` | `rotas.py` → `servico.py` → `repositorio.py`, nessa ordem de dependência |
-| `migracoes/` | SQL versionado, `001`…`009` (data-model §7) |
+| `migracoes/` | SQL versionado, `001`…`010` (data-model §7) |
 | `api/index.py` | Só reexporta o app para a Vercel |
 
 Camada de tela **nunca** fala com o banco, e `repositorio.py` **nunca** contém regra de
@@ -148,11 +148,11 @@ listá-lo em `/api/docs` criaria a divergência que `T208` trata como bug. Está
 prosa no §7 daquele contrato, e há teste de regressão para as duas coisas
 (`test_raiz_leva_para_a_documentacao`, `test_raiz_nao_entra_no_contrato_publicado`).
 
-## ⚠️ Duas divergências abertas entre o contrato e a plataforma
+## ⚠️ Divergências entre o contrato e a plataforma
 
 Declaradas em voz alta porque a constituição não aceita resolver conflito em silêncio.
 
-### 1. O Vercel Cron não consegue chamar `POST` com `X-Segredo-Rotina`
+### 1. ✅ Resolvida em B2/T084 — o Vercel Cron não chama `POST` com `X-Segredo-Rotina`
 
 `contracts/plataforma.md §6` especifica
 `POST /api/rotinas/diaria` protegido pelo cabeçalho `X-Segredo-Rotina`. A plataforma
@@ -160,18 +160,18 @@ não permite isso: o Vercel Cron invoca o caminho com **`GET`** e **não envia c
 personalizado** — ele envia `Authorization: Bearer $CRON_SECRET` quando a variável
 `CRON_SECRET` existe no projeto.
 
-**Encaminhamento proposto, a implementar em `T084`** (sub-fase B2):
+**Implementado como planejado**, em `app/rotinas/rotas.py`:
 
-- `POST /api/rotinas/diaria` + `X-Segredo-Rotina` — permanece como o contrato diz,
-  para disparo manual.
-- `GET /api/rotinas/diaria` — aceito só para o cron, validando
-  `Authorization: Bearer <segredo>`.
-- Os dois conferem o **mesmo** segredo, com comparação de tempo constante
-  (`rbac.exige_segredo_de_rotina`). Na Vercel, `CRON_SECRET` e `SEGREDO_ROTINA`
-  recebem o mesmo valor.
+- `POST /api/rotinas/diaria` + `X-Segredo-Rotina` — como o contrato diz, para disparo
+  manual.
+- `GET /api/rotinas/diaria` — para o cron, validando `Authorization: Bearer <segredo>`.
+- Os dois passam pela mesma dependência `exige_segredo_da_rotina` e conferem o **mesmo**
+  segredo, com `hmac.compare_digest` (tempo constante). Na Vercel, `CRON_SECRET` e
+  `SEGREDO_ROTINA` recebem o mesmo valor.
 
-`contracts/plataforma.md` precisa registrar o `GET` quando `T084` for feito — senão
-`/api/docs` e o contrato divergem, o que T208 trata como bug.
+`contracts/plataforma.md §6` registra o `GET` e o motivo. Há teste de contrato exigindo
+que ele apareça no `/api/docs` — endpoint que existe e não está documentado é o tipo de
+divergência que T208 trata como bug.
 
 ### 2. Idempotência ainda não cobre o caso principal
 

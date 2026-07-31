@@ -558,6 +558,23 @@ Permitido, mas exige confirmação explícita (o endpoint recebe
 `confirmar_alteracao_historica=true`) e a auditoria registra que foi mudança retroativa
 (*edge case*).
 
+### 5.9. `RN-03`/`RN-04` — ciclo de status → `dominio/status.py`
+`status_na_data` devolve `None` quando não há nada a mudar, e é isso que torna a rotina
+diária idempotente sem contar linhas (D-08). `pode_atrasar` diz em uma função que `atrasado`
+só é alcançável com `efetivar_automaticamente = false` — a regra da qual `RN-10` depende.
+
+### 5.10. `RN-05a`/`RN-07` — geração de ocorrências → `dominio/recorrencia.py`
+Só cálculo de datas, sem tocar o banco: é o que torna o caso do dia 31 em fevereiro testável
+sem Postgres. O clamp do dia do mês é calculado **a partir da primeira ocorrência**, nunca
+encadeado a partir da anterior — encadear faria fevereiro contaminar março e a série inteira
+escorregaria. `datas_que_o_escopo_alcanca` é o dono de `RN-07`, usado por editar série,
+desativar e arquivar cliente/funcionário, para os três concordarem.
+
+### 5.11. `FR-028` — parcelamento → `dominio/parcelamento.py`
+As primeiras parcelas arredondam para baixo e a **última absorve a diferença**, com
+conferência da soma antes de devolver. A primeira é a que vai na proposta; a diferença de
+centavos incomoda menos numa parcela que ninguém anunciou.
+
 ---
 
 ## 6. Rastreabilidade requisito → tabela
@@ -597,6 +614,7 @@ Permitido, mas exige confirmação explícita (o endpoint recebe
 | `007_seed_configuracoes.sql` | tabela `configuracoes` completa (§3.15) |
 | `008_seed_dominio.sql` | 9 categorias, 9 serviços, 2 funcionários — **depende da confirmação do mundo dos funcionários** (§3.6) |
 | `009_seed_anexo_url_assinada.sql` | chave `anexo_url_assinada_segundos` (§3.15). Nasceu em B1/T064: os anexos precisavam de um prazo para a URL assinada, e prazo não mora no código (Princípio VII). Migração nova em vez de editar a `007`, que já estava aplicada |
+| `010_ocorrencia_unica_por_data.sql` | índice único `lancamentos (recorrencia_id, data) where recorrencia_id is not null`. Nasceu em B2/T083: **sem ele a idempotência de D-08 não existe**. É o que permite `insert … on conflict do nothing` em vez de um `select` antes de cada ocorrência (N+1 numa função com duração limitada), e cobre o caso de duas invocações simultâneas. Deliberadamente **não** é parcial em `excluido_em is null`: excluir uma ocorrência não pode fazê-la renascer na próxima execução da rotina (§3.13) |
 
 As `003`/`004` têm dependência circular entre `subcategorias.cliente_id` e
 `clientes` — resolvida criando as tabelas primeiro e as FKs no fim do arquivo `003`.

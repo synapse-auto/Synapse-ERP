@@ -41,6 +41,7 @@ from app.lancamentos.esquemas import (
     LancamentoEntrada,
     LoteEntrada,
 )
+from app.rotinas import diaria as rotina_diaria
 from app.seguranca.auth import UsuarioAutenticado
 from app.seguranca.rbac import exige_papel
 
@@ -97,6 +98,11 @@ async def listar(
         str | None, Query(description="Texto livre em descrição e observações.")
     ] = None,
 ) -> dict[str, Any]:
+    # T085: se o cron falhou hoje, a primeira leitura dispara a rotina antes de
+    # responder (contracts/plataforma.md §6). Sem isso, um cron perdido viraria número
+    # velho na tela sem ninguém perceber.
+    await rotina_diaria.executa_se_necessario(conexao)
+
     mundos = mod_mundo.resolve_filtro(mundo)
     janela = mod_periodo.resolve(periodo, data_inicio=data_inicio, data_fim=data_fim)
 
@@ -1167,6 +1173,8 @@ async def obter_saldo(
     conexao: Conexao,
     mundo: Annotated[str | None, Query(description="digital | infra | ambos.")] = None,
 ) -> dict[str, Any]:
+    await rotina_diaria.executa_se_necessario(conexao)  # T085
+
     mundos = mod_mundo.resolve_filtro(mundo)
     por_mundo_bruto = await repositorio.saldo_por_mundo(conexao, mundos)
 

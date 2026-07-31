@@ -257,7 +257,7 @@ Não existe exclusão definitiva por API — o histórico financeiro é permanen
 | `POST /api/recorrencias/previa` | gestor, operador | **Não grava.** Devolve a prévia de `FR-027` |
 | `POST /api/recorrencias` | gestor, operador | Cria e materializa |
 | `GET /api/recorrencias/{id}` | gestor, operador | Regra + ocorrências |
-| `PUT /api/recorrencias/{id}` | gestor, operador | `escopo_serie` obrigatório (`RN-07`) |
+| `PUT /api/recorrencias/{id}` | gestor, operador | `escopo_serie` obrigatório (`RN-07`) — só `esta_e_futuras` |
 | `POST /api/recorrencias/{id}/desativar` | gestor, operador | Para de gerar; remove futuras não efetivadas |
 | `DELETE /api/recorrencias/{id}` | gestor | Soft delete da regra; ocorrências efetivadas ficam |
 
@@ -293,6 +293,36 @@ uma invocação consegue processar, a resposta `201` traz
 cliente chama `POST /api/recorrencias/{id}/continuar-geracao` com o cursor até `concluida`.
 O frontend mostra progresso (*edge case* "não trava a interface").
 
+**Precisões de B2 (T079–T081)**, todas conferidas por teste:
+
+- **O `cursor` é o `gerada_ate`**, não um token opaco. `continuar-geracao` retoma do que o
+  banco diz, e o `cursor` no corpo serve para o cliente perceber que reenviou um velho. Não
+  existe estado de geração guardado fora da tabela: uma invocação perdida no meio não deixa
+  lixo.
+- **`escopo_serie` aceita só `esta_e_futuras` no `PUT`.** `apenas_esta` responde `409` /
+  `RN-07` explicando que editar uma ocorrência isolada é editar o **lançamento** dela. Duas
+  formas de fazer a mesma coisa divergiriam.
+- **`PUT` apaga e regera** as ocorrências de hoje em diante ainda não efetivadas, e devolve
+  `ocorrencias_futuras_regeradas`. Ocorrência efetivada nunca é tocada, nem no futuro.
+- **`POST /{id}/desativar`** devolve `ocorrencias_futuras_removidas`. As efetivadas ficam.
+- **`GET /api/recorrencias`** devolve `rotulo` pronto ("Mensal, dia 10") — `RNF-02`: a tela
+  mostra o texto que veio, não monta a leitura da frequência em TypeScript.
+- **Materialização idempotente** apoiada no índice único `(recorrencia_id, data)` da migração
+  `010`. Excluir uma ocorrência **não** a faz renascer na próxima execução da rotina.
+
+**`POST /api/recorrencias/previa`** responde:
+
+```json
+{ "previa": { "total_ocorrencias": 17, "retroativas_efetivadas": 5,
+              "primeira": "2025-03-01", "ultima": "2026-07-01",
+              "valor_total_retroativo": "6000.00" },
+  "limiar_de_confirmacao": 24,
+  "horizonte": "2027-07-30" }
+```
+
+`valor_total_retroativo` só vem quando o corpo informa `valor` — a prévia não exige o
+formulário inteiro preenchido para poder ser mostrada.
+
 ---
 
 ## 4. Parcelamento (`FR-028`)
@@ -315,9 +345,26 @@ O frontend mostra progresso (*edge case* "não trava a interface").
 mostra a posição ("1/3"). Arredondamento: as primeiras parcelas levam o valor arredondado e
 a **última absorve a diferença**, garantindo soma exata.
 
+`intervalo`: `mensal` (padrão) | `semanal` | `quinzenal`. Mínimo 2 parcelas, máximo 360.
+Parcela com data passada nasce `efetivado`, futura nasce `programado` — a mesma régua de
+`FR-024` dos lançamentos avulsos.
+
 | Endpoint | Papel |
 |---|---|
 | `GET /api/parcelamentos/{id}` | gestor, operador |
+
+**200** de `GET /api/parcelamentos/{id}`:
+
+```json
+{ "id": "…", "mundo": "digital", "descricao": "Projeto site institucional",
+  "valor_total": "12000.00", "total_parcelas": 3,
+  "pago": "4000.00", "a_pagar": "8000.00", "criado_em": "…",
+  "parcelas": [{ "id": "…", "numero": 1, "total": 3, "rotulo": "1/3",
+                 "descricao": "Projeto site institucional (1/3)",
+                 "valor": "4000.00", "data": "2026-08-05", "status": "efetivado" }] }
+```
+
+`pago` soma só as parcelas `efetivado` (`RN-05`).
 
 ---
 
