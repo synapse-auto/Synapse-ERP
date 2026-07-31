@@ -332,15 +332,30 @@ Ressalva: 21 testes de integração de B4 escritos e **pulando** por falta de ba
 **Teste independente**: gerar o DRE de um mês fechado, conferir contra a soma manual das
 categorias e exportar em CSV com os mesmos números.
 
-- [ ] T114 🟢 [US8] Implementar `backend/app/relatorios/repositorio.py` com as agregações por categoria, subcategoria, cliente e mês
-- [ ] T115 [US8] Implementar `GET /api/relatorios/dre` — receita bruta por categoria, despesas com quebra por subcategoria, resultado mensal e acumulado no ano, com comparativo (`FR-090`)
-- [ ] T116 [P] [US8] Implementar `GET /api/relatorios/clientes` — ranking com total, percentual do faturamento, situação, evolução mensal e quebra por mundo (`FR-091`)
-- [ ] T117 [P] [US8] Implementar `GET /api/relatorios/variacao-categorias` com o destaque vindo de `configuracoes.variacao_destaque_percentual`, nunca fixo em 20 no código (`FR-092`, `RNF-02`)
-- [ ] T118 [P] [US8] Implementar `GET /api/relatorios/matriz-mensal` (`FR-093`)
-- [ ] T119 [US8] Implementar `backend/app/relatorios/exportacao_csv.py` (`FR-094`)
-- [ ] T120 [US8] Implementar `backend/app/relatorios/exportacao_pdf.py` com reportlab — sem pandas, por causa do limite de tamanho do pacote da função (plan.md §Constraints)
-- [ ] T121 [US8] Implementar a leitura do período em linguagem natural (`FR-095`) e escrever os testes de contrato dos 4 relatórios em `backend/tests/contrato/test_relatorios.py`
-- [ ] T122 Verificar documentação de B5 e registrar a resposta (Princípio V)
+- [X] T114 🟢 [US8] Implementar `backend/app/relatorios/repositorio.py` com as agregações por categoria, subcategoria, cliente e mês
+- [X] T115 [US8] Implementar `GET /api/relatorios/dre` — receita bruta por categoria, despesas com quebra por subcategoria, resultado mensal e acumulado no ano, com comparativo (`FR-090`)
+- [X] T116 [P] [US8] Implementar `GET /api/relatorios/clientes` — ranking com total, percentual do faturamento, situação, evolução mensal e quebra por mundo (`FR-091`)
+- [X] T117 [P] [US8] Implementar `GET /api/relatorios/variacao-categorias` com o destaque vindo de `configuracoes.variacao_destaque_percentual`, nunca fixo em 20 no código (`FR-092`, `RNF-02`)
+- [X] T118 [P] [US8] Implementar `GET /api/relatorios/matriz-mensal` (`FR-093`)
+- [X] T119 [US8] Implementar `backend/app/relatorios/exportacao_csv.py` (`FR-094`)
+- [X] T120 [US8] Implementar `backend/app/relatorios/exportacao_pdf.py` com reportlab — sem pandas, por causa do limite de tamanho do pacote da função (plan.md §Constraints)
+- [X] T121 [US8] Implementar a leitura do período em linguagem natural (`FR-095`) e escrever os testes de contrato dos 4 relatórios em `backend/tests/contrato/test_relatorios.py`
+- [X] T122 Verificar documentação de B5 e registrar a resposta (Princípio V)
+
+> **Resposta de T122 (2026-07-30)** — dois ajustes:
+>
+> 1. `contracts/consultas.md` §3 — formato do `matriz-mensal`, e as precisões de B5: `csv`/`pdf`
+>    recebem a resposta pronta (é assim que "os mesmos dados do json" é garantido), `pdf` só
+>    existe em `dre` e `clientes` (matriz larga em A4 sai ilegível — melhor recusar do que
+>    entregar arquivo que ninguém lê), import preguiçoso do reportlab, `acumulado_ano` no DRE
+>    e `limiar_destaque_percentual` no corpo.
+> 2. `backend/pyproject.toml` — `reportlab` entrou nas dependências agora, no commit em que
+>    passou a ser usada. `ofxparse` continua fora até B6, pelo mesmo critério.
+>
+> **Documento-mestre**: nada a mudar. `FR-090`–`FR-095` foram implementados como escritos.
+>
+> **✅ Checkpoint B5**: dá para fechar o mês sem planilha. Ressalva: os relatórios não foram
+> exercitados contra dados reais — falta o banco de teste.
 
 ## Sub-fase B6 — US9 Avisos + US10 Papéis e configuração (P3)
 

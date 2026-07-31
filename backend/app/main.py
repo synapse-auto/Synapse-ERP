@@ -41,6 +41,7 @@ from app.lancamentos.rotas import roteador as roteador_lancamentos
 from app.lancamentos.rotas import roteador_lixeira, roteador_saldo
 from app.recorrencias.rotas import roteador as roteador_recorrencias
 from app.recorrencias.rotas import roteador_parcelamentos
+from app.relatorios.rotas import roteador as roteador_relatorios
 from app.rotinas.rotas import roteador as roteador_rotinas
 from app.usuarios.rotas import roteador as roteador_sessao
 
@@ -199,6 +200,7 @@ app.include_router(roteador_dashboard)
 app.include_router(roteador_extrato)
 app.include_router(roteador_recorrencias)
 app.include_router(roteador_parcelamentos)
+app.include_router(roteador_relatorios)
 app.include_router(roteador_rotinas)
 app.include_router(roteador_categorias)
 app.include_router(roteador_subcategorias)

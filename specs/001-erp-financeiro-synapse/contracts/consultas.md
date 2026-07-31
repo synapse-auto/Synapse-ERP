@@ -232,6 +232,32 @@ recorte diferente.
 
 Matriz meses × categorias com todos os totais, sem foco em variação.
 
+```json
+{ "meses": ["2026-05","2026-06","2026-07"],
+  "linhas": [{ "categoria_id": "…", "nome": "Marketing", "cor": "#E0B94F",
+               "valores": { "2026-05": "800.00", "2026-06": "1080.00", "2026-07": "0.00" },
+               "total": "1880.00" }],
+  "totais_por_mes": { "2026-05": "800.00" } }
+```
+
+---
+
+**Precisões de B5 (T115–T121)**, todas conferidas por teste:
+
+- **`csv`/`pdf` recebem a resposta já montada**, não consultam o banco por conta. É como o
+  contrato garante "os mesmos dados do `json`, nunca um recorte diferente": um segundo
+  caminho até o dado é um segundo lugar onde ele pode divergir. Há teste de contrato fixando
+  a assinatura dos exportadores.
+- **`pdf` só existe em `dre` e `clientes`.** `variacao-categorias` e `matriz-mensal` são
+  matrizes largas, que num A4 sairiam ilegíveis; pedir `pdf` neles responde `400` mandando
+  usar CSV. Melhor recusar do que entregar um arquivo que ninguém consegue ler.
+- **PDF usa reportlab**, com import preguiçoso: falta da biblioteca vira `503` em PT-BR
+  mandando exportar em CSV, em vez de derrubar a API inteira no import (README do backend).
+- `dre` traz `acumulado_ano` junto — a mesma consulta com outro recorte, para o relatório
+  responder "e no ano?" sem uma segunda requisição.
+- `variacao-categorias` devolve `limiar_destaque_percentual` no corpo. O número **não**
+  aparece no frontend (`FR-092`, `RNF-02`); vem junto para a tela explicar o critério.
+
 ---
 
 ## 4. Busca global (`FR-046`)

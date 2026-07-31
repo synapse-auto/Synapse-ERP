@@ -52,12 +52,18 @@ dependencies = [
 
   # ── Upload multipart (FR-013, anexos) ────────────────────────────────────
   "python-multipart>=0.0.18,<0.1",
+
+  # ── PDF dos relatórios (FR-094, T120) ────────────────────────────────────
+  # Entrou em B5, quando passou a ser usada de verdade. Desenha a tabela direto
+  # no PDF, sem passar por HTML — weasyprint arrastaria bibliotecas de sistema
+  # que a função da Vercel não tem, e matplotlib estouraria o tamanho do pacote.
+  "reportlab>=4.2,<5",
 ]
 
-# `ofxparse` (T134) e `reportlab` (T120) ficam FORA até serem usados de verdade em
-# B5/B6. Nenhum código os importa hoje, e os dois arrastam dependências pesadas —
-# ofxparse traz lxml e beautifulsoup4; reportlab traz pillow. O pacote da função
-# tem tamanho limitado (plan.md §Constraints).
+# `ofxparse` (T134) continua FORA até B6 — nenhum código a importa hoje e ela
+# arrasta lxml e beautifulsoup4. `reportlab` entrou acima em B5/T120, quando o PDF
+# passou a existir. O pacote da função tem tamanho limitado (plan.md §Constraints),
+# então cada dependência entra no commit em que começa a ser usada, não antes.
 
 [project.optional-dependencies]
 # Não vão para a função da Vercel — só para trabalhar no projeto.
