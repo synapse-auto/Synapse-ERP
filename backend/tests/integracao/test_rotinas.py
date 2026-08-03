@@ -276,14 +276,21 @@ async def test_resumo_semanal_e_um_so_por_semana(conexao_de_teste):
     assert await _notificacoes(conexao_de_teste, usuario, "resumo_semanal") == 1
 
 
-async def test_caixa_baixo_so_avisa_quando_o_saldo_nao_cobre(conexao_de_teste):
-    """Avisar "seu caixa cobre R$ 0,00" seria ruído que ensina a ignorar o sino."""
+async def test_caixa_baixo_avisa_quando_entra_conta_que_o_saldo_nao_cobre(conexao_de_teste):
+    """`FR-099` — a conta grande faz aparecer alerta que antes dela não existia.
+
+    Afirma a **variação**, não o valor absoluto. A versão anterior exigia
+    `sem_conta == 0` — "sem compromisso nenhum não há alerta" — e isso só vale contra
+    um banco vazio. Rodando contra produção, que tem despesas programadas de verdade,
+    a rotina acertava ao avisar e o teste ficava vermelho por premissa falsa, não por
+    defeito. A metade "sem compromisso não se avisa" virou teste de unidade sobre
+    `semanal.deve_avisar_caixa_baixo`, onde é afirmável sem banco.
+    """
     usuario = await _usuario(conexao_de_teste)
     infra = await _categoria(conexao_de_teste, "Infraestrutura")
 
-    # Sem compromisso nenhum: não há alerta a dar.
     await semanal.executa(conexao_de_teste, hoje=HOJE)
-    sem_conta = await _notificacoes(conexao_de_teste, usuario, "caixa_baixo")
+    antes = await _notificacoes(conexao_de_teste, usuario, "caixa_baixo")
 
     # Uma despesa grande e programada para a semana, com saldo zero.
     await conexao_de_teste.execute(
@@ -301,10 +308,11 @@ async def test_caixa_baixo_so_avisa_quando_o_saldo_nao_cobre(conexao_de_teste):
 
     # Semana seguinte, para a chave de deduplicação ser outra.
     await semanal.executa(conexao_de_teste, hoje=HOJE + timedelta(days=7))
-    com_conta = await _notificacoes(conexao_de_teste, usuario, "caixa_baixo")
+    depois = await _notificacoes(conexao_de_teste, usuario, "caixa_baixo")
 
-    assert sem_conta == 0
-    assert com_conta >= 1
+    assert (
+        depois > antes
+    ), f"A conta de R$ 99.999,00 não gerou alerta novo (antes={antes}, depois={depois})."
 
 
 async def test_a_diaria_dispara_a_semanal_na_segunda(conexao_de_teste):

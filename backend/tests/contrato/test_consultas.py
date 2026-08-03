@@ -153,7 +153,16 @@ def test_agrupamento_invalido_e_recusado_em_pt_br():
 
 
 def test_grafico_espelha_os_grupos():
-    """`FR-050`: o gráfico e a lista mostram o mesmo recorte, sempre."""
+    """`FR-050`: o gráfico e a lista mostram o mesmo recorte, sempre.
+
+    "Mesmo recorte" é mesma quantidade de pontos, na mesma ordem, com os mesmos
+    números — **não** o mesmo texto de rótulo. A versão anterior deste teste afirmava
+    `grafico[0]["rotulo"] == grupos[0]["rotulo"]`, e esse atalho é que mantinha em pé o
+    bug que derrubava o Extrato: contracts/consultas.md §2 pede data ISO no gráfico
+    (`"2026-07-10"`) e texto pronto no cabeçalho do grupo (`"10/07/2026"`), porque a tela
+    passa o rótulo do gráfico por um formatador de data. Com o texto pronto ali, o
+    formatador recebia `"10/07/2026"` e levantava `RangeError: Invalid time value`.
+    """
     grupos = servico.monta_grupos(
         [_linha(date(2026, 7, 10), "receita", "2000.00")],
         agrupamento="dia",
@@ -162,8 +171,24 @@ def test_grafico_espelha_os_grupos():
     )
     grafico = servico.monta_grafico(grupos)
     assert len(grafico) == len(grupos)
-    assert grafico[0]["rotulo"] == grupos[0]["rotulo"]
+    # O ponto aponta para o mesmo grupo — pelo `inicio`, que é a chave de verdade.
+    assert grafico[0]["rotulo"] == grupos[0]["inicio"]
     assert grafico[0]["receitas"] == grupos[0]["totais"]["receitas"]
+    assert grafico[0]["despesas"] == grupos[0]["totais"]["despesas"]
+
+
+def test_rotulo_do_grafico_e_data_iso_e_o_do_grupo_e_brasileiro():
+    """Os dois rótulos são diferentes de propósito (contracts/consultas.md §2)."""
+    grupos = servico.monta_grupos(
+        [_linha(date(2026, 7, 10), "receita", "2000.00")],
+        agrupamento="dia",
+        saldo_base=Decimal("0.00"),
+        hoje=HOJE,
+    )
+    assert grupos[0]["rotulo"] == "10/07/2026"
+    assert servico.monta_grafico(grupos)[0]["rotulo"] == "2026-07-10"
+    # Levanta se deixar de ser ISO — é o que a tela precisa poder formatar.
+    date.fromisoformat(servico.monta_grafico(grupos)[0]["rotulo"])
 
 
 def test_extrato_vazio_devolve_lista_vazia_e_nao_erro():

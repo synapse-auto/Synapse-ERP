@@ -66,6 +66,20 @@ def e_segunda(quando: date) -> bool:
     return quando.isoweekday() == SEGUNDA_FEIRA
 
 
+def deve_avisar_caixa_baixo(*, saldo: Decimal, compromissos: Decimal) -> bool:
+    """`FR-099` — a pergunta única do alerta: o saldo cobre as contas da janela?
+
+    Função pura, e de propósito: as duas metades da regra ("sem compromisso não se
+    avisa" e "cobrindo não se avisa") são afirmáveis sem banco nenhum. A metade do
+    "sem compromisso" **não** é testável contra o Postgres de produção, que tem
+    compromissos reais — tentar isso dava um teste vermelho permanente que não
+    acusava defeito nenhum.
+
+    Avisar "seu caixa cobre R$ 0,00" seria ruído que ensina o usuário a ignorar o sino.
+    """
+    return compromissos > 0 and saldo < compromissos
+
+
 async def _numeros_da_semana(
     conexao: AsyncConnection, *, inicio: date, fim: date
 ) -> dict[str, Decimal]:
@@ -168,9 +182,7 @@ async def executa(conexao: AsyncConnection, *, hoje: date | None = None) -> dict
         saldo, compromissos = await _saldo_e_compromissos(
             conexao, mundo=nome_do_mundo, hoje=hoje, horizonte_dias=horizonte
         )
-        # Sem compromisso não há alerta a dar — e avisar "seu caixa cobre R$ 0,00"
-        # seria ruído que ensina o usuário a ignorar o sino.
-        if compromissos <= 0 or saldo >= compromissos:
+        if not deve_avisar_caixa_baixo(saldo=saldo, compromissos=compromissos):
             continue
 
         resultado.alertas_de_caixa_baixo += 1
