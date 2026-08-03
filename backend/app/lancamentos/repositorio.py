@@ -131,7 +131,12 @@ def monta_filtros(
     if busca:
         # `%` é o operador de similaridade do pg_trgm e usa o índice GIN.
         # `ilike '%x%'` faria varredura completa.
-        condicoes.append("(l.descricao %% :busca or l.observacoes ilike :busca_like)")
+        #
+        # Um `%` só, nunca `%%`: o dialeto asyncpg do SQLAlchemy usa parâmetro
+        # numerado (`$1`), não `pyformat`, e por isso **não** desescapa `%%` —
+        # o par ia literal para o Postgres e virava `operator does not exist:
+        # text %% unknown`, um 500 em toda busca por texto.
+        condicoes.append("(l.descricao % :busca or l.observacoes ilike :busca_like)")
         parametros |= {"busca": busca, "busca_like": f"%{busca}%"}
 
     return condicoes, parametros

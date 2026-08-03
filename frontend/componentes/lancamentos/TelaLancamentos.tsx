@@ -16,6 +16,7 @@ import { FormLancamento } from "./FormLancamento";
 import { TabelaLote } from "./TabelaLote";
 import { AssistenteImportacao } from "@/componentes/importacao/AssistenteImportacao";
 import { useEscopo, useLancamentos } from "@/lib/consultas";
+import { dinheiro } from "@/lib/formato";
 import { useAtalhos } from "@/lib/atalhos";
 import { FILTROS_VAZIOS, daUrl, paraConsulta, type FiltrosLancamento } from "./filtros";
 import { montarUrlExportacao } from "./acoes";
@@ -162,7 +163,10 @@ export function TelaLancamentos() {
               >
                 {m === "digital" ? "Digital" : "Infra"}
               </span>{" "}
-              <span className="numerico">{v}</span>
+              {/* `dinheiro`, não `{v}` cru: a API manda `"0.00"` e a tela mostra
+                  `R$ 0,00` (`RNF-03`). Era o único lugar do módulo em que o
+                  formato da fronteira vazava para o usuário. */}
+              <span className="numerico">{dinheiro(v)}</span>
             </span>
           ))}
         </p>

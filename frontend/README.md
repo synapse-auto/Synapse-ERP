@@ -101,6 +101,9 @@ ao mesmo tempo, porque o Tailwind espera o primeiro e D-12 escreve o segundo.
 | 2 | **T154 — projeto `synapse-erp-web` na Vercel** | aberta: é painel, não código |
 | 3 | **`GET /api/exportacoes/{id}` não existe**: a exportação completa é síncrona (contracts/plataforma.md §8). Por isso a tela não tem barra de progresso nem link assinado ao final | alinhado ao contrato |
 | 4 | **`npm audit`: 3 vulnerabilidades `high`**, todas transitivas do próprio Next.js (`postcss`, `sharp`) e de tempo de build. O "fix" oferecido rebaixaria o Next para a versão 9 | sem ação |
+| 5 | **`app/page.tsx` do `create-next-app` sombreava o Dashboard.** Grupo de rotas não cria segmento de URL, então `app/page.tsx` e `app/(app)/page.tsx` disputavam `/` — e quem ganhava era o boilerplate. A raiz do sistema mostrava "Deploy now / Read our docs", sem erro de build nem de tipo. Removido junto com os cinco SVGs do template, que só ele usava | resolvida em 2026-08-02 |
+| 6 | **Cabeçalho com 285px em vez de 64px** em toda tela ≥ `md`. `CascaApp` passava `flex-1` ao `CabecalhoGlobal`: abaixo de `md` é o certo (a faixa é flex em linha ao lado do botão de menu), mas de `md` para cima o invólucro vira `contents` e o cabeçalho passa a ser filho direto da coluna `h-dvh flex-col` — ali `flex-1` cresce na vertical e atropela o `h-[--cabecalho-altura]`. Corrigido com `md:flex-none` | resolvida em 2026-08-02 |
+| 7 | **`FuncionarioPerfil.pagamentos` estava tipado como `PaginaDe<Lancamento>`.** A API devolve lista simples, com `lancamento_id` — igual ao campo irmão `proximos_pagamentos` —, e `f.pagamentos.itens` derrubava a tela de detalhe do funcionário. O tipo virou `PagamentoDoFuncionario[]`. O perfil do **cliente** é o oposto: ali o contrato promete envelope paginado, e era o backend que não mandava o campo | resolvida em 2026-08-02 |
 
 ## Testes
 
@@ -111,3 +114,13 @@ drill-down, envelope de erro da API e os componentes comuns.
 O que **não** está coberto por teste automatizado e depende de dados reais: a conferência
 visual dos dois temas tela a tela (T202), o comportamento com 5.000 lançamentos (T204) e a
 verificação de aceitação de quickstart.md §8 (T206).
+
+**Passagem manual de 2026-08-02**, com login real (Supabase Auth) contra o backend
+implantado e o banco de produção: as nove rotas de tela abrem sem erro de cliente, nos dois
+temas, com o cabeçalho medido em 64px de 390px a 1920px de largura. Conferidos com dado
+verdadeiro: Dashboard (A pagar R$ 25.200,00, saúde do caixa "Crítico"), Extrato (gráfico e
+grupos), Categorias (Funcionários com 2 subcategorias), Lançamentos (lista e filtros),
+Relatórios (as quatro abas), a busca global do `Ctrl K` e as duas telas de detalhe —
+`funcionarios/[id]` com o Dylan real, `clientes/[id]` com um cliente criado e apagado no
+teste. O que **não** foi exercitado, por ser escrita: criar/editar/arquivar pela tela,
+split, lote, importação de CSV e anexos.

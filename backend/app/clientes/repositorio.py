@@ -76,7 +76,8 @@ def monta_filtros(
         condicoes.append(f"({_TEM_MOVIMENTACAO_NO_MUNDO} or {_SEM_MOVIMENTACAO_NENHUMA})")
 
     if busca:
-        condicoes.append("(c.nome %% :busca or c.empresa %% :busca)")
+        # `%` (pg_trgm) uma vez só — ver a nota em lancamentos/repositorio.py.
+        condicoes.append("(c.nome % :busca or c.empresa % :busca)")
         parametros["busca"] = busca
 
     return condicoes or ["true"], parametros
@@ -274,6 +275,51 @@ async def proximos_recebimentos(
         .all()
     )
     return [dict(linha) for linha in linhas]
+
+
+async def lancamentos_do_cliente(
+    conexao: AsyncConnection,
+    cliente_id: UUID,
+    *,
+    inicio: date,
+    fim: date,
+    limite: int = 50,
+) -> tuple[list[dict[str, Any]], int]:
+    """Lançamentos do cliente no período, e quantos existem ao todo.
+
+    O vínculo cliente → lançamento é a **subcategoria espelho** (research.md D-07), não
+    uma coluna `cliente_id` no lançamento: é por isso que o `join` passa por
+    `subcategorias`. Traz receita e despesa, ao contrário de `receita_mensal` — a tela
+    lista o movimento do cliente, e um estorno é movimento dele também.
+
+    Devolve `(itens, total)` porque contracts/cadastros.md §3 promete o envelope
+    paginado (`{"itens": [], "paginacao": {}}`) neste campo.
+    """
+    condicoes = """
+        from lancamentos_ativos l
+        join subcategorias s on s.id = l.subcategoria_id
+        where s.cliente_id = :cliente and l.data between :inicio and :fim
+    """
+    parametros = {"cliente": str(cliente_id), "inicio": inicio, "fim": fim}
+
+    total = (await conexao.execute(text(f"select count(*) {condicoes}"), parametros)).scalar_one()
+
+    linhas = (
+        (
+            await conexao.execute(
+                text(f"""
+                    select l.id, l.data, l.descricao, l.valor, l.tipo, l.status, l.mundo
+                    {condicoes}
+                    order by l.data desc, l.criado_em desc
+                    limit :limite
+                    """),
+                parametros | {"limite": limite},
+            )
+        )
+        .mappings()
+        .all()
+    )
+    return [dict(linha) for linha in linhas], total
 
 
 async def recorrencia_do_cliente(

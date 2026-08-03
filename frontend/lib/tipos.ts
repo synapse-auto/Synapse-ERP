@@ -196,14 +196,31 @@ export interface Funcionario {
   arquivado_em: string | null;
 }
 
+/**
+ * Uma linha de pagamento no perfil do funcionário.
+ *
+ * **Não é um `Lancamento`**, e a chave do id é `lancamento_id`, não `id`: o
+ * perfil devolve o recorte que a tela mostra, apontando de volta para o
+ * lançamento. `pagamentos` e `proximos_pagamentos` seguem a mesma forma — o
+ * segundo sem `descricao` nem `da_folha`.
+ */
+export interface PagamentoDoFuncionario {
+  lancamento_id: string;
+  data: string;
+  valor: string;
+  status: StatusLancamento;
+  descricao?: string;
+  da_folha?: boolean;
+}
+
 export interface FuncionarioPerfil extends Funcionario {
-  pagamentos: PaginaDe<Lancamento>;
-  proximos_pagamentos: {
-    lancamento_id: string;
-    data: string;
-    valor: string;
-    status: StatusLancamento;
-  }[];
+  /**
+   * Lista simples, **não** `PaginaDe<>`: o perfil não pagina os pagamentos.
+   * Estava tipado como página, e `f.pagamentos.itens` derrubava a tela inteira
+   * com `Cannot read properties of undefined (reading 'length')`.
+   */
+  pagamentos: PagamentoDoFuncionario[];
+  proximos_pagamentos: PagamentoDoFuncionario[];
   recorrencia: RecorrenciaResumo | null;
 }
 

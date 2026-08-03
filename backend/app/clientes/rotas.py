@@ -27,7 +27,7 @@ Tarefas: T106, T107, T108
 
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -66,7 +66,13 @@ class ClienteEntrada(BaseModel):
     contato_email: str | None = None
     contato_telefone: str | None = None
 
-    tipo_cobranca: str = Field(description="pontual | recorrente | parcelada.")
+    # `Literal`, não `str`: com `str` o valor ia inteiro até o `cast(... as tipo_cobranca)`
+    # e o Postgres respondia `invalid input value for enum` — que sai como `500 erro_interno`
+    # em vez do `400 validacao` que contracts/README.md manda. Erro de entrada tem que ser
+    # recusado na borda, com o nome do campo e os valores aceitos.
+    tipo_cobranca: Literal["pontual", "recorrente", "parcelada"] = Field(
+        description="pontual | recorrente | parcelada."
+    )
     valor_recorrente: Decimal | None = Field(default=None, gt=0, decimal_places=2, max_digits=14)
     dia_cobranca: int | None = Field(default=None, ge=1, le=31)
     mundo_cobranca: str | None = Field(
@@ -443,6 +449,9 @@ async def detalhar(
 
     recorrencia = await repositorio.recorrencia_do_cliente(conexao, cliente_id)
     proximos = await repositorio.proximos_recebimentos(conexao, cliente_id, hoje=hoje)
+    movimento, movimento_total = await repositorio.lancamentos_do_cliente(
+        conexao, cliente_id, inicio=janela.inicio, fim=janela.fim
+    )
 
     perfil = _para_json(
         linha | {"total_recebido_historico": historico, "total_recebido_periodo": do_periodo},
@@ -466,6 +475,27 @@ async def detalhar(
             }
             for item in proximos
         ],
+        # Envelope paginado, e não lista solta: é o que contracts/cadastros.md §3
+        # promete aqui (`"lancamentos": { "itens": [], "paginacao": {} }`) e o que a
+        # tela lê em `c.lancamentos.itens`. O campo simplesmente não existia na
+        # resposta, e o perfil do cliente quebrava com
+        # `Cannot read properties of undefined (reading 'length')`.
+        "lancamentos": envelope(
+            [
+                {
+                    "id": str(item["id"]),
+                    "data": item["data"].isoformat(),
+                    "descricao": item["descricao"],
+                    "valor": f"{Decimal(str(item['valor'])):.2f}",
+                    "tipo": item["tipo"],
+                    "status": item["status"],
+                    "mundo": item["mundo"],
+                }
+                for item in movimento
+            ],
+            total=movimento_total,
+            paginacao=Paginacao(pagina=1, por_pagina=50, ordenar=None, direcao="desc"),
+        ),
         "recorrencia": (
             {
                 "id": str(recorrencia["id"]),

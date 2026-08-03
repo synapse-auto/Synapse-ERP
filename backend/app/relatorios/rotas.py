@@ -24,6 +24,7 @@ from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.comum import periodo as mod_periodo
@@ -86,6 +87,19 @@ def _valida_formato(formato: str) -> str:
             campos={"formato": f"Aceitos: {', '.join(FORMATOS)}."},
         )
     return formato
+
+
+def _json(corpo: dict[str, Any]) -> JSONResponse:
+    """Envelope JSON explícito — `dict` solto não serve nestas rotas.
+
+    As quatro declaram `response_class=Response` para poderem devolver CSV e PDF.
+    Isso torna `Response` (o cru, que só aceita `bytes`/`str`) a classe padrão de
+    tudo que a função retornar; devolver o `dict` do formato `json` fazia o
+    Starlette chamar `.encode()` nele e morrer com
+    `AttributeError: 'dict' object has no attribute 'encode'` — um 500 em todo
+    relatório no formato padrão, que é o que a tela usa.
+    """
+    return JSONResponse(corpo)
 
 
 def _arquivo(conteudo: bytes, *, nome: str, tipo: str) -> Response:
@@ -262,7 +276,7 @@ async def dre(
             nome=f"dre-{janela.inicio.isoformat()}-a-{janela.fim.isoformat()}.pdf",
             tipo="application/pdf",
         )
-    return resposta
+    return _json(resposta)
 
 
 # ── T116 · Ranking de clientes ──────────────────────────────────────────────
@@ -355,7 +369,7 @@ async def clientes(
             nome=f"clientes-{janela.inicio.isoformat()}-a-{janela.fim.isoformat()}.pdf",
             tipo="application/pdf",
         )
-    return resposta
+    return _json(resposta)
 
 
 # ── T117 · Variação por categoria ───────────────────────────────────────────
@@ -449,7 +463,7 @@ async def variacao_categorias(
             requisito="FR-094",
             campos={"formato": "Aceitos aqui: json, csv."},
         )
-    return resposta
+    return _json(resposta)
 
 
 # ── T118 · Matriz mensal ────────────────────────────────────────────────────
@@ -536,7 +550,7 @@ async def matriz_mensal(
             requisito="FR-094",
             campos={"formato": "Aceitos aqui: json, csv."},
         )
-    return resposta
+    return _json(resposta)
 
 
 # ── T137 · Exportação completa (`FR-112`, `SC-011`) ─────────────────────────

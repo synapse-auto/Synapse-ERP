@@ -62,9 +62,17 @@ export function CascaApp({ children }: { children: ReactNode }) {
 
       <div className="flex h-dvh min-w-0 flex-1 flex-col">
         <Suspense fallback={<div className="h-[var(--cabecalho-altura)] flex-none border-b border-linha-chrome bg-superficie-cartao" />}>
+          {/* O `md:flex-none` não é enfeite: sem ele o cabeçalho tem 285px em vez de 64.
+              Abaixo de `md` esta div é uma faixa flex em linha, e o `flex-1` faz o
+              cabeçalho ocupar a largura que sobra ao lado do botão do menu — que é o que
+              se quer. De `md` para cima ela vira `contents` e some do layout, então o
+              cabeçalho passa a ser filho direto da coluna `h-dvh flex-col` acima: ali
+              `flex-1` cresce na **vertical** e atropela o `h-[--cabecalho-altura]`
+              (o `cn` ainda descarta o `flex-none` do próprio componente, porque esta
+              classe vem depois). O `md:flex-none` devolve os 64px do design. */}
           <div className="flex items-center gap-2 md:contents">
             <BarraLateralMovel />
-            <CabecalhoGlobal className="min-w-0 flex-1" />
+            <CabecalhoGlobal className="min-w-0 flex-1 md:flex-none" />
           </div>
         </Suspense>
 

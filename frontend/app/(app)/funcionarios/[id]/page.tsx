@@ -148,15 +148,15 @@ export default function PaginaFuncionario({ params }: { params: Promise<{ id: st
             Pagamentos
           </span>
         </div>
-        {f.pagamentos.itens.length === 0 ? (
+        {f.pagamentos.length === 0 ? (
           <EstadoVazio titulo="Nenhum pagamento no período" compacto />
         ) : (
           <ul>
-            {f.pagamentos.itens.map((l) => (
-              <li key={l.id}>
+            {f.pagamentos.map((l) => (
+              <li key={l.lancamento_id}>
                 <button
                   type="button"
-                  onClick={() => setLancamento(l.id)}
+                  onClick={() => setLancamento(l.lancamento_id)}
                   className="flex w-full items-center gap-3 border-b border-[var(--linha-suave)] px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[var(--linha-hover)]"
                 >
                   <DataBR valor={l.data} formato="empilhada" />

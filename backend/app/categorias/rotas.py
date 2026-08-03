@@ -77,9 +77,11 @@ async def listar(
                     select
                       c.id, c.nome, c.cor, c.icone, c.tipo, c.especial, c.vinculo,
                       c.ordem, c.arquivada_em,
-                      count(l.id) filter (where l.id is not null)              as quantidade,
-                      coalesce(sum(l.valor) filter (where l.status = 'efetivado'), 0) as total_efetivado,
-                      coalesce(sum(l.valor), 0)                               as total_periodo
+                      -- `total_periodo` acompanha `quantidade`: os dois contam o mesmo
+                      -- recorte (período, mundo, não-cancelado), senão a tela mostraria
+                      -- "3 lanç." ao lado de um total que não é o desses três.
+                      count(l.id) filter (where l.id is not null) as quantidade,
+                      coalesce(sum(l.valor), 0)                   as total_periodo
                     from categorias c
                     left join lancamentos_ativos l
                       on l.categoria_id = c.id
@@ -107,6 +109,69 @@ async def listar(
         .all()
     )
 
+    # As subcategorias vêm numa segunda consulta, com o **mesmo** recorte de mundo e
+    # período do `left join` acima — senão o `uso` da filha contaria um universo e o da
+    # mãe outro, e as duas linhas da tela discordariam sem ninguém saber por quê.
+    #
+    # Uma consulta a mais, não uma por categoria: são nove categorias e dezenas de
+    # subcategorias no total, e agrupar aqui é mais barato que `N+1` idas ao banco.
+    subcategorias = (
+        (
+            await conexao.execute(
+                text("""
+                    select
+                      s.id, s.categoria_id, s.nome, s.cor, s.ordem,
+                      s.cliente_id, s.funcionario_id, s.arquivada_em,
+                      count(l.id) filter (where l.id is not null) as quantidade,
+                      coalesce(sum(l.valor), 0)                   as total
+                    from subcategorias s
+                    left join lancamentos_ativos l
+                      on l.subcategoria_id = s.id
+                     and l.data between :inicio and :fim
+                     and l.mundo = any(cast(:mundos as mundo[]))
+                     and l.status <> 'cancelado'
+                     and not exists (
+                       select 1 from lancamentos p where p.lancamento_pai_id = l.id
+                                                     and p.excluido_em is null
+                     )
+                    where (:incluir_arquivadas or s.arquivada_em is null)
+                    group by s.id
+                    order by s.ordem, lower(s.nome)
+                    """),
+                {
+                    "inicio": janela.inicio,
+                    "fim": janela.fim,
+                    "mundos": mundos,
+                    "incluir_arquivadas": incluir_arquivadas,
+                },
+            )
+        )
+        .mappings()
+        .all()
+    )
+
+    por_categoria: dict[str, list[dict[str, Any]]] = {}
+    for filha in subcategorias:
+        por_categoria.setdefault(str(filha["categoria_id"]), []).append(
+            {
+                "id": str(filha["id"]),
+                "nome": filha["nome"],
+                "cor": filha["cor"],
+                "ordem": filha["ordem"],
+                "cliente_id": str(filha["cliente_id"]) if filha["cliente_id"] else None,
+                "funcionario_id": (
+                    str(filha["funcionario_id"]) if filha["funcionario_id"] else None
+                ),
+                "arquivada_em": (
+                    filha["arquivada_em"].isoformat() if filha["arquivada_em"] else None
+                ),
+                "uso": {
+                    "quantidade_lancamentos": filha["quantidade"],
+                    "total_movimentado": f"{filha['total']:.2f}",
+                },
+            }
+        )
+
     return {
         "itens": [
             {
@@ -121,10 +186,19 @@ async def listar(
                 "arquivada_em": (
                     linha["arquivada_em"].isoformat() if linha["arquivada_em"] else None
                 ),
-                "quantidade": linha["quantidade"],
+                # `uso` e `subcategorias` são o que contracts/cadastros.md §1 promete, e
+                # é deles que a tela vive: `c.uso.quantidade_lancamentos` e
+                # `c.subcategorias.length`. A resposta antiga trazia `quantidade`,
+                # `total_efetivado` e `total_periodo` soltos, sem subcategoria nenhuma —
+                # a tela de Categorias quebrava em
+                # `Cannot read properties of undefined (reading 'length')`.
+                #
                 # Dinheiro sai como string decimal na fronteira (contracts/README.md).
-                "total_efetivado": f"{linha['total_efetivado']:.2f}",
-                "total_periodo": f"{linha['total_periodo']:.2f}",
+                "uso": {
+                    "quantidade_lancamentos": linha["quantidade"],
+                    "total_movimentado": f"{linha['total_periodo']:.2f}",
+                },
+                "subcategorias": por_categoria.get(str(linha["id"]), []),
             }
             for linha in linhas
         ],

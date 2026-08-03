@@ -73,7 +73,7 @@ async def buscar(
                     from lancamentos_ativos l
                     join categorias c on c.id = l.categoria_id
                     where l.mundo = any(cast(:mundos as mundo[]))
-                      and l.descricao %% :termo
+                      and l.descricao % :termo
                     order by similarity(l.descricao, :termo) desc, l.data desc
                     limit :limite
                     """),
@@ -91,7 +91,7 @@ async def buscar(
                     select id, nome, empresa
                     from clientes
                     where arquivado_em is null
-                      and (nome %% :termo or coalesce(empresa, '') %% :termo)
+                      and (nome % :termo or coalesce(empresa, '') % :termo)
                     order by similarity(nome, :termo) desc
                     limit :limite
                     """),
@@ -108,7 +108,7 @@ async def buscar(
                 text("""
                     select id, nome, cor, icone
                     from categorias
-                    where arquivada_em is null and nome %% :termo
+                    where arquivada_em is null and nome % :termo
                     order by similarity(nome, :termo) desc
                     limit :limite
                     """),

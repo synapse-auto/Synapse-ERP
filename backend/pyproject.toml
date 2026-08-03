@@ -132,5 +132,15 @@ markers = [
   "contrato: confere a resposta contra os arquivos de contracts/",
   "lento: popula milhares de linhas para medir SC-007/SC-002 (T097). Rode sob demanda",
 ]
+# `lento` fora da execução padrão — o README já dizia isso, e só a documentação dizia.
+#
+# Sem esta linha os quatro testes de desempenho rodavam sempre, inserindo 5.000 linhas no
+# banco a cada execução e **medindo a latência da máquina de quem roda até o Supabase
+# remoto**, não o tempo da aplicação. Da estação de trabalho isso dá 14s num Dashboard que
+# o backend implantado responde em 1,7s: quatro falhas vermelhas que não são defeito
+# nenhum e ensinam a ignorar a suíte. Rodar sob demanda, de onde a medida faça sentido:
+#
+#     pytest -m lento
+addopts = '-m "not lento"'
 # Silencia o aviso de escopo do pytest-asyncio; o padrão (function) é o que queremos.
 asyncio_default_fixture_loop_scope = "function"

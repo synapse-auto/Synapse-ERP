@@ -282,10 +282,19 @@ def monta_grupos(
 
 
 def monta_grafico(grupos: list[dict[str, Any]]) -> list[dict[str, str]]:
-    """`FR-050` — receitas × despesas por grupo, o mesmo recorte da lista."""
+    """`FR-050` — receitas × despesas por grupo, o mesmo recorte da lista.
+
+    O `rotulo` aqui é a **data ISO**, não o texto do cabeçalho do grupo
+    (contracts/consultas.md §2: `"rotulo": "2026-07-10"` no gráfico contra
+    `"10/07/2026"` na lista). São coisas diferentes de propósito: o cabeçalho já é
+    texto pronto, e o eixo do gráfico precisa da data para poder formatá-la no
+    tamanho que couber. Devolver o texto pronto nos dois fazia a tela chamar
+    `dataCurta("05/08/2026")` e morrer em `RangeError: Invalid time value`,
+    derrubando o Extrato inteiro.
+    """
     return [
         {
-            "rotulo": grupo["rotulo"],
+            "rotulo": grupo["inicio"],
             "receitas": grupo["totais"]["receitas"],
             "despesas": grupo["totais"]["despesas"],
             "previsto": grupo["previsto"],

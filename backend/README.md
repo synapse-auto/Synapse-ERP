@@ -48,10 +48,17 @@ uvicorn app.main:app --reload --port 8000
 > ```
 
 ```powershell
-pytest                       # tudo
+pytest                       # unidade + contrato + integração
 pytest -m "not integracao"   # sem precisar de Postgres
+pytest -m lento              # só os de desempenho — ver o aviso abaixo
 ruff check . ; black --check .
 ```
+
+> Os testes marcados **`lento`** estão fora da execução padrão (`addopts` no
+> `pyproject.toml`). Eles inserem 5.000 linhas e cronometram a resposta — rodados contra o
+> Supabase remoto a partir de uma estação de trabalho, medem a latência da internet, não a
+> da aplicação: 14s num Dashboard que o backend implantado devolve em 1,7s. Rode-os de
+> onde a medida signifique alguma coisa.
 
 ## Onde as coisas moram
 
@@ -107,6 +114,27 @@ o pacote da função não comporta. Ver o cabeçalho de
 **O CSV da exportação é o único lugar da API em formato brasileiro.** `;` como separador,
 `1.234,50`, `dd/mm/aaaa` e BOM UTF-8. O resto da API transporta ISO e decimal em string
 (contracts/README.md); aquele arquivo é aberto no Excel por uma pessoa, então vale `RNF-03`.
+
+**No SQL escreve-se `%` uma vez só, nunca `%%`.** O `%` do `pg_trgm` é o operador de
+similaridade das buscas por texto. A dobra é o escape de percent do paramstyle `pyformat`;
+o dialeto **asyncpg** usa parâmetro numerado (`$1`) e não desescapa nada, então `%%` chega
+literal ao Postgres e vira `operator does not exist: text %% unknown`. Custou um `500` em
+`/api/busca`, `/api/lancamentos?busca=` e `/api/clientes?busca=` (corrigido em 2026-08-02).
+
+**Campo de enum no modelo de entrada é `Literal`, nunca `str`.** Com `str` o valor
+atravessa o Pydantic intacto e só morre no `cast(:x as meu_enum)` do Postgres, como
+`InvalidTextRepresentationError` — que sai `500 erro_interno` onde contracts/README.md
+manda `400 validacao` com o nome do campo. Era o caso de `tipo_cobranca` em
+`app/clientes/rotas.py` (corrigido em 2026-08-02). Vale para todo enum do banco:
+`tipo_cobranca`, `mundo`, `status`, `papel`.
+
+**Rota com `response_class=Response` tem que devolver `JSONResponse`, não `dict`.** Os
+quatro relatórios declaram isso para poderem responder CSV e PDF, e a declaração torna o
+`Response` cru — que só aceita `bytes`/`str` — a classe padrão de **todo** retorno da
+função. Devolver o `dict` do formato `json` fazia o Starlette chamar `.encode()` nele:
+`AttributeError: 'dict' object has no attribute 'encode'`, `500` em toda a tela de
+Relatórios. O helper `_json()` de [`app/relatorios/rotas.py`](app/relatorios/rotas.py)
+existe para que a próxima rota de formato duplo não repita o erro.
 
 ## Por que `vercel.json` não tem `rewrites`
 
