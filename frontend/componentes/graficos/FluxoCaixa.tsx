@@ -162,12 +162,20 @@ export function ComparativoMensal({
   anterior: Record<string, string>;
 }) {
   const semMovimento = useMovimentoReduzido();
-  const chaves = Array.from(new Set([...Object.keys(atual), ...Object.keys(anterior)]));
-  const dados = chaves.map((k) => ({
-    rotulo: k.replace(/_/g, " "),
-    anterior: Number(anterior[k] ?? 0),
-    atual: Number(atual[k] ?? 0),
-  }));
+  // Só as chaves numéricas. `comparativo_mes.atual` traz também `rotulo` ("este
+  // mês"), e sem este recorte ele virava uma quarta barra com `Number(…) = NaN`:
+  // uma categoria chamada "rotulo" no eixo, sem barra nenhuma em cima.
+  const chaves = Array.from(new Set([...Object.keys(atual), ...Object.keys(anterior)])).filter(
+    (k) => Number.isFinite(Number(atual[k] ?? anterior[k])),
+  );
+  const dados = chaves.map((k) => {
+    const rotulo = k.replace(/_/g, " ");
+    return {
+      rotulo: rotulo.charAt(0).toUpperCase() + rotulo.slice(1),
+      anterior: Number(anterior[k] ?? 0),
+      atual: Number(atual[k] ?? 0),
+    };
+  });
 
   return (
     <ResponsiveContainer width="100%" height={220}>

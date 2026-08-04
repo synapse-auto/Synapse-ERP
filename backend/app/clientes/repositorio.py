@@ -50,6 +50,18 @@ _SEM_MOVIMENTACAO_NENHUMA = """
   )
 """
 
+# `RN-11`: o pai de um split não conta, só as partes. Vale nas **somas** e no
+# `em_aberto` que alimenta a inadimplência — não no filtro de movimentação acima,
+# onde a pergunta é "houve movimento", e pai de split também é movimento.
+#
+# Repetido aqui em vez de importado dos repositórios irmãos pelo mesmo motivo que
+# eles repetem entre si: import entre repositórios cria dependência de camada que o
+# Princípio IV não quer.
+_SEM_PAI_DE_SPLIT = """
+  not exists (select 1 from lancamentos p
+              where p.lancamento_pai_id = l.id and p.excluido_em is null)
+"""
+
 # "Cliente desde" é **derivado**, não coluna — o mesmo raciocínio da situação de
 # inadimplência (data-model §3.4): a data já está no dado, e gravá-la criaria uma
 # segunda verdade para manter em dia quando um lançamento antigo é editado ou
@@ -146,6 +158,7 @@ async def lista(
                       from lancamentos_ativos l
                       join subcategorias s on s.id = l.subcategoria_id
                       where s.cliente_id = c.id and l.tipo = 'receita'
+                        and {_SEM_PAI_DE_SPLIT}
                     ) t on true
                     left join lateral (
                       select jsonb_agg(jsonb_build_object(
@@ -157,6 +170,7 @@ async def lista(
                       where s.cliente_id = c.id
                         and l.tipo = 'receita'
                         and l.status in ('pendente','atrasado')
+                        and {_SEM_PAI_DE_SPLIT}
                     ) a on true
                     where {onde}
                     order by lower(c.nome)
@@ -207,6 +221,9 @@ async def em_aberto(conexao: AsyncConnection, cliente_id: UUID) -> list[dict[str
                     where s.cliente_id = :cliente
                       and l.tipo = 'receita'
                       and l.status in ('pendente','atrasado')
+                      and not exists (select 1 from lancamentos p
+                                      where p.lancamento_pai_id = l.id
+                                        and p.excluido_em is null)
                     """),
                 {"cliente": str(cliente_id)},
             )

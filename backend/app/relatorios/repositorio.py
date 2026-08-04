@@ -133,6 +133,11 @@ async def por_cliente(
                         and l2.tipo = 'receita'
                         and l2.data between :inicio and :fim
                         and l2.status = 'efetivado'
+                        -- Mesmo recorte de `RN-11` do total ao lado. Sem ele, a soma
+                        -- das quebras podia passar do total do cliente.
+                        and not exists (select 1 from lancamentos p2
+                                        where p2.lancamento_pai_id = l2.id
+                                          and p2.excluido_em is null)
                     ) t on true
                     where cl.arquivado_em is null
                     group by cl.id, cl.nome, cl.empresa
@@ -215,6 +220,12 @@ async def matriz_mensal(
                      and date_trunc('month', l.data) = m.mes
                      and l.mundo = any(cast(:mundos as mundo[]))
                      and l.status = 'efetivado'
+                     -- `RN-11` também aqui: o `_EFETIVADO` acima seleciona **quais**
+                     -- categorias entram; era esta junção que somava os valores, e
+                     -- sem o recorte o pai de um split entrava junto com as partes.
+                     and not exists (select 1 from lancamentos p
+                                     where p.lancamento_pai_id = l.id
+                                       and p.excluido_em is null)
                      {filtro_tipo}
                     group by cc.id, cc.nome, cc.cor, m.mes
                     order by cc.nome, m.mes

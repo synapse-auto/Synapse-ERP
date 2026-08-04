@@ -17,6 +17,10 @@ daria um número que não bate com o saldo real, porque não existe saldo inicia
 realizado. Somar o previsto no acumulado faria a linha do saldo mostrar dinheiro que não
 existe.
 
+**A seção `pendencias` segue o período, com o vencido como exceção** — ver a docstring
+de `pendencias`. É o mesmo recorte dos cards A pagar / A receber do Dashboard, e é
+proposital: a mesma pergunta não pode ter duas respostas em duas telas.
+
 Tarefa: T095
 """
 
@@ -114,7 +118,8 @@ async def totais_do_periodo(
                       coalesce(sum(l.valor) filter (
                         where l.tipo = 'despesa' and l.status = 'efetivado'
                           and {_SEM_PAI_DE_SPLIT}), 0) as despesas,
-                      count(*) filter (where l.status = 'efetivado') as quantidade
+                      count(*) filter (
+                        where l.status = 'efetivado' and {_SEM_PAI_DE_SPLIT}) as quantidade
                     from lancamentos_ativos l
                     where l.mundo = any(cast(:mundos as mundo[]))
                       and l.data between :inicio and :fim
@@ -167,12 +172,23 @@ async def lancamentos_do_periodo(
     return [dict(linha) for linha in linhas]
 
 
-async def pendencias(conexao: AsyncConnection, *, mundos: list[str], hoje: date) -> dict[str, Any]:
-    """A seção fixa "A pagar / A receber" (`FR-051`).
+async def pendencias(
+    conexao: AsyncConnection, *, mundos: list[str], hoje: date, inicio: date, fim: date
+) -> dict[str, Any]:
+    """A seção fixa "A pagar / A receber" (`FR-051`, `RF-34`).
 
-    **Ignora o filtro de período de propósito**: pendência não é histórico. Uma conta
-    vencida em maio continua a pagar em julho, e escondê-la porque o filtro está em
-    julho é exatamente o erro que a seção existe para evitar.
+    **O período recorta, o vencido não.** São as duas metades da mesma regra, e as
+    duas custaram um número errado na tela:
+
+    - Sem o recorte de período, a seção listava tudo que estava em aberto até o fim
+      dos tempos. Com uma recorrência de 12 meses já materializada, "A pagar" somava
+      R$ 25.200 numa tela filtrada em "Este mês" — `RF-34` fala em "próximos dias".
+    - Sem a exceção do vencido, trocar o filtro escondia a conta atrasada, que é
+      justamente a que a seção existe para mostrar em vermelho.
+
+    É o **mesmo recorte** dos cards A pagar / A receber do Dashboard
+    (`dashboard/repositorio.py`), de propósito: as duas telas somam o mesmo dinheiro e
+    não podem discordar.
     """
     linhas = (
         (
@@ -183,10 +199,11 @@ async def pendencias(conexao: AsyncConnection, *, mundos: list[str], hoje: date)
                     from lancamentos_ativos l
                     where l.mundo = any(cast(:mundos as mundo[]))
                       and l.status in ('programado','pendente','atrasado')
+                      and (l.data between :inicio and :fim or l.status = 'atrasado')
                       and {_SEM_PAI_DE_SPLIT}
                     order by l.data
                     """),
-                {"mundos": mundos, "hoje": hoje},
+                {"mundos": mundos, "hoje": hoje, "inicio": inicio, "fim": fim},
             )
         )
         .mappings()

@@ -36,6 +36,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 
+from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -57,6 +58,8 @@ Conexao = Annotated[AsyncConnection, Depends(obter_conexao)]
 
 MESES_DA_TENDENCIA = 6
 MESES_DO_FLUXO = 12
+# Quantos dos 12 meses do fluxo ficam para trás. Os demais são projeção (`RF-42`).
+MESES_ANTES_NO_FLUXO = 6
 DIAS_DA_LINHA_DO_TEMPO = 7
 
 MESES_PT = {
@@ -269,9 +272,15 @@ async def obter(
         )
     )
 
-    inicio_tendencia = (janela.fim.replace(day=1)) - timedelta(days=30 * MESES_DA_TENDENCIA)
-    inicio_fluxo = (hoje.replace(day=1) - timedelta(days=30 * (MESES_DO_FLUXO - 6))).replace(day=1)
-    fim_fluxo = (hoje.replace(day=1) + timedelta(days=30 * 6)).replace(day=1)
+    # Janela de meses conta **mês de calendário**, não 30 dias. `timedelta(days=30*6)`
+    # a partir de um dia 1 caía em fevereiro tanto para "6 meses" quanto para "7", e a
+    # sparkline vinha com 7 pontos onde a constante diz 6 — o número de pontos passava
+    # a depender do tamanho dos meses atravessados.
+    inicio_tendencia = janela.fim.replace(day=1) - relativedelta(months=MESES_DA_TENDENCIA - 1)
+    inicio_fluxo = hoje.replace(day=1) - relativedelta(months=MESES_ANTES_NO_FLUXO)
+    fim_fluxo = hoje.replace(day=1) + relativedelta(
+        months=MESES_DO_FLUXO - MESES_ANTES_NO_FLUXO - 1
+    )
 
     # ── As três idas ao banco ──────────────────────────────────────────────
     numeros = await repositorio.numeros(
@@ -325,6 +334,29 @@ async def obter(
     def _serie(linhas: list[dict[str, Any]]) -> list[dict[str, str]]:
         return [{"rotulo": linha["rotulo"], "valor": _dinheiro(linha["valor"])} for linha in linhas]
 
+    # ── O drill-down dos cards que alcançam o vencido ──────────────────────
+    #
+    # `GET /api/lancamentos` filtra por uma janela contínua, e estes três cards
+    # somam "o período **mais** o que está vencido" — que não é contínuo. Sem
+    # tratamento, clicar em "A pagar" abria uma lista com menos linhas do que o
+    # número do card, e conferir à mão dava diferença.
+    #
+    # A solução é alargar a janela do link até o vencido mais antigo. O que entra
+    # a mais é teórico: lançamento em aberto com data passada **é** atrasado — a
+    # rotina diária move `programado` e `pendente` vencidos todo dia (`RN-03`,
+    # `RN-04`). Sem vencido nenhum, o link continua com o período da tela, limpo.
+    atrasados_desde = numeros.get("atrasados_desde")
+    inicio_alargado = date.fromisoformat(atrasados_desde) if atrasados_desde else None
+
+    def _janela_do_drilldown() -> dict[str, Any]:
+        if inicio_alargado is None or inicio_alargado >= janela.inicio:
+            return {}
+        return {
+            "periodo": "personalizado",
+            "data_inicio": inicio_alargado.isoformat(),
+            "data_fim": max(janela.fim, hoje).isoformat(),
+        }
+
     # ── Os 7 cards numéricos (`FR-054`) ────────────────────────────────────
     #
     # Um dicionário por id, montado antes de escolher o que mostrar: assim o
@@ -376,6 +408,7 @@ async def obter(
             "filtro_drilldown": {
                 "tipo": "receita",
                 "status": ["programado", "pendente", "atrasado"],
+                **_janela_do_drilldown(),
             },
         },
         "a_pagar": {
@@ -392,6 +425,7 @@ async def obter(
             "filtro_drilldown": {
                 "tipo": "despesa",
                 "status": ["programado", "pendente", "atrasado"],
+                **_janela_do_drilldown(),
             },
         },
     }
@@ -495,7 +529,10 @@ async def obter(
         "alerta_atrasados": {
             "quantidade": atrasados["quantidade"],
             "valor_total": _dinheiro(atrasados["valor_total"]),
-            "filtro_drilldown": {"status": ["atrasado"]},
+            # Este ignora o período por inteiro (`RF-46a`), então o link também
+            # precisa alcançar o vencido mais antigo — senão o banner diz "3 contas
+            # vencidas" e abre uma lista com uma.
+            "filtro_drilldown": {"status": ["atrasado"], **_janela_do_drilldown()},
         },
         "cards": cards,
         "saude_caixa": saude.como_dicionario(),

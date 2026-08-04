@@ -102,6 +102,12 @@ que está visível na configuração do usuário).
   serializa e navega — nenhum card monta filtro à mão (`FR-058`).
 - `tendencia` alimenta as sparklines (`FR-057`).
 - `projetado: true` marca meses futuros para renderização distinta (`FR-059`, `RN-05`).
+- **Em `evolucao_saldo`, `projetado: true` significa que o `saldo_final` daquele mês já
+  soma o que está em aberto para depois de hoje** — é o que faz a linha projetar. Até
+  2026-08-04 a série contava só `efetivado` em todos os meses, então o trecho marcado como
+  projeção era uma reta no último saldo realizado: marcado como projeção e sem projetar
+  nada. O mês corrente continua `projetado: false` e só mostra o realizado; o que ainda
+  vence neste mês entra a partir do mês seguinte.
 - `card_clientes`/`card_funcionarios` são renderizados a partir de `categorias.vinculo`, não
   do nome da categoria (`FR-079`).
 - `explicacao` e `resumo_linguagem_natural` são geradas no servidor (`FR-069`, `FR-070`) —
@@ -133,8 +139,14 @@ que está visível na configuração do usuário).
 - **`variacao_percentual` é `null`, não `"0.0"`, quando o período anterior é zero.** Zero por
   cento e "não dá para calcular" são coisas diferentes e a tela mostra as duas de forma
   diferente. Vale para todo percentual da resposta.
-- `a_receber`/`a_pagar` e `alerta_atrasados` **ignoram o filtro de período**: conta vencida em
-  maio continua a pagar em julho.
+- `a_receber`/`a_pagar` **seguem o filtro de período** (`RF-40`, `RF-41`: "pendentes +
+  programados **do período**"), com uma exceção nomeada: o que está `atrasado` entra sempre,
+  de qualquer mês. Corrigido em 2026-08-04 — antes os dois somavam tudo que estava em aberto,
+  e uma recorrência de 12 meses já materializada mostrava R$ 36.000 "A receber" ao lado de um
+  Dashboard filtrado em "Este mês". As duas metades importam: sem o período o card mente para
+  cima; sem a exceção, trocar o filtro faz sumir a conta vencida.
+- `alerta_atrasados` **ignora o filtro de período** — ele é o card do vencido, e conta vencida
+  em maio continua a pagar em julho.
 - `composicao` sempre traz as três situações, mesmo zeradas.
 - `saude_caixa.cobertura` é `null` quando não há despesa fixa no horizonte — mostrar "∞×"
   seria cômodo e enganoso (`dominio/saude_caixa.py`).
@@ -196,8 +208,11 @@ que está visível na configuração do usuário).
   da história 7 e o servidor garante a coerência.
 - `previsto: true` em grupos futuros; seus valores **não** entram em `saldo_acumulado`
   (`FR-052`, `RN-05`).
-- `pendencias` é a seção fixa de `FR-051` e ignora o filtro de período — pendência não é
-  histórico.
+- `pendencias` é a seção fixa de `FR-051` / `RF-34` e usa **o mesmo recorte dos cards A pagar
+  / A receber do Dashboard**: o período filtra, o `atrasado` entra sempre. As duas telas
+  somam o mesmo dinheiro, e é para não discordarem que a regra é uma só. Corrigido em
+  2026-08-04 — antes a seção ignorava o período por inteiro e listava a recorrência de 12
+  meses já materializada, onde `RF-34` fala em "próximos dias".
 
 ---
 

@@ -25,6 +25,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
+from dateutil.relativedelta import relativedelta
 from sqlalchemy import text
 
 from app.dashboard import rotas as rotas_dashboard
@@ -334,8 +335,145 @@ async def test_atrasados_aparecem_no_alerta_e_no_resumo(conexao_de_teste):
     )
 
     assert painel["alerta_atrasados"]["quantidade"] >= 1
-    assert painel["alerta_atrasados"]["filtro_drilldown"] == {"status": ["atrasado"]}
     assert "vencida" in painel["resumo_linguagem_natural"]
+
+    # O link do alerta tem que abrir **os mesmos** lançamentos que ele contou. O
+    # alerta ignora o período (`RF-46a`) e `GET /api/lancamentos` não sabe ignorar,
+    # então o drill-down vem com a janela alargada até o vencido mais antigo — aqui,
+    # 10 dias atrás, antes do dia 1º. Sem isso o banner dizia "1 conta vencida" e
+    # abria uma lista vazia (auditoria de 2026-08-04).
+    drilldown = painel["alerta_atrasados"]["filtro_drilldown"]
+    assert drilldown["status"] == ["atrasado"]
+    assert drilldown["periodo"] == "personalizado"
+    assert date.fromisoformat(drilldown["data_inicio"]) <= HOJE - timedelta(days=10)
+    assert date.fromisoformat(drilldown["data_fim"]) >= HOJE
+
+
+async def test_a_pagar_segue_o_periodo_mas_nao_perde_o_vencido(conexao_de_teste):
+    """`RF-40` + `RF-41`: "pendentes + programados **do período**".
+
+    O bug que originou este teste (2026-08-04): com as recorrências materializadas 12
+    meses à frente, o card somava os 12 e mostrava R$ 25.200 num Dashboard filtrado em
+    "Este mês". A outra metade da regra é a exceção do vencido — sem ela, trocar o
+    filtro escondia justamente a conta que precisa ser vista.
+    """
+    usuario = await _usuario(conexao_de_teste)
+    infra = await _categoria(conexao_de_teste, "Infraestrutura")
+
+    async def a_pagar(painel):
+        return Decimal({c["id"]: c for c in painel["cards"]}["a_pagar"]["valor"])
+
+    antes = await a_pagar(
+        await rotas_dashboard.obter(usuario, conexao_de_teste, mundo="digital", periodo="este_mes")
+    )
+
+    # Dentro do período.
+    await _lanca(
+        conexao_de_teste,
+        usuario,
+        infra,
+        tipo="despesa",
+        valor="111.00",
+        quando=PRIMEIRO_DIA,
+        status="programado",
+    )
+    # Cinco meses à frente: existe, mas não é "a pagar deste mês".
+    await _lanca(
+        conexao_de_teste,
+        usuario,
+        infra,
+        tipo="despesa",
+        valor="9999.00",
+        quando=HOJE + relativedelta(months=5),
+        status="programado",
+    )
+    # Vencida em outro mês: entra sempre, venha de onde vier.
+    await _lanca(
+        conexao_de_teste,
+        usuario,
+        infra,
+        tipo="despesa",
+        valor="222.00",
+        quando=HOJE - timedelta(days=90),
+        status="atrasado",
+    )
+
+    depois = await a_pagar(
+        await rotas_dashboard.obter(usuario, conexao_de_teste, mundo="digital", periodo="este_mes")
+    )
+    assert depois - antes == Decimal("333.00"), (
+        "A pagar deve somar o programado do período (111) e o vencido (222), e deixar "
+        "de fora o programado de daqui a 5 meses (9999)."
+    )
+
+
+async def test_extrato_e_dashboard_somam_o_mesmo_a_pagar(conexao_de_teste):
+    """A mesma pergunta em duas telas não pode ter duas respostas.
+
+    O Extrato tinha o recorte antigo (`FR-051` ignorava o período por inteiro) depois
+    de o Dashboard já ter o novo — e as duas telas passariam a discordar em silêncio.
+    """
+    usuario = await _usuario(conexao_de_teste)
+    infra = await _categoria(conexao_de_teste, "Infraestrutura")
+    await _lanca(
+        conexao_de_teste,
+        usuario,
+        infra,
+        tipo="despesa",
+        valor="777.00",
+        quando=PRIMEIRO_DIA,
+        status="programado",
+    )
+    await _lanca(
+        conexao_de_teste,
+        usuario,
+        infra,
+        tipo="despesa",
+        valor="8888.00",
+        quando=HOJE + relativedelta(months=6),
+        status="programado",
+    )
+
+    painel = await rotas_dashboard.obter(
+        usuario, conexao_de_teste, mundo="digital", periodo="este_mes"
+    )
+    extrato = await rotas_extrato.obter(
+        usuario, conexao_de_teste, mundo="digital", periodo="este_mes"
+    )
+
+    card = Decimal({c["id"]: c for c in painel["cards"]}["a_pagar"]["valor"])
+    secao = sum((Decimal(item["valor"]) for item in extrato["pendencias"]["a_pagar"]), Decimal("0"))
+    assert card == secao
+
+
+async def test_evolucao_do_saldo_projeta_o_mes_futuro(conexao_de_teste):
+    """`RF-42a` + `RN-05`: mês marcado `projetado` tem que projetar alguma coisa.
+
+    A série contava só `efetivado` em todos os meses, então o trecho marcado como
+    projeção era uma reta no último saldo realizado — projeção que não projetava.
+    """
+    usuario = await _usuario(conexao_de_teste)
+    outros = await _categoria(conexao_de_teste, "Outros")
+    await _lanca(
+        conexao_de_teste,
+        usuario,
+        outros,
+        tipo="receita",
+        valor="5555.00",
+        quando=HOJE + relativedelta(months=2),
+        status="programado",
+    )
+
+    painel = await rotas_dashboard.obter(
+        usuario, conexao_de_teste, mundo="digital", periodo="este_mes"
+    )
+    serie = painel["evolucao_saldo"]
+    realizados = [p for p in serie if not p["projetado"]]
+    projetados = [p for p in serie if p["projetado"]]
+    assert projetados, "A série precisa alcançar meses futuros."
+
+    ultimo_realizado = Decimal(realizados[-1]["saldo_final"])
+    assert Decimal(projetados[-1]["saldo_final"]) >= ultimo_realizado + Decimal("5555.00")
 
 
 async def test_fluxo_mensal_marca_meses_futuros_como_projetados(conexao_de_teste):

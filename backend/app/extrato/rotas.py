@@ -53,8 +53,9 @@ def _variacao(atual: Decimal, anterior: Decimal) -> dict[str, Any]:
         "Papel: gestor, operador. `FR-047`–`FR-052`. `agrupamento` = `dia` | `semana` | "
         "`mes`. O `saldo_acumulado` do último grupo é **igual** a `resumo.saldo_final` — "
         "o servidor garante a coerência. Grupos futuros vêm com `previsto: true` e "
-        "**não** entram no acumulado (`RN-05`). A seção `pendencias` ignora o filtro de "
-        "período: pendência não é histórico (`FR-051`)."
+        "**não** entram no acumulado (`RN-05`). A seção `pendencias` segue o período e "
+        "traz o vencido de qualquer data — o mesmo recorte dos cards A pagar / A receber "
+        "do Dashboard, para as duas telas nunca discordarem (`FR-051`, `RF-34`)."
     ),
 )
 async def obter(
@@ -117,5 +118,7 @@ async def obter(
         },
         "grafico": servico.monta_grafico(grupos),
         "grupos": grupos,
-        "pendencias": await servico.pendencias(conexao, mundos=mundos, hoje=hoje),
+        "pendencias": await servico.pendencias(
+            conexao, mundos=mundos, hoje=hoje, inicio=janela.inicio, fim=janela.fim
+        ),
     }

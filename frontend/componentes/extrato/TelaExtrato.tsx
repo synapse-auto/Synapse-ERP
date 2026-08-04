@@ -12,6 +12,7 @@ import { BadgeStatus } from "@/componentes/comum/BadgeStatus";
 import { PainelDetalhe } from "@/componentes/lancamentos/PainelDetalhe";
 import { CaixaDeDica, COR, useMovimentoReduzido } from "@/componentes/graficos/base";
 import { useEscopo, useExtrato } from "@/lib/consultas";
+import { paraQueryString } from "@/lib/api";
 import { dataCurta, dinheiro } from "@/lib/formato";
 import type { Agrupamento, Extrato, Pendencia } from "@/lib/tipos";
 import { useRouter } from "next/navigation";
@@ -144,9 +145,17 @@ export function TelaExtrato() {
           <SecaoPendencias
             pendencias={data.pendencias}
             aoAbrir={setSelecionado}
+            // O link levava só o mundo, então a lista abria no período padrão e
+            // mostrava um conjunto diferente do que a seção acabara de somar.
+            // `escopo.parametros` leva mundo **e** período (e as datas, quando é
+            // personalizado), que é o recorte que a seção usa.
             aoVerTodos={(tipo) =>
               router.push(
-                `/lancamentos?mundo=${escopo.mundo}&tipo=${tipo}&status=programado&status=pendente&status=atrasado`,
+                `/lancamentos${paraQueryString({
+                  ...escopo.parametros,
+                  tipo,
+                  status: ["programado", "pendente", "atrasado"],
+                } as never)}`,
               )
             }
           />

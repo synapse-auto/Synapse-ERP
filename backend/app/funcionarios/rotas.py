@@ -141,6 +141,12 @@ async def listar(
                       from lancamentos_ativos l
                       join subcategorias s on s.id = l.subcategoria_id
                       where s.funcionario_id = f.id and l.tipo = 'despesa'
+                        -- `RN-11`: pai de split não conta, só as partes. É o mesmo
+                        -- recorte do Dashboard; sem ele, o custo do funcionário aqui
+                        -- discordaria do bloco Funcionários do painel.
+                        and not exists (select 1 from lancamentos p
+                                        where p.lancamento_pai_id = l.id
+                                          and p.excluido_em is null)
                     ) c on true
                     where f.mundo = any(cast(:mundos as mundo[]))
                       and (:incluir_arquivados or f.arquivado_em is null)
@@ -302,6 +308,10 @@ async def detalhar(
                     from lancamentos_ativos l
                     join subcategorias s on s.id = l.subcategoria_id
                     where s.funcionario_id = :func and l.tipo = 'despesa'
+                      -- `RN-11`, o mesmo recorte da lista e do Dashboard.
+                      and not exists (select 1 from lancamentos p
+                                      where p.lancamento_pai_id = l.id
+                                        and p.excluido_em is null)
                     """),
                 {"func": str(funcionario_id), "inicio": janela.inicio, "fim": janela.fim},
             )

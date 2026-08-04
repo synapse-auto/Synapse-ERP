@@ -313,6 +313,31 @@ mensal cobrindo o tempo de casa em vez de 12 meses fixos, total histórico, lan�
 lista de clientes ("cliente há 1 ano e 6 meses"), e — por serem lançamentos normais —
 Dashboard, Relatórios e Lançamentos, sem nada de específico ter sido escrito para isso.
 
+## Auditoria de números contra o banco (2026-08-04)
+
+Levantada pelo dono do projeto: o Dashboard filtrado em "Este mês" mostrava **A receber
+R$ 36.000,00** e **A pagar R$ 25.200,00** num mês sem um único lançamento efetivado. Era a
+recorrência de 12 meses já materializada inteira, somada sob o rótulo do mês.
+
+A conferência foi feita recalculando **1196 números** em Python puro, a partir das linhas
+cruas de `lancamentos`, e comparando com o que as rotas devolvem — 3 mundos × 6 períodos ×
+Dashboard, Extrato e DRE. Deu **84 divergências, de duas causas**, as duas no backend. O
+resto (receitas, despesas, saldo, margem, comparativo, atrasados, saúde do caixa, despesas
+por categoria, receita por serviço, blocos de clientes e funcionários, fluxo de 12 meses,
+DRE e a coerência `saldo_acumulado` × `saldo_final` do Extrato) bateu casa a casa.
+
+O que mudou **nesta pasta**:
+
+| Onde | O quê |
+|---|---|
+| `graficos/EvolucaoSaldo.tsx` | O trecho projetado **não era desenhado distinto** — a própria docstring dizia "sai tracejado" e o `projetado` só aparecia na dica de rodapé. Agora são duas séries no mesmo eixo (realizado e projeção), com traço pontilhado, área mais clara e a faixa "PROJEÇÃO", igual ao fluxo de caixa. É `RN-05` na tela |
+| `graficos/FluxoCaixa.tsx` (`ComparativoMensal`) | O gráfico montava uma categoria por chave de `comparativo_mes.atual` — inclusive `rotulo`, que é texto ("este mês"). Saía uma quarta barra chamada "rotulo" com `Number(…) = NaN`. Agora só entram as chaves numéricas, e o rótulo vai com inicial maiúscula |
+| `dashboard/TelaDashboard.tsx` | Cards que alcançam o vencido mandam a janela do drill-down junto. Ela precisa entrar **na loja**, não só na URL: `espelho-de-url.ts` reescreve a query a partir do estado global logo depois da navegação, e o recorte do link se perderia |
+| `extrato/TelaExtrato.tsx` | "Ver todos" das pendências levava só o mundo — a lista abria no período padrão e mostrava um conjunto diferente do que a seção tinha acabado de somar |
+
+Detalhe das duas causas de backend em
+[`contracts/consultas.md`](../specs/001-erp-financeiro-synapse/contracts/consultas.md) §1 e §2.
+
 ## Divergências e pendências conhecidas
 
 | # | O quê | Situação |

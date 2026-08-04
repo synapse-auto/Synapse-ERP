@@ -95,10 +95,14 @@ async def numeros(
 ) -> dict[str, Any]:
     """Tudo que é número de card, numa consulta.
 
-    `base` é varrida **uma vez** e todos os recortes saem dela por `filter`. Os cards
-    que ignoram o período de propósito — atrasados e A pagar/A receber — não recebem
-    condição de data: uma conta vencida em maio continua a pagar em julho, e filtrar
-    por período esconderia justamente a que mais importa (contracts/consultas.md).
+    `base` é varrida **uma vez** e todos os recortes saem dela por `filter`.
+
+    **A pagar / A receber seguem o período** (`RF-40`, `RF-41`), com uma exceção
+    nomeada: o que está `atrasado` entra sempre, venha de que mês vier. As duas
+    metades são necessárias — sem o período, o card somava a recorrência inteira já
+    materializada (12 meses de mensalidade sob o rótulo "Este mês"); sem a exceção,
+    trocar o filtro fazia sumir justamente a conta vencida. `alerta_atrasados`
+    continua sem qualquer recorte de data, porque ele **é** o card do vencido.
 
     `por_mundo` é a única parte que **não** herda o filtro de mundo: `FR-003` manda os
     dois mundos aparecerem sempre, mesmo quando a tela está num só.
@@ -154,6 +158,12 @@ async def numeros(
                       as atrasados_quantidade,
                     coalesce(sum(valor) filter (
                       where status = 'atrasado' and conta), 0)::text as atrasados_valor,
+                    -- A data do vencido mais antigo. É o que permite ao
+                    -- `filtro_drilldown` abrir a lista já mostrando os mesmos
+                    -- lançamentos que o card somou — ver `_drilldown_do_aberto`
+                    -- em `dashboard/rotas.py`. `null` quando não há vencido.
+                    min(data) filter (where status = 'atrasado' and conta)::text
+                      as atrasados_desde,
                     -- `RF-46b`: "fixa" é o que já está lançado no futuro, não uma média
                     -- histórica. Ver `dominio/saude_caixa.py`.
                     coalesce(sum(valor) filter (
@@ -162,11 +172,19 @@ async def numeros(
                       as despesas_fixas_futuras
                   from base
                 ),
+                -- A pagar / A receber (`RF-41` itens 6 e 7): **do período**, mais o
+                -- que está vencido. O `RF-40` manda o seletor de período afetar todos
+                -- os cards, e sem o recorte estes dois somavam a recorrência inteira
+                -- já materializada — 12 meses de mensalidade num card que diz "A
+                -- receber" ao lado de "Este mês". O `or status = 'atrasado'` é o que
+                -- preserva a outra metade da regra: conta vencida em maio continua a
+                -- pagar em julho e não pode sumir ao trocar o filtro.
                 aberto as (
                   select tipo, status, count(*) as quantidade,
                          coalesce(sum(valor), 0)::text as valor
                   from base
                   where status in {_EM_ABERTO_STATUS} and conta
+                    and (data between :inicio and :fim or status = 'atrasado')
                   group by tipo, status
                 ),
                 por_mundo as (
@@ -283,6 +301,10 @@ async def series(
     `sum() over (order by mes)` faz o acumulado da evolução numa passada. Calcular mês
     a mês em Python custaria 12 consultas — e o acumulado parte do começo dos tempos,
     não do começo do período, porque não existe saldo inicial (`FR-114`).
+
+    A evolução acumula **duas** colunas: `realizado` (só `efetivado`, vale em qualquer
+    mês) e `previsto` (o que está em aberto para depois de hoje, e só entra nos meses
+    marcados `projetado`). Ver o comentário sobre `por_mes` abaixo.
     """
     dados = (
         await conexao.execute(
@@ -321,11 +343,22 @@ async def series(
                   where status = 'efetivado' and conta
                     and data < date_trunc('month', cast(:inicio_fluxo as date))
                 ),
+                -- Duas colunas, não uma: o realizado move o saldo em qualquer mês; o
+                -- previsto só entra nos meses marcados `projetado`. Enquanto era uma
+                -- só, `filter (where status = 'efetivado')` zerava todo mês futuro e o
+                -- gráfico desenhava uma linha reta a partir de hoje — marcada como
+                -- projeção e sem projetar nada (`RF-42a`).
                 por_mes as (
                   select m.mes,
                          coalesce(sum(
                            case when b.tipo = 'receita' then b.valor else -b.valor end
-                         ) filter (where b.status = 'efetivado' and b.conta), 0) as resultado
+                         ) filter (where b.status = 'efetivado' and b.conta), 0) as realizado,
+                         coalesce(sum(
+                           case when b.tipo = 'receita' then b.valor else -b.valor end
+                         ) filter (
+                           where b.status in {_EM_ABERTO_STATUS} and b.conta
+                             and b.data > cast(:hoje as date)
+                         ), 0) as previsto
                   from meses m
                   left join base b on date_trunc('month', b.data) = m.mes
                   group by m.mes
@@ -333,7 +366,15 @@ async def series(
                 evolucao as (
                   select to_char(p.mes, 'YYYY-MM') as mes,
                          ((select saldo_base from anterior)
-                          + sum(p.resultado) over (order by p.mes))::text as saldo_final,
+                          + sum(p.realizado) over (order by p.mes)
+                          -- `RN-05`: o previsto entra só depois do mês corrente, e
+                          -- acumulado — senão setembro mostraria o que ainda vai
+                          -- entrar em agosto como se já tivesse entrado.
+                          + case
+                              when p.mes > date_trunc('month', cast(:hoje as date))
+                              then sum(p.previsto) over (order by p.mes)
+                              else 0
+                            end)::text as saldo_final,
                          p.mes > date_trunc('month', cast(:hoje as date)) as projetado
                   from por_mes p
                 ),

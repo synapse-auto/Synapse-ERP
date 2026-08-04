@@ -1,19 +1,46 @@
 "use client";
 
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { CaixaDeDica, COR, eixoDinheiro, eixoMes, useMovimentoReduzido } from "./base";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceArea,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  CaixaDeDica,
+  COR,
+  eixoDinheiro,
+  eixoMes,
+  OPACIDADE_PROJETADA,
+  useMovimentoReduzido,
+} from "./base";
 import { dinheiro, mesCurto } from "@/lib/formato";
 import type { PontoSaldo } from "@/lib/tipos";
 
 /**
  * Evolução do saldo ao fim de cada mês (`FR-060`).
- * O trecho projetado sai tracejado — mesma regra do fluxo de caixa.
+ *
+ * **O trecho projetado sai tracejado, e isso é `RN-05` na tela**, não enfeite:
+ * previsto não pode passar por realizado. São duas séries no mesmo eixo —
+ * `saldo` (realizado) e `projecao` — porque uma linha só não muda de traço no
+ * meio. A projeção começa no último ponto realizado, senão a linha nasce solta.
+ * A faixa e o rótulo "PROJEÇÃO" repetem o desenho do fluxo de caixa.
  */
 export function EvolucaoSaldo({ dados }: { dados: PontoSaldo[] }) {
   const semMovimento = useMovimentoReduzido();
-  const pontos = dados.map((d) => ({
+  const primeiroProjetado = dados.findIndex((d) => d.projetado);
+  const ultimoRealizado = primeiroProjetado < 0 ? dados.length - 1 : primeiroProjetado - 1;
+
+  const pontos = dados.map((d, i) => ({
     mes: d.mes,
-    saldo: Number(d.saldo_final),
+    // `null` corta a série: cada linha só existe no trecho que lhe pertence.
+    saldo: d.projetado ? null : Number(d.saldo_final),
+    projecao: d.projetado || i === ultimoRealizado ? Number(d.saldo_final) : null,
+    valor: Number(d.saldo_final),
     projetado: d.projetado,
   }));
 
@@ -27,6 +54,23 @@ export function EvolucaoSaldo({ dados }: { dados: PontoSaldo[] }) {
           </linearGradient>
         </defs>
         <CartesianGrid stroke={COR.grade} vertical={false} />
+
+        {primeiroProjetado >= 0 ? (
+          <ReferenceArea
+            x1={dados[primeiroProjetado].mes}
+            x2={dados[dados.length - 1].mes}
+            fill="var(--brand-tint)"
+            fillOpacity={0.7}
+            label={{
+              value: "PROJEÇÃO",
+              position: "insideTop",
+              fill: "var(--brand-hover)",
+              fontSize: 10,
+              letterSpacing: "0.1em",
+            }}
+          />
+        ) : null}
+
         <XAxis
           dataKey="mes"
           tickFormatter={eixoMes}
@@ -48,7 +92,7 @@ export function EvolucaoSaldo({ dados }: { dados: PontoSaldo[] }) {
             return (
               <CaixaDeDica
                 titulo={mesCurto(String(label))}
-                linhas={[{ rotulo: "Saldo ao fim do mês", valor: dinheiro(p.saldo), cor: COR.saldo }]}
+                linhas={[{ rotulo: "Saldo ao fim do mês", valor: dinheiro(p.valor), cor: COR.saldo }]}
                 rodape={p.projetado ? "Projetado — depende do que ainda vai se efetivar." : undefined}
               />
             );
@@ -60,6 +104,18 @@ export function EvolucaoSaldo({ dados }: { dados: PontoSaldo[] }) {
           stroke={COR.saldo}
           strokeWidth={1.8}
           fill="url(#areaSaldo)"
+          dot={{ r: 2.6, fill: "var(--superficie-cartao)", stroke: COR.saldo, strokeWidth: 1.6 }}
+          activeDot={{ r: 4.5 }}
+          isAnimationActive={!semMovimento}
+        />
+        <Area
+          type="monotone"
+          dataKey="projecao"
+          stroke={COR.saldo}
+          strokeWidth={1.8}
+          strokeDasharray="4 4"
+          fill="url(#areaSaldo)"
+          fillOpacity={OPACIDADE_PROJETADA}
           dot={{ r: 2.6, fill: "var(--superficie-cartao)", stroke: COR.saldo, strokeWidth: 1.6 }}
           activeDot={{ r: 4.5 }}
           isAnimationActive={!semMovimento}

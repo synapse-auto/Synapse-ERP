@@ -23,9 +23,10 @@ import { EvolucaoSaldo } from "@/componentes/graficos/EvolucaoSaldo";
 import { DespesasCategoria } from "@/componentes/graficos/DespesasCategoria";
 import { PainelDetalhe } from "@/componentes/lancamentos/PainelDetalhe";
 import { useDashboard, useEscopo, useSessao } from "@/lib/consultas";
+import { useEstadoGlobal } from "@/lib/estado-global";
 import { intervalo, mesPorExtenso } from "@/lib/formato";
 import { paraQueryString } from "@/lib/api";
-import type { CardDashboard, CardDisponivel } from "@/lib/tipos";
+import type { AtalhoPeriodo, CardDashboard, CardDisponivel } from "@/lib/tipos";
 
 /**
  * Dashboard (T175–T181).
@@ -45,6 +46,7 @@ import type { CardDashboard, CardDisponivel } from "@/lib/tipos";
 export function TelaDashboard() {
   const router = useRouter();
   const escopo = useEscopo();
+  const definirPeriodo = useEstadoGlobal((e) => e.definirPeriodo);
   const { data: sessao } = useSessao();
   const { data, isLoading, isError, error } = useDashboard();
   const [configurando, setConfigurando] = useState(false);
@@ -62,6 +64,23 @@ export function TelaDashboard() {
 
   function irParaLista(drilldown: Record<string, unknown> | null | undefined) {
     const consulta = { ...escopo.parametros, ...(drilldown ?? {}) };
+
+    // Cards que alcançam o vencido (A pagar, A receber, alerta de atrasados)
+    // mandam a janela junto, alargada até a conta vencida mais antiga. Ela
+    // precisa entrar **na loja**, não só na URL: o espelho de URL reescreve a
+    // query a partir do estado global logo depois da navegação, e o recorte do
+    // link se perderia — a lista abriria com menos linhas do que o card somou.
+    // Passando pela loja, o seletor do cabeçalho também passa a dizer a verdade
+    // sobre o que a lista está mostrando.
+    const periodo = drilldown?.periodo;
+    if (typeof periodo === "string" && periodo !== escopo.periodo) {
+      definirPeriodo(
+        periodo as AtalhoPeriodo,
+        typeof drilldown?.data_inicio === "string" ? drilldown.data_inicio : null,
+        typeof drilldown?.data_fim === "string" ? drilldown.data_fim : null,
+      );
+    }
+
     router.push(`/lancamentos${paraQueryString(consulta as never)}`);
   }
 

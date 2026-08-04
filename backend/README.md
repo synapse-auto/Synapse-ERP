@@ -287,6 +287,49 @@ duas invocações simultâneas fazem a segunda falhar no `insert` em vez de dupl
 A rotina diária apaga as chaves vencidas — é estado temporário, como `importacoes`, e são
 as duas únicas tabelas do sistema em que apagar linha é o certo.
 
+## Auditoria de números contra o banco (2026-08-04)
+
+O dono do projeto viu o Dashboard filtrado em "Este mês" mostrar **A receber R$ 36.000,00**
+e **A pagar R$ 25.200,00** num mês sem nenhum lançamento efetivado. Era verdade e era
+errado: os dois cards somavam tudo que estava em aberto, e as recorrências já estavam
+materializadas 12 meses à frente.
+
+A conferência não foi por leitura de código. Um script recalculou **1196 números em Python
+puro** a partir das linhas cruas de `lancamentos` e comparou com o que as rotas devolvem, em
+3 mundos × 6 períodos × Dashboard, Extrato e DRE. Resultado: **84 divergências, de duas
+causas**. As outras 1112 comparações bateram casa a casa — inclusive a coerência que o
+contrato cobra entre `saldo_acumulado` do último grupo e `resumo.saldo_final`.
+
+### As duas causas
+
+**1. A pagar / A receber ignoravam o período** (`dashboard/repositorio.py`, `numeros`).
+`RF-40` manda o seletor de período afetar todos os cards e `RF-41` define os dois como
+"pendentes + programados **do período**" — o contrato tinha registrado o contrário. Agora o
+período recorta e o `atrasado` é a exceção nomeada, porque conta vencida em maio continua a
+pagar em julho. `alerta_atrasados` segue ignorando o período: ele **é** o card do vencido.
+
+O mesmo recorte foi aplicado à seção `pendencias` do Extrato (`extrato/servico.py`), que
+tinha o mesmo problema e responde a mesma pergunta na outra tela.
+
+**2. A evolução do saldo marcava projeção e não projetava** (`dashboard/repositorio.py`,
+`series`). A série contava só `efetivado` em todos os meses, então o trecho `projetado:
+true` era uma reta no último saldo realizado — enquanto o fluxo de 12 meses, ao lado,
+mostrava R$ 900 de resultado em cada mês futuro. `por_mes` passou a acumular duas colunas,
+`realizado` e `previsto`, e a segunda só entra depois do mês corrente.
+
+### O que a mesma passada corrigiu de quebra
+
+- **`RN-11` faltava em quatro consultas**: os totais de cliente e de funcionário (lista e
+  perfil), o `em_aberto` que alimenta a inadimplência, a matriz mensal dos relatórios e a
+  quebra por mundo do ranking de clientes somavam o pai de um split junto com as partes.
+  Nenhuma tinha o recorte que o Dashboard, o Extrato e a lista já aplicavam.
+- **Janela de meses por aritmética de 30 dias** (`dashboard/rotas.py`): `timedelta(days=30*6)`
+  não é "6 meses". A sparkline vinha com 7 pontos onde a constante diz 6, e o número
+  dependia do tamanho dos meses atravessados. Agora é `relativedelta`.
+- **O drill-down não abria a mesma lista que o card somou.** `GET /api/lancamentos` filtra
+  por janela contínua, e "período + vencido" não é contínuo. Os cards que alcançam o vencido
+  passaram a mandar a janela alargada até o vencido mais antigo (`atrasados_desde`).
+
 ## Variáveis de ambiente
 
 Lista completa e comentada em [`.env.exemplo`](.env.exemplo). Nenhum `os.environ` solto
