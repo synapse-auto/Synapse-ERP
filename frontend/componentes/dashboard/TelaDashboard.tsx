@@ -221,8 +221,22 @@ export function TelaDashboard() {
     .map((c) => numericosPorId.get(c.id))
     .filter(Boolean) as CardDashboard[];
 
-  // A ordem final segue o catálogo; os `numerico` consecutivos entram numa
-  // grade só, como no mockup, e o resto ocupa a largura que o bloco pede.
+  /**
+   * A grade (T217).
+   *
+   * **Uma grade só, de duas colunas**, e cada bloco declara quanto ocupa. Até
+   * 2026-08-03 cada bloco ganhava um `<div class="grid lg:grid-cols-2">`
+   * **próprio, com um filho só**: o card ficava com metade da largura e a outra
+   * metade sobrava vazia, com o card seguinte na linha de baixo. Dois cards de
+   * meia largura nunca chegavam a ficar lado a lado.
+   *
+   * A largura vem do servidor (`largura`), que resolve preferência do usuário →
+   * `largura_padrao` do catálogo → padrão do grupo. Nenhum id de card decide
+   * layout aqui dentro.
+   *
+   * Os `numerico` consecutivos continuam entrando numa faixa só de quatro
+   * colunas, como no mockup — eles têm grade própria e ignoram `largura`.
+   */
   const blocos: React.ReactNode[] = [];
   let acumuladorNumerico: React.ReactNode[] = [];
 
@@ -231,7 +245,7 @@ export function TelaDashboard() {
     blocos.push(
       <div
         key={`num-${blocos.length}`}
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        className="col-span-full grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
         {acumuladorNumerico}
       </div>,
@@ -248,12 +262,17 @@ export function TelaDashboard() {
     despejarNumericos();
     const no = renderizar(c, cardsNumericos);
     if (!no) continue;
-    const largura =
-      c.id === "fluxo_caixa_12m" || c.id === "linha_tempo_7_dias" || c.id === "alerta_atrasados"
-        ? "col-span-full"
-        : "";
     blocos.push(
-      <div key={c.id} className={`grid gap-4 ${largura ? "" : "lg:grid-cols-2"}`}>
+      <div
+        key={c.id}
+        className={
+          // `[&>*]:flex-1` estica o cartão até o pé da célula: dois cards lado a
+          // lado terminam na mesma linha mesmo com conteúdo de alturas diferentes.
+          c.largura === "inteira"
+            ? "col-span-full flex flex-col [&>*]:flex-1"
+            : "flex flex-col [&>*]:flex-1"
+        }
+      >
         {no}
       </div>,
     );
@@ -289,7 +308,10 @@ export function TelaDashboard() {
         </Cartao>
       ) : null}
 
-      {blocos}
+      {/* A grade de duas colunas do painel. Um bloco de `largura: "inteira"`
+          atravessa com `col-span-full`; dois de `"metade"` seguidos caem lado a
+          lado sozinhos, que é o que a grade existe para fazer. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">{blocos}</div>
 
       <ConfigurarCards
         catalogo={catalogo}

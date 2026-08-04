@@ -115,6 +115,19 @@ que está visível na configuração do usuário).
   `configuracoes.dashboard_cards_disponiveis` cruzados com `usuarios.preferencias`. A
   resposta também traz **`cards_disponiveis`** — o catálogo inteiro, inclusive os ocultos,
   para a tela "Configurar cards" (`FR-071`) não precisar de outra requisição.
+- **`cards_disponiveis[].largura`** (`"inteira" | "metade"`, T217) diz quanto o card ocupa na
+  grade de duas colunas do painel. Sempre presente. Resolvida em três degraus: preferência
+  do usuário → `largura_padrao` da entrada do catálogo → padrão por grupo (`alerta` é
+  `inteira`, o resto é `metade`). Card do grupo `numerico` traz o campo mas a tela o ignora
+  — eles têm faixa própria de quatro colunas.
+
+  ```json
+  { "id": "evolucao_saldo", "rotulo": "Evolução do saldo", "grupo": "grafico",
+    "visivel": true, "ordem": 8, "largura": "metade" }
+  ```
+
+  O frontend **não decide largura por id de card**: dois blocos `metade` seguidos caem lado
+  a lado sozinhos porque a grade é uma só.
 - `margem_operacional` traz `"unidade": "percentual"`. Sem isso a tela teria que deduzir a
   unidade pelo id do card, que é regra escondida no frontend.
 - **`variacao_percentual` é `null`, não `"0.0"`, quando o período anterior é zero.** Zero por

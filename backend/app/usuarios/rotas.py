@@ -25,11 +25,21 @@ roteador = APIRouter(prefix="/api/sessao", tags=["Sessão"])
 
 Tema = Literal["claro", "escuro", "auto"]
 
+# T217 — quanto o card ocupa na grade do Dashboard. `metade` é o que permite
+# dois cards lado a lado; `inteira` atravessa a linha. Só estes dois valores:
+# uma grade de duas colunas não precisa de mais, e mais valores viraria decisão
+# de layout escondida na preferência do usuário.
+LarguraDoCard = Literal["inteira", "metade"]
+
 
 class CardDoDashboard(BaseModel):
     id: str = Field(description="Id do card, conferido contra dashboard_cards_disponiveis.")
     visivel: bool = Field(default=True)
     ordem: int = Field(ge=0)
+    largura: LarguraDoCard | None = Field(
+        default=None,
+        description="inteira | metade. Ausente herda o padrão do catálogo.",
+    )
 
 
 class Preferencias(BaseModel):
@@ -149,8 +159,12 @@ async def salvar_preferencias(
                 campos={"dashboard_cards": "Cada card pode aparecer uma única vez."},
             )
 
+        # `exclude_none`: `largura: null` significa "volta ao padrão do catálogo".
+        # Gravar o nulo faria a preferência dizer "sem largura", que é diferente de
+        # "não escolhi" na hora de resolver o padrão.
         preferencias["dashboard_cards"] = [
-            card.model_dump() for card in sorted(corpo.dashboard_cards, key=lambda c: c.ordem)
+            card.model_dump(exclude_none=True)
+            for card in sorted(corpo.dashboard_cards, key=lambda c: c.ordem)
         ]
 
     await conexao.execute(

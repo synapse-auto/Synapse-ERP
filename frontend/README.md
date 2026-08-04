@@ -160,6 +160,34 @@ Mesma ideia nas outras duas telas com abas: `?aba=` em Relatórios e `?secao=` e
 Configurações. "Olha o DRE" e "olha a auditoria" viraram link. O valor padrão não vai para a
 URL — endereço que a pessoa copia não carrega ruído.
 
+### A grade do Dashboard e o "Configurar cards"
+
+**O painel tinha uma grade por bloco, cada uma com um filho só.** Cada card não-numérico
+saía dentro do seu próprio `<div class="grid lg:grid-cols-2">`, então ocupava metade da
+largura e deixava a outra metade vazia, com o card seguinte na linha de baixo. Dois cards de
+meia largura nunca chegavam a ficar lado a lado — o que a tela mostrava era uma coluna de
+cards pela metade.
+
+Agora é **uma grade só, de duas colunas**, e cada bloco declara quanto ocupa. Os `numerico`
+consecutivos continuam numa faixa própria de quatro colunas, como no mockup.
+
+A largura vem do servidor em `cards_disponiveis[].largura` e é resolvida em três degraus:
+preferência do usuário → `largura_padrao` da entrada do catálogo → padrão por grupo
+(`alerta` inteira, o resto metade). **Nenhum id de card decide layout no frontend** — era
+assim que `fluxo_caixa_12m`, `linha_tempo_7_dias` e `alerta_atrasados` estavam escritos à
+mão no `TelaDashboard.tsx`.
+
+No diálogo "Configurar cards":
+
+- **Arrastar para reordenar**, com alça (`GripVertical`), realce da linha de destino e
+  `select-none` durante o arraste. HTML5 nativo, sem dependência nova.
+- **As setas `↑↓` continuam** — arrastar não existe no teclado nem em leitor de tela, e
+  trocá-las por arraste seria trocar conveniência por exclusão.
+- **Botão de largura** por card: *Metade* (divide a linha, dois lado a lado) ou *Inteira*
+  (atravessa). Some nos cards de número, que têm faixa própria.
+- Arrastar **insere**, não troca: puxar o primeiro para o quarto lugar empurra os três do
+  meio para cima. `moverNaLista` é a única regra de reordenação, usada também pelas setas.
+
 ### "O mouse avisa que dá para clicar"
 
 Uma regra em `app/globals.css` — não `cursor-pointer` repetido em duzentos lugares. Vale
@@ -213,14 +241,16 @@ ao mesmo tempo, porque o Tailwind espera o primeiro e D-12 escreve o segundo.
 | 10 | **Tipografia e raios divergem do design system de propósito** (Boss 4): Geist no lugar de Plus Jakarta + Inter, e a escada de raios da Geist no lugar da do Synapse. Decisão do dono do projeto, marcada em `estilos/tokens.css` nos dois blocos. Cor, sombra e espaçamento continuam idênticos | divergência declarada |
 | 11 | **`cmdk` continua no `package.json` sem uso**, junto com 16 outros primitivos do shadcn que ainda não foram chamados. Não foi removido para não mexer no lockfile numa entrega de polimento | sem ação |
 | 12 | **A interface inteira renderizava em serif desde a Fase C.** As classes do `next/font` estavam no `<body>` e o alias `--font-body: var(--fonte-body), …` no `:root`; o `var()` não resolvia, a declaração morria e o navegador usava a família inicial. Nem Plus Jakarta nem Inter chegaram a aparecer na tela. Achado pelo dono do projeto ao ver que a troca para Geist "não mudou nada" | resolvida em 2026-08-03 |
+| 13 | **O Dashboard nunca pôs dois cards lado a lado.** Cada bloco não-numérico ganhava um `grid lg:grid-cols-2` **próprio, com um filho só** — meia largura ocupada, meia vazia, o vizinho embaixo. Virou uma grade única de duas colunas, com a largura vindo do servidor (`cards_disponiveis[].largura`) e configurável card a card. Achado pelo dono do projeto | resolvida em 2026-08-03 |
 
 ## Testes
 
-`npm run teste` — 48 testes cobrindo o que quebra em silêncio: formatação brasileira
+`npm run teste` — 51 testes cobrindo o que quebra em silêncio: formatação brasileira
 (inclusive o erro de fuso que faria `2026-07-31` virar dia 30), tradução de filtros e
 drill-down, a ida e a volta dos filtros pela URL, envelope de erro da API, os componentes
-comuns e os seis casos da busca global (é campo e não janela; funcionário aparece; clicar
-leva para a tela dele; os quatro grupos no mesmo dropdown; seta + `Enter`; `Esc` limpa).
+comuns, os seis casos da busca global (é campo e não janela; funcionário aparece; clicar
+leva para a tela dele; os quatro grupos no mesmo dropdown; seta + `Enter`; `Esc` limpa) e a
+reordenação do "Configurar cards" (arrastar **insere**, não troca).
 
 O que **não** está coberto por teste automatizado e depende de olhar a tela ou de dados
 reais: a conferência visual dos dois temas tela a tela (T202), o comportamento com 5.000

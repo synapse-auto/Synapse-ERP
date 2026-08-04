@@ -295,3 +295,40 @@ def test_exportacao_completa_omite_preferencias_do_usuario():
     from app.relatorios import exportacao_completa
 
     assert "preferencias" in exportacao_completa.COLUNAS_OMITIDAS["usuarios"]
+
+
+# ── Largura do card (T217) ─────────────────────────────────────────────────
+
+
+def test_preferencia_de_card_aceita_apenas_as_duas_larguras():
+    """Uma grade de duas colunas não tem terceira largura possível."""
+    import pytest
+    from pydantic import ValidationError
+
+    from app.usuarios.rotas import CardDoDashboard
+
+    assert CardDoDashboard(id="x", ordem=0, largura="metade").largura == "metade"
+    assert CardDoDashboard(id="x", ordem=0, largura="inteira").largura == "inteira"
+    with pytest.raises(ValidationError):
+        CardDoDashboard(id="x", ordem=0, largura="um_terco")
+
+
+def test_card_sem_largura_nao_grava_nulo_na_preferencia():
+    """`largura` ausente significa "herda o catálogo" — gravar `null` diria outra coisa."""
+    from app.usuarios.rotas import CardDoDashboard
+
+    assert CardDoDashboard(id="x", ordem=0).model_dump(exclude_none=True) == {
+        "id": "x",
+        "visivel": True,
+        "ordem": 0,
+    }
+
+
+def test_largura_padrao_poe_alerta_inteiro_e_o_resto_na_metade():
+    """T217. É a regra que faz dois gráficos caírem lado a lado sem ninguém configurar."""
+    from app.dashboard.rotas import _largura_padrao
+
+    assert _largura_padrao({"grupo": "alerta"}) == "inteira"
+    assert _largura_padrao({"grupo": "grafico"}) == "metade"
+    assert _largura_padrao({"grupo": "especial"}) == "metade"
+    assert _largura_padrao({}) == "metade"

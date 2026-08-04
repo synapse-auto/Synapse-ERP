@@ -244,6 +244,41 @@ async def test_preferencia_do_usuario_esconde_e_reordena(conexao_de_teste):
     assert any(item["id"] == "saldo_atual" for item in painel["cards_disponiveis"])
 
 
+async def test_largura_do_card_sai_no_catalogo_com_padrao_por_grupo(conexao_de_teste):
+    """T217. A tela monta a grade com este campo — sem ele, tudo vira meia largura."""
+    usuario = await _usuario(conexao_de_teste)
+    painel = await rotas_dashboard.obter(usuario, conexao_de_teste)
+
+    disponiveis = painel["cards_disponiveis"]
+    assert disponiveis, "Sem catálogo não há o que afirmar. Aplique o seed."
+    for item in disponiveis:
+        assert item["largura"] in {"inteira", "metade"}
+
+    por_grupo = {item["id"]: (item["grupo"], item["largura"]) for item in disponiveis}
+    # Alerta é uma faixa: cortada ao meio vira um cartão qualquer.
+    for grupo, largura in por_grupo.values():
+        if grupo == "alerta":
+            assert largura == "inteira"
+
+
+async def test_largura_escolhida_pelo_usuario_vence_o_padrao(conexao_de_teste):
+    """T217. É o que permite pôr dois gráficos lado a lado — ou desfazer isso."""
+    preferencias = {
+        "dashboard_cards": [
+            {"id": "evolucao_saldo", "visivel": True, "ordem": 1, "largura": "inteira"},
+        ]
+    }
+    usuario = await _usuario(conexao_de_teste, preferencias)
+    painel = await rotas_dashboard.obter(usuario, conexao_de_teste)
+
+    escolhido = next(c for c in painel["cards_disponiveis"] if c["id"] == "evolucao_saldo")
+    assert escolhido["largura"] == "inteira"
+
+    # Quem não escolheu continua no padrão do grupo.
+    outro = next(c for c in painel["cards_disponiveis"] if c["id"] == "despesas_categoria")
+    assert outro["largura"] == "metade"
+
+
 async def test_blocos_especiais_saem_por_vinculo_e_nao_por_nome(conexao_de_teste):
     """`FR-079`: renomear a categoria "Clientes" não pode quebrar o bloco."""
     usuario = await _usuario(conexao_de_teste)

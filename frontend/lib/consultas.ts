@@ -36,6 +36,7 @@ import type {
   MatrizMensal,
   PaginaDe,
   Parcelamento,
+  PreferenciaCard,
   Recorrencia,
   RelatorioClientes,
   RelatorioVariacao,
@@ -44,6 +45,7 @@ import type {
   Servico,
   Sessao,
   Tag,
+  Tema,
   Usuario,
 } from "./tipos";
 
@@ -151,10 +153,8 @@ export function useSessao(opcoes?: Partial<UseQueryOptions<Sessao>>) {
 export function useSalvarPreferencias() {
   const cliente = useQueryClient();
   return useMutation({
-    mutationFn: (corpo: {
-      tema?: string;
-      dashboard_cards?: { id: string; visivel: boolean; ordem: number }[];
-    }) => api.post<unknown>("/api/sessao/preferencias", { corpo }),
+    mutationFn: (corpo: { tema?: Tema; dashboard_cards?: PreferenciaCard[] }) =>
+      api.post<unknown>("/api/sessao/preferencias", { corpo }),
     onSuccess: () => {
       cliente.invalidateQueries({ queryKey: chaves.sessao });
       cliente.invalidateQueries({ queryKey: ["dashboard"] });

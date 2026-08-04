@@ -461,12 +461,17 @@ export interface Parcelamento {
 /* Dashboard — contracts/consultas.md §1                               */
 /* ------------------------------------------------------------------ */
 
+/** Quanto o card ocupa na grade de duas colunas do Dashboard (T217). */
+export type LarguraDoCard = "inteira" | "metade";
+
 export interface CardDisponivel {
   id: string;
   rotulo: string;
   grupo: string;
   ordem: number;
   visivel?: boolean;
+  /** Ausente = herda o padrão do catálogo. `numerico` ignora — tem grade própria. */
+  largura?: LarguraDoCard;
   descricao?: string | null;
 }
 
@@ -701,6 +706,8 @@ export interface PreferenciaCard {
   id: string;
   visivel: boolean;
   ordem: number;
+  /** Omitir volta ao padrão do catálogo — mandar `null` não é a mesma coisa. */
+  largura?: LarguraDoCard;
 }
 
 export interface Sessao {

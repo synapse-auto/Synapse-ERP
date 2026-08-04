@@ -709,6 +709,7 @@ abertas pelo mesmo motivo de antes: dependem de painel ou de dados reais no banc
 - [X] T214 Estado de tela na URL nos dois sentidos: filtros, ordenação, página e lançamento aberto em Lançamentos (`paraUrl`/`daUrl`), `?aba=` em Relatórios e `?secao=` em Configurações — sem isso, chegar em `/lancamentos` já estando lá não fazia nada
 - [X] T215 Regra única de `cursor: pointer` + estados de hover que faltavam; `useMovimentoReduzido()` desliga a animação em JavaScript do Recharts
 - [X] T216 Varredura contra o **Web Interface Guidelines** (skill `/web-design-guidelines`) e correção do que ela apontou: foco, teclado, formulários, `select` nativo no tema escuro, celular, "pular para o conteúdo", `aria-live` e rótulos
+- [X] T217 **Grade do Dashboard em duas colunas de verdade** + largura por card. Cada bloco tinha um `grid` próprio com um filho só, então nada ficava lado a lado. `cards_disponiveis[].largura` (`inteira`/`metade`) resolve preferência → catálogo → padrão por grupo, e "Configurar cards" ganhou **arrastar** (mantendo as setas, que funcionam no teclado) e o botão de largura
 
 ### O que continua aberto
 
@@ -742,28 +743,35 @@ em vez de funcionar como pesquisa.
 | 4 | **Funcionário entrou na busca**, por nome e por função, respeitando o mundo (`RN-15`). Clicar leva para `/funcionarios/{id}` | `app/busca/rotas.py`, `lib/tipos.ts`, contracts/consultas.md §4 |
 | 5 | **Lançamentos ganhou URL de mão dupla.** Sem isso, clicar num resultado da busca **estando já na tela** trocava o endereço e não acontecia nada — bug que a própria mudança nº 3 teria introduzido | `lancamentos/filtros.ts`, `TelaLancamentos.tsx` |
 | 6 | **`cursor: pointer` numa regra só**, cobrindo também os papéis ARIA que o Radix põe em `div`. `button` do HTML nasce `cursor: default`: era essa a causa de "vários botões o mouse não fica apontando" | `app/globals.css` |
+| 6b | **O Dashboard nunca pôs dois cards lado a lado**: cada bloco não-numérico ganhava um `grid lg:grid-cols-2` **próprio, com um filho só**. Virou uma grade única de duas colunas; `largura` (`inteira`/`metade`) vem do servidor, resolvida em preferência → `largura_padrao` do catálogo → padrão por grupo. "Configurar cards" ganhou arrastar (com as setas mantidas para teclado) e o botão de largura | `dashboard/rotas.py`, `usuarios/rotas.py`, `TelaDashboard.tsx`, `ConfigurarCards.tsx` |
 | 7 | **Varredura do Web Interface Guidelines**: foco na linha da tabela, `Espaço` abrindo linha, `transition-all` fora de 7 primitivos, `prefers-reduced-motion` alcançando o Recharts, `name`/`autocomplete`/`inputmode` nos formulários, confirmação antes de descartar lançamento preenchido, `select` nativo legível no tema escuro do Windows, rolagem horizontal presa na tabela, painéis que não estouram a tela do celular, "pular para o conteúdo", `aria-live` e hover nas linhas que eram clicáveis mudas | ~30 arquivos |
 
 ### Testado, rodando
 
 ```
 frontend: npx tsc --noEmit ; npx next lint     → sem erros
-frontend: npx vitest run                       → 48 passed  (eram 37)
+frontend: npx vitest run                       → 51 passed  (eram 37)
 frontend: npx next build                       → compilou · 13 rotas
 frontend: Chrome headless na página servida    → `getComputedStyle(html).fontFamily`
                                                  começa em `Geist`; `document.fonts
                                                  .check("700 24px Geist")` → true;
                                                  captura de `/entrar` sem serifa
-backend:  pytest tests/unidade tests/contrato  → 429 passed
-backend:  pytest -k busca (integração)         → 9 passed  (eram 7)
+backend:  pytest tests/unidade tests/contrato  → 432 passed  (eram 429)
+backend:  pytest -k busca (integração)         → 9 passed   (eram 7)
+backend:  pytest -k largura (integração)       → 3 passed
 backend:  ruff check . ; black --check .       → limpos
 ```
 
-Os 11 testes novos do frontend: 5 da ida e volta dos filtros pela URL e 6 da busca global
+Os 14 testes novos do frontend: 5 da ida e volta dos filtros pela URL, 6 da busca global
 (é campo e não janela; o dropdown vazio oferece as telas; funcionário aparece e leva para a
-tela dele; os quatro grupos no mesmo dropdown; seta + `Enter`; `Esc` limpa). Os 2 novos do
-backend afirmam a forma de `funcionarios` na resposta e que abaixo de 2 caracteres a lista
-sai vazia.
+tela dele; os quatro grupos no mesmo dropdown; seta + `Enter`; `Esc` limpa) e 3 da
+reordenação por arraste (insere em vez de trocar; vale como as setas com passo 1; não sai da
+lista).
+
+No backend: 2 de integração afirmam a forma de `funcionarios` na resposta e que abaixo de 2
+caracteres a lista sai vazia; 3 de contrato travam as duas larguras possíveis, o
+`exclude_none` que impede gravar `largura: null` e o padrão por grupo; 2 de integração
+conferem `largura` saindo em `cards_disponiveis` e a escolha do usuário vencendo o padrão.
 
 ### O que **não** foi feito
 

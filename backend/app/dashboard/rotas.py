@@ -100,6 +100,27 @@ def _comparativo(atual: Decimal, anterior: Decimal) -> dict[str, Any]:
     }
 
 
+def _largura_padrao(definicao: dict) -> str:
+    """Quanto o card ocupa quando ninguém escolheu (T217).
+
+    Ordem de precedência ao resolver: **preferência do usuário → `largura_padrao` do
+    catálogo → esta função**. Gravar `largura_padrao` numa entrada de
+    `dashboard_cards_disponiveis` muda o padrão de todo mundo sem tocar em código, que
+    é o que Princípio VII pede; esta função só existe para o catálogo atual, que ainda
+    não traz a chave, não cair num valor arbitrário.
+
+    Regra: **alerta atravessa a linha, o resto entra na metade.** Alerta é uma faixa de
+    aviso — cortada ao meio ela vira um cartão qualquer e perde a função. Gráfico e
+    bloco especial cabem em metade da grade (≈770px no `--conteudo-largura-max`), que é
+    o que põe dois lado a lado.
+
+    Card `numerico` não usa este valor: eles têm grade própria de quatro colunas.
+    """
+    if definicao.get("grupo") == "alerta":
+        return "inteira"
+    return "metade"
+
+
 async def _cards_configurados(conexao: AsyncConnection, usuario: UsuarioAutenticado) -> list[dict]:
     """Quais cards mostrar e em que ordem (`FR-071`, `FR-106`).
 
@@ -121,6 +142,9 @@ async def _cards_configurados(conexao: AsyncConnection, usuario: UsuarioAutentic
                 **definicao,
                 "visivel": do_usuario.get("visivel", definicao.get("visivel_padrao", True)),
                 "ordem": do_usuario.get("ordem", definicao.get("ordem_padrao", 99)),
+                "largura": do_usuario.get(
+                    "largura", definicao.get("largura_padrao", _largura_padrao(definicao))
+                ),
                 # Só para o desempate abaixo — não sai na resposta.
                 "_escolhido_pelo_usuario": "ordem" in do_usuario,
                 "_posicao_no_catalogo": posicao,
@@ -589,6 +613,7 @@ async def obter(
                 "grupo": item["grupo"],
                 "visivel": item["visivel"],
                 "ordem": item["ordem"],
+                "largura": item["largura"],
             }
             for item in configurados
         ],

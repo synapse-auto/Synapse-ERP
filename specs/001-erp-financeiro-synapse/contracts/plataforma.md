@@ -32,11 +32,16 @@ disso, mas **esconder não é autorizar** — cada endpoint valida o papel de no
 
 ```json
 { "tema": "escuro",
-  "dashboard_cards": [{ "id": "saude_caixa", "visivel": true, "ordem": 0 }] }
+  "dashboard_cards": [{ "id": "saude_caixa", "visivel": true, "ordem": 0, "largura": "metade" }] }
 ```
 
 Ids desconhecidos são recusados contra `configuracoes.dashboard_cards_disponiveis` →
 `400 validacao`. Persiste por usuário, não global (Assumptions da spec).
+
+**`largura`** (T217) é opcional e vale `"inteira"` ou `"metade"` — é o que põe dois cards
+lado a lado no painel. **Omitir a chave volta o card ao padrão do catálogo**; por isso o
+servidor grava a preferência com `exclude_none` e nunca persiste `largura: null`, que diria
+"escolhi nenhuma largura" em vez de "não escolhi".
 
 ---
 
