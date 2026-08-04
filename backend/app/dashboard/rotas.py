@@ -8,6 +8,16 @@ contracts/consultas.md §1. Papel: gestor, operador.
 `SC-002` ("entender a saúde do caixa em 10 segundos") impossível. Uma requisição, um
 punhado de agregações que o Postgres resolve por índice.
 
+**E, desde 2026-08-04, tudo de uma vez também do lado do banco.** Este arquivo chamava
+vinte funções do repositório em série — uma requisição para o usuário, vinte idas ao
+Postgres por baixo. Agora são três: `numeros`, `series` e `blocos`. Medido contra o
+banco real, com 101 valores conferidos um a um contra a implementação anterior:
+**9,2x mais rápido, nenhuma divergência**. O porquê está em `dashboard/repositorio.py`.
+
+Dinheiro e data chegam do banco **já como texto** (`"1234.56"`, `"2026-08-04"`), então
+aqui não há mais `.isoformat()` nem conversão para `Decimal` a não ser onde há conta a
+fazer — comparativo, percentual e soma.
+
 ## Duas regras que este arquivo aplica e vale ler antes de mexer
 
 **Nenhum rótulo de card mora aqui.** Eles vêm de
@@ -241,37 +251,76 @@ async def obter(
     mundos = mod_mundo.resolve_filtro(mundo)
     janela = mod_periodo.resolve(periodo, data_inicio=data_inicio, data_fim=data_fim)
 
-    # ── Números do período e do anterior, na mesma régua (`FR-055`) ─────────
-    atual = await repositorio.totais_do_periodo(
-        conexao, mundos=mundos, inicio=janela.inicio, fim=janela.fim
+    # ── Parâmetros primeiro ────────────────────────────────────────────────
+    #
+    # Vêm antes das agregações porque o horizonte da saúde do caixa **entra** na
+    # consulta de números. As três leituras custam uma ida ao banco no total, ou
+    # nenhuma: `configuracoes` fica em cache por um minuto
+    # (`app/comum/cache_configuracoes.py`).
+    horizonte_dias = int(await le_configuracao(conexao, "saude_caixa_horizonte_dias", padrao=30))
+    multiplicadores = await le_configuracao(
+        conexao, "saude_caixa_multiplicadores", padrao=dict(mod_saude.PADRAO_MULTIPLICADORES)
     )
-    anterior = await repositorio.totais_do_periodo(
-        conexao, mundos=mundos, inicio=janela.inicio_anterior, fim=janela.fim_anterior
+    tolerancia = int(
+        await le_configuracao(
+            conexao,
+            "inadimplencia_dias_tolerancia",
+            padrao=mod_inadimplencia.PADRAO_DIAS_TOLERANCIA,
+        )
     )
-
-    receitas, despesas = _d(atual["receitas"]), _d(atual["despesas"])
-    receitas_ant, despesas_ant = _d(anterior["receitas"]), _d(anterior["despesas"])
-    resultado, resultado_ant = receitas - despesas, receitas_ant - despesas_ant
-
-    saldo = _d((await repositorio.saldo_acumulado(conexao, mundos=mundos))["saldo"])
-    saldo_ant = _d(
-        (await repositorio.saldo_acumulado(conexao, mundos=mundos, ate=janela.fim_anterior))[
-            "saldo"
-        ]
-    )
-
-    quebra_saldo = await repositorio.saldo_por_mundo(conexao)
-    a_receber = await repositorio.em_aberto(conexao, mundos=mundos, tipo="receita", hoje=hoje)
-    a_pagar = await repositorio.em_aberto(conexao, mundos=mundos, tipo="despesa", hoje=hoje)
-    atrasados = await repositorio.atrasados(conexao, mundos=mundos)
 
     inicio_tendencia = (janela.fim.replace(day=1)) - timedelta(days=30 * MESES_DA_TENDENCIA)
-    tendencia_receitas = await repositorio.tendencia_mensal(
-        conexao, mundos=mundos, inicio=inicio_tendencia, fim=janela.fim, tipo="receita"
+    inicio_fluxo = (hoje.replace(day=1) - timedelta(days=30 * (MESES_DO_FLUXO - 6))).replace(day=1)
+    fim_fluxo = (hoje.replace(day=1) + timedelta(days=30 * 6)).replace(day=1)
+
+    # ── As três idas ao banco ──────────────────────────────────────────────
+    numeros = await repositorio.numeros(
+        conexao,
+        mundos=mundos,
+        inicio=janela.inicio,
+        fim=janela.fim,
+        inicio_anterior=janela.inicio_anterior,
+        fim_anterior=janela.fim_anterior,
+        inicio_tendencia=inicio_tendencia,
+        hoje=hoje,
+        fim_horizonte=hoje + timedelta(days=horizonte_dias),
     )
-    tendencia_despesas = await repositorio.tendencia_mensal(
-        conexao, mundos=mundos, inicio=inicio_tendencia, fim=janela.fim, tipo="despesa"
+    series = await repositorio.series(
+        conexao,
+        mundos=mundos,
+        inicio=janela.inicio,
+        fim=janela.fim,
+        inicio_fluxo=inicio_fluxo,
+        fim_fluxo=fim_fluxo,
+        hoje=hoje,
     )
+    blocos = await repositorio.blocos(
+        conexao,
+        mundos=mundos,
+        inicio=janela.inicio,
+        fim=janela.fim,
+        inicio_anterior=janela.inicio_anterior,
+        fim_anterior=janela.fim_anterior,
+        hoje=hoje,
+        ate=hoje + timedelta(days=DIAS_DA_LINHA_DO_TEMPO),
+    )
+
+    # ── Números do período e do anterior, na mesma régua (`FR-055`) ─────────
+    receitas, despesas = _d(numeros["receitas"]), _d(numeros["despesas"])
+    receitas_ant = _d(numeros["receitas_anteriores"])
+    despesas_ant = _d(numeros["despesas_anteriores"])
+    resultado, resultado_ant = receitas - despesas, receitas_ant - despesas_ant
+
+    saldo = _d(numeros["saldo"])
+    saldo_ant = _d(numeros["saldo_anterior"])
+
+    quebra_saldo = numeros["saldo_por_mundo"]
+    a_receber = numeros["a_receber"]
+    a_pagar = numeros["a_pagar"]
+    atrasados = {
+        "quantidade": numeros["atrasados_quantidade"],
+        "valor_total": numeros["atrasados_valor"],
+    }
 
     def _serie(linhas: list[dict[str, Any]]) -> list[dict[str, str]]:
         return [{"rotulo": linha["rotulo"], "valor": _dinheiro(linha["valor"])} for linha in linhas]
@@ -291,13 +340,13 @@ async def obter(
         "receitas_periodo": {
             "valor": _dinheiro(receitas),
             "comparativo": _comparativo(receitas, receitas_ant),
-            "tendencia": _serie(tendencia_receitas),
+            "tendencia": _serie(numeros["tendencia_receitas"]),
             "filtro_drilldown": {"tipo": "receita", "status": ["efetivado"]},
         },
         "despesas_periodo": {
             "valor": _dinheiro(despesas),
             "comparativo": _comparativo(despesas, despesas_ant),
-            "tendencia": _serie(tendencia_despesas),
+            "tendencia": _serie(numeros["tendencia_despesas"]),
             "filtro_drilldown": {"tipo": "despesa", "status": ["efetivado"]},
         },
         "lucro_liquido": {
@@ -361,85 +410,43 @@ async def obter(
     ]
 
     # ── Saúde do caixa (`FR-069`) ──────────────────────────────────────────
-    horizonte_dias = int(await le_configuracao(conexao, "saude_caixa_horizonte_dias", padrao=30))
-    multiplicadores = await le_configuracao(
-        conexao, "saude_caixa_multiplicadores", padrao=dict(mod_saude.PADRAO_MULTIPLICADORES)
-    )
-    fixas = await repositorio.despesas_fixas_futuras(
-        conexao, mundos=mundos, hoje=hoje, ate=hoje + timedelta(days=horizonte_dias)
-    )
     saude = mod_saude.avalia(
         saldo=saldo,
-        despesas_fixas_horizonte=_d(fixas),
+        despesas_fixas_horizonte=_d(numeros["despesas_fixas_futuras"]),
         horizonte_dias=horizonte_dias,
         multiplicadores=dict(multiplicadores),
     )
 
     # ── Gráficos (`FR-059`–`FR-063`) ───────────────────────────────────────
-    inicio_fluxo = (hoje.replace(day=1) - timedelta(days=30 * (MESES_DO_FLUXO - 6))).replace(day=1)
-    fim_fluxo = (hoje.replace(day=1) + timedelta(days=30 * 6)).replace(day=1)
-
-    fluxo = await repositorio.fluxo_mensal(
-        conexao, mundos=mundos, inicio=inicio_fluxo, fim=fim_fluxo, hoje=hoje
-    )
-    evolucao = await repositorio.evolucao_saldo(
-        conexao, mundos=mundos, inicio=inicio_fluxo, fim=fim_fluxo, hoje=hoje
-    )
-    por_categoria = await repositorio.despesas_por_categoria(
-        conexao, mundos=mundos, inicio=janela.inicio, fim=janela.fim
-    )
-    maiores = await repositorio.top_despesas(
-        conexao, mundos=mundos, inicio=janela.inicio, fim=janela.fim
-    )
-    por_servico = await repositorio.receita_por_servico(
-        conexao, mundos=mundos, inicio=janela.inicio, fim=janela.fim
-    )
+    fluxo = series["fluxo_mensal"]
+    evolucao = series["evolucao_saldo"]
+    por_categoria = series["despesas_por_categoria"]
+    maiores = series["top_despesas"]
+    por_servico = series["receita_por_servico"]
 
     # ── Blocos especiais, por `categorias.vinculo` (`FR-065`, `FR-066`) ────
-    clientes = await repositorio.por_vinculo_de_categoria(
-        conexao, mundos=mundos, inicio=janela.inicio, fim=janela.fim, vinculo="cliente"
-    )
-    funcionarios = await repositorio.por_vinculo_de_categoria(
-        conexao, mundos=mundos, inicio=janela.inicio, fim=janela.fim, vinculo="funcionario"
-    )
-    proximos_da_folha = await repositorio.proximos_pagamentos_por_vinculo(
-        conexao, mundos=mundos, hoje=hoje, vinculo="funcionario"
-    )
+    clientes = blocos["clientes"]
+    funcionarios = blocos["funcionarios"]
+    proximos_da_folha = blocos["proximos_da_folha"]
 
     total_clientes = sum((_d(item["valor"]) for item in clientes), Decimal("0"))
     total_funcionarios = sum((_d(item["valor"]) for item in funcionarios), Decimal("0"))
 
     # Comparativo dos blocos especiais (`FR-065`, `FR-066`). Mesma régua de período do
-    # resto do painel — `comum/periodo.py` já devolveu a janela anterior.
-    clientes_antes = await repositorio.por_vinculo_de_categoria(
-        conexao,
-        mundos=mundos,
-        inicio=janela.inicio_anterior,
-        fim=janela.fim_anterior,
-        vinculo="cliente",
+    # resto do painel — `comum/periodo.py` já devolveu a janela anterior, e a consulta
+    # de blocos traz as duas janelas de uma vez.
+    total_clientes_antes = sum(
+        (_d(item["valor"]) for item in blocos["clientes_anterior"]), Decimal("0")
     )
-    funcionarios_antes = await repositorio.por_vinculo_de_categoria(
-        conexao,
-        mundos=mundos,
-        inicio=janela.inicio_anterior,
-        fim=janela.fim_anterior,
-        vinculo="funcionario",
+    total_funcionarios_antes = sum(
+        (_d(item["valor"]) for item in blocos["funcionarios_anterior"]), Decimal("0")
     )
-    total_clientes_antes = sum((_d(item["valor"]) for item in clientes_antes), Decimal("0"))
-    total_funcionarios_antes = sum((_d(item["valor"]) for item in funcionarios_antes), Decimal("0"))
 
     # Inadimplentes do card Clientes (`FR-065`, `FR-083`, `SC-006`). A situação é
     # derivada pela **mesma** função da lista e do perfil (`dominio/inadimplencia.py`),
     # para os três nunca discordarem.
-    tolerancia = int(
-        await le_configuracao(
-            conexao,
-            "inadimplencia_dias_tolerancia",
-            padrao=mod_inadimplencia.PADRAO_DIAS_TOLERANCIA,
-        )
-    )
     inadimplentes = []
-    for cliente in await repositorio.em_aberto_por_cliente(conexao, mundos=mundos):
+    for cliente in blocos["em_aberto_por_cliente"]:
         situacao = mod_inadimplencia.avalia(
             [
                 {
@@ -466,12 +473,9 @@ async def obter(
     inadimplentes.sort(key=lambda item: item["dias_atraso"], reverse=True)
 
     # ── Linha do tempo de 7 dias (`FR-067`) ────────────────────────────────
-    proximos = await repositorio.proximos_dias(
-        conexao, mundos=mundos, hoje=hoje, ate=hoje + timedelta(days=DIAS_DA_LINHA_DO_TEMPO)
-    )
     por_dia: dict[str, dict[str, list]] = {}
-    for item in proximos:
-        dia = por_dia.setdefault(item["data"].isoformat(), {"a_pagar": [], "a_receber": []})
+    for item in blocos["proximos_dias"]:
+        dia = por_dia.setdefault(item["data"], {"a_pagar": [], "a_receber": []})
         destino = "a_receber" if item["tipo"] == "receita" else "a_pagar"
         dia[destino].append(
             {
@@ -487,7 +491,7 @@ async def obter(
         "mundo": mundo or "ambos",
         # Estado vazio explicativo em vez de campo ausente (edge case da spec): o
         # frontend precisa distinguir "período sem dados" de "erro ao carregar".
-        "periodo_vazio": atual["quantidade"] == 0,
+        "periodo_vazio": numeros["quantidade"] == 0,
         "alerta_atrasados": {
             "quantidade": atrasados["quantidade"],
             "valor_total": _dinheiro(atrasados["valor_total"]),
@@ -547,7 +551,7 @@ async def obter(
                 "descricao": linha["descricao"],
                 "categoria": linha["categoria_nome"],
                 "valor": _dinheiro(linha["valor"]),
-                "data": linha["data"].isoformat(),
+                "data": linha["data"],
             }
             for linha in maiores
         ],
@@ -595,7 +599,7 @@ async def obter(
                 {
                     "lancamento_id": str(item["lancamento_id"]),
                     "funcionario": item["nome"],
-                    "data": item["data"].isoformat(),
+                    "data": item["data"],
                     "valor": _dinheiro(item["valor"]),
                     "status": item["status"],
                 }

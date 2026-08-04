@@ -106,8 +106,7 @@ def avalia(
             horizonte_dias=horizonte_dias,
             multiplicadores=multiplicadores,
             explicacao=(
-                f"O saldo não cobre nenhuma das despesas fixas dos próximos "
-                f"{horizonte_dias} dias."
+                f"O saldo não cobre nenhuma das despesas fixas dos próximos {horizonte_dias} dias."
             ),
         )
 

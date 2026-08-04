@@ -89,12 +89,22 @@ async def materializa(
     ate: date,
     hoje: date | None = None,
     limite_do_lote: int = LOTE_DE_GERACAO,
+    grava_cursor: bool = True,
 ) -> ResultadoDaGeracao:
     """Gera as ocorrências que faltam, de `gerada_ate` até `ate`, em um lote.
 
     Idempotente por construção: o `desde` sai de `gerada_ate` e o `insert` tem
     `on conflict do nothing` sobre `(recorrencia_id, data)`. Rodar duas vezes no mesmo
     dia não cria nada — e nem custa consulta extra para descobrir isso (D-08).
+
+    As ocorrências do lote inteiro vão numa ida ao banco só, não uma por data — ver
+    `repositorio.insere_ocorrencias`.
+
+    `grava_cursor=False` deixa o avanço de `gerada_ate` para quem chamou. Serve a **um**
+    caso: a rotina diária processa até 100 recorrências de uma vez e grava os 100
+    marcadores num `UPDATE` só. O cursor calculado sai em `ResultadoDaGeracao.cursor`,
+    então quem desliga isto tem tudo o que precisa para gravá-lo — e **precisa** gravar,
+    senão a rotina seguinte regera o que já existe.
     """
     hoje = hoje or date.today()
     regra = regra_de(linha)
@@ -106,25 +116,26 @@ async def materializa(
     pendentes = list(mod_recorrencia.datas_das_ocorrencias(regra, ate=ate, desde=desde))
     do_lote = pendentes[:limite_do_lote]
 
-    geradas = 0
-    for quando in do_lote:
-        # `RN-05a`: o que está no passado nasce efetivado, **independente** do
-        # checkbox — o dinheiro já se moveu.
-        status = "efetivado" if mod_recorrencia.nasce_efetivada(quando, hoje=hoje) else "programado"
-        if await repositorio.insere_ocorrencia(
-            conexao,
-            recorrencia=linha,
-            quando=quando,
-            status=status,
-            usuario_id=usuario_id,
-        ):
-            geradas += 1
+    # `RN-05a`: o que está no passado nasce efetivado, **independente** do checkbox —
+    # o dinheiro já se moveu.
+    geradas = await repositorio.insere_ocorrencias(
+        conexao,
+        recorrencia=linha,
+        ocorrencias=[
+            (
+                quando,
+                "efetivado" if mod_recorrencia.nasce_efetivada(quando, hoje=hoje) else "programado",
+            )
+            for quando in do_lote
+        ],
+        usuario_id=usuario_id,
+    )
 
     concluida = len(do_lote) == len(pendentes)
     # Quando o lote acabou antes do fim, o marcador para na última data gerada — não em
     # `ate`. Avançar até `ate` faria a continuação pular o que ficou faltando.
     cursor = ate if concluida else (do_lote[-1] if do_lote else linha["gerada_ate"])
-    if cursor is not None:
+    if cursor is not None and grava_cursor:
         await repositorio.marca_gerada_ate(conexao, linha["id"], cursor)
 
     return ResultadoDaGeracao(

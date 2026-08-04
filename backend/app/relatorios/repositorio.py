@@ -24,6 +24,11 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+# Continua como `not exists` solto, e não como a junção lateral de
+# `lancamentos/repositorio.py`, **porque aqui ele sempre cai no `WHERE`**. No `WHERE` o
+# planejador transforma `not exists` em anti-join de verdade (uma passada); é dentro de
+# `filter (where …)` que ele vira subconsulta por linha, e é lá que a lateral foi
+# necessária. Conferido por `EXPLAIN` em 2026-08-04.
 _SEM_PAI_DE_SPLIT = """
   not exists (select 1 from lancamentos p
               where p.lancamento_pai_id = l.id and p.excluido_em is null)

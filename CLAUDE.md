@@ -60,6 +60,13 @@ constituição exige.
 - **Soft delete sempre** (`RN-08`). Cliente e funcionário são arquivados, nunca excluídos.
 - **Todo endpoint declara o papel** que pode chamá-lo (`gestor` / `operador`). Esconder o menu
   não é autorizar.
+- **O que custa caro aqui é a ida ao banco, não a consulta.** O banco é remoto e o cache de
+  statement do driver é obrigatoriamente desligado pelo pooler, então `EXPLAIN` dá
+  `Planning 1.45 ms` contra `Execution 0.18 ms`. Consulta nova numa tela que já consulta é
+  quase sempre erro: junte no `SELECT` que já existe, com `filter (where …)`, `union all`,
+  CTE ou `jsonb_build_object`. Escrita em laço, idem — `insert … select from unnest(…)`.
+  Medições e detalhe em [`backend/README.md`](backend/README.md) e no cabeçalho de
+  [`backend/app/db.py`](backend/app/db.py).
 
 ## Convenções
 
@@ -113,6 +120,15 @@ O visual vem do projeto Claude Design **Synapse ERP Financeiro**
   `<html>`, o `var()` não resolve, a declaração inteira morre e o navegador cai em serif —
   foi assim que a interface rodou serifada da Fase C até 2026-08-03. Sempre usar a forma com
   fallback: `var(--fonte-body, "Geist")`.
+- **Escolha de valor é `Seletor`, nunca `<select>` nativo** (`componentes/comum/Seletor.tsx`,
+  sobre o Select do shadcn). O nativo é desenhado pelo sistema operacional e ignora fonte,
+  raio, cor e tema. Opção "todos"/"nenhum" continua valendo `""` para quem chama — o
+  sentinela que o Radix exige é interno. Em formulário com react-hook-form use `Controller`:
+  `register` não alcança o Radix.
+- **A marca é a arte da Synapse, não um SVG desenhado.** Uma fonte só, recortada em círculo
+  por máscara alfa: `app/icon.png` (aba), `app/apple-icon.png` (iOS) e
+  `public/marca-synapse.png` (dentro da interface). Nada de `favicon.ico` — no App Router ele
+  vence o `icon.png` e esconde o ícone certo.
 - **Fonte se confere no navegador, não no CSS.** `getComputedStyle(document.documentElement)
   .fontFamily` e `document.fonts.check(...)`. Achar o `@font-face` no CSS gerado não prova
   que a família chegou à tela.

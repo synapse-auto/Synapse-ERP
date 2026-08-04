@@ -31,6 +31,7 @@ import { Textarea } from "@/componentes/ui/textarea";
 import { Switch } from "@/componentes/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/componentes/ui/tabs";
 import { PontoMundo } from "@/componentes/comum/BadgeMundo";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { SeletorTags } from "./SeletorTags";
 import { CamposRecorrencia } from "./CamposRecorrencia";
 import { DialogoGeracaoRetroativa } from "./DialogoGeracaoRetroativa";
@@ -483,14 +484,25 @@ export function FormLancamento({
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="moeda">Moeda</Label>
-                <select
-                  id="moeda"
-                  {...register("moeda")}
-                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-                >
-                  <option value="BRL">BRL</option>
-                  <option value="USD">USD</option>
-                </select>
+                {/* Radix Select não é um `<input>`, então não dá para registrar
+                    com `register` — quem faz a ponte com o react-hook-form é o
+                    `Controller`. Vale para os seis seletores deste formulário. */}
+                <Controller
+                  control={control}
+                  name="moeda"
+                  render={({ field }) => (
+                    <Seletor
+                      id="moeda"
+                      nome={field.name}
+                      valor={field.value}
+                      aoMudar={field.onChange}
+                      opcoes={[
+                        { valor: "BRL", rotulo: "BRL", detalhe: "real" },
+                        { valor: "USD", rotulo: "USD", detalhe: "dólar" },
+                      ]}
+                    />
+                  )}
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -517,18 +529,24 @@ export function FormLancamento({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="categoria_id">Categoria</Label>
-                <select
-                  id="categoria_id"
-                  {...register("categoria_id")}
-                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-                >
-                  <option value="">Escolha…</option>
-                  {categoriasDoTipo.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  control={control}
+                  name="categoria_id"
+                  render={({ field }) => (
+                    <Seletor
+                      id="categoria_id"
+                      nome={field.name}
+                      valor={field.value ?? ""}
+                      aoMudar={field.onChange}
+                      placeholder="Escolha…"
+                      opcoes={categoriasDoTipo.map((c) => ({
+                        valor: c.id,
+                        rotulo: c.nome,
+                        cor: c.cor,
+                      }))}
+                    />
+                  )}
+                />
                 {formState.errors.categoria_id ? (
                   <Erro>{formState.errors.categoria_id.message}</Erro>
                 ) : null}
@@ -538,19 +556,27 @@ export function FormLancamento({
                 <Label htmlFor="subcategoria_id">
                   Subcategoria{exigeSubcategoria ? "" : " (opcional)"}
                 </Label>
-                <select
-                  id="subcategoria_id"
-                  {...register("subcategoria_id")}
-                  disabled={!categoria}
-                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none disabled:opacity-50"
-                >
-                  <option value="">{exigeSubcategoria ? "Escolha…" : "Nenhuma"}</option>
-                  {(categoria?.subcategorias ?? []).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nome}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  control={control}
+                  name="subcategoria_id"
+                  render={({ field }) => (
+                    <Seletor
+                      id="subcategoria_id"
+                      nome={field.name}
+                      valor={field.value ?? ""}
+                      aoMudar={field.onChange}
+                      desabilitado={!categoria}
+                      placeholder={exigeSubcategoria ? "Escolha…" : "Nenhuma"}
+                      opcoes={[
+                        ...(exigeSubcategoria ? [] : [{ valor: "", rotulo: "Nenhuma" }]),
+                        ...(categoria?.subcategorias ?? []).map((s) => ({
+                          valor: s.id,
+                          rotulo: s.nome,
+                        })),
+                      ]}
+                    />
+                  )}
+                />
                 {exigeSubcategoria ? (
                   <p className="text-[12px] text-sutil">
                     {categoria?.nome} é categoria especial: a subcategoria diz de qual{" "}
@@ -561,34 +587,48 @@ export function FormLancamento({
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="servico_id">Serviço vinculado (opcional)</Label>
-                <select
-                  id="servico_id"
-                  {...register("servico_id")}
-                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-                >
-                  <option value="">Nenhum</option>
-                  {(servicos?.itens ?? []).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nome}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  control={control}
+                  name="servico_id"
+                  render={({ field }) => (
+                    <Seletor
+                      id="servico_id"
+                      nome={field.name}
+                      valor={field.value ?? ""}
+                      aoMudar={field.onChange}
+                      opcoes={[
+                        { valor: "", rotulo: "Nenhum" },
+                        ...(servicos?.itens ?? []).map((s) => ({
+                          valor: s.id,
+                          rotulo: s.nome,
+                        })),
+                      ]}
+                    />
+                  )}
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="centro_custo_id">Centro de custo (opcional)</Label>
-                <select
-                  id="centro_custo_id"
-                  {...register("centro_custo_id")}
-                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-                >
-                  <option value="">Geral</option>
-                  {(centros?.itens ?? []).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  control={control}
+                  name="centro_custo_id"
+                  render={({ field }) => (
+                    <Seletor
+                      id="centro_custo_id"
+                      nome={field.name}
+                      valor={field.value ?? ""}
+                      aoMudar={field.onChange}
+                      opcoes={[
+                        { valor: "", rotulo: "Geral" },
+                        ...(centros?.itens ?? []).map((c) => ({
+                          valor: c.id,
+                          rotulo: c.nome,
+                        })),
+                      ]}
+                    />
+                  )}
+                />
                 <p className="text-[12px] text-sutil">
                   Sem centro significa “geral” — não existe um centro chamado Geral.
                 </p>
@@ -615,15 +655,23 @@ export function FormLancamento({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="intervalo">Intervalo</Label>
-                  <select
-                    id="intervalo"
-                    {...register("intervalo")}
-                    className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-                  >
-                    <option value="mensal">Mensal</option>
-                    <option value="quinzenal">Quinzenal</option>
-                    <option value="semanal">Semanal</option>
-                  </select>
+                  <Controller
+                    control={control}
+                    name="intervalo"
+                    render={({ field }) => (
+                      <Seletor
+                        id="intervalo"
+                        nome={field.name}
+                        valor={field.value ?? "mensal"}
+                        aoMudar={field.onChange}
+                        opcoes={[
+                          { valor: "mensal", rotulo: "Mensal" },
+                          { valor: "quinzenal", rotulo: "Quinzenal" },
+                          { valor: "semanal", rotulo: "Semanal" },
+                        ]}
+                      />
+                    )}
+                  />
                 </div>
               </div>
             ) : null}

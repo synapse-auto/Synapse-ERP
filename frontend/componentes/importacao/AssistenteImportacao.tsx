@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/componentes/ui/dialog";
 import { Button } from "@/componentes/ui/button";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { Label } from "@/componentes/ui/label";
 import { Progress } from "@/componentes/ui/progress";
 import { PontoMundo } from "@/componentes/comum/BadgeMundo";
@@ -269,23 +270,26 @@ export function AssistenteImportacao({
               <span className="rotulo-seccao">Colunas do arquivo</span>
               <div className="grid gap-2 sm:grid-cols-2">
                 {importacao.colunas_detectadas.map((c) => (
-                  <label key={c} className="flex items-center gap-2 text-[13px]">
+                  <div key={c} className="flex items-center gap-2 text-[13px]">
                     <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-suave">
                       {c}
                     </span>
-                    <select
-                      value={mapa[c] ?? ""}
-                      onChange={(e) => setMapa((m) => ({ ...m, [c]: e.target.value }))}
-                      className="h-8 w-[140px] rounded-[6px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
-                    >
-                      <option value="">ignorar</option>
-                      <option value="data">Data</option>
-                      <option value="descricao">Descrição</option>
-                      <option value="valor">Valor</option>
-                      <option value="tipo">Tipo</option>
-                      <option value="categoria">Categoria</option>
-                    </select>
-                  </label>
+                    <Seletor
+                      rotuloAcessivel={`Para onde vai a coluna ${c}`}
+                      valor={mapa[c] ?? ""}
+                      aoMudar={(v) => setMapa((m) => ({ ...m, [c]: v }))}
+                      compacto
+                      className="w-[150px] flex-none rounded-[6px]"
+                      opcoes={[
+                        { valor: "", rotulo: "Ignorar" },
+                        { valor: "data", rotulo: "Data" },
+                        { valor: "descricao", rotulo: "Descrição" },
+                        { valor: "valor", rotulo: "Valor" },
+                        { valor: "tipo", rotulo: "Tipo" },
+                        { valor: "categoria", rotulo: "Categoria" },
+                      ]}
+                    />
+                  </div>
                 ))}
               </div>
               <Button
@@ -330,21 +334,20 @@ export function AssistenteImportacao({
                         <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-suave">
                           {c.texto}
                         </span>
-                        <select
-                          value={dePara[c.texto] ?? c.sugestao_id ?? ""}
-                          onChange={(e) =>
-                            setDePara((d) => ({ ...d, [c.texto]: e.target.value }))
-                          }
-                          className="h-8 w-[220px] rounded-[6px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
-                        >
-                          <option value="">escolha a categoria…</option>
-                          {(categorias?.itens ?? []).map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                              {cat.nome}
-                              {cat.id === c.sugestao_id ? "  (sugerida)" : ""}
-                            </option>
-                          ))}
-                        </select>
+                        <Seletor
+                          rotuloAcessivel={`Categoria de destino para “${c.texto}”`}
+                          valor={dePara[c.texto] ?? c.sugestao_id ?? ""}
+                          aoMudar={(v) => setDePara((d) => ({ ...d, [c.texto]: v }))}
+                          compacto
+                          placeholder="Escolha a categoria…"
+                          className="w-[230px] flex-none rounded-[6px]"
+                          opcoes={(categorias?.itens ?? []).map((cat) => ({
+                            valor: cat.id,
+                            rotulo: cat.nome,
+                            cor: cat.cor,
+                            detalhe: cat.id === c.sugestao_id ? "sugerida" : null,
+                          }))}
+                        />
                       </div>
                     ))}
                   </div>

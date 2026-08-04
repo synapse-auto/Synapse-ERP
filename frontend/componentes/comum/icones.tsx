@@ -11,7 +11,9 @@
  * Tudo que não é navegação usa `lucide-react`.
  */
 
+import Image from "next/image";
 import type { SVGProps } from "react";
+import { cn } from "@/lib/utils";
 
 type PropsIcone = Omit<SVGProps<SVGSVGElement>, "children"> & { tamanho?: number };
 
@@ -187,36 +189,37 @@ export const IconeExportar = ({ tamanho = 14, ...props }: PropsIcone) => (
 );
 
 /**
- * Marca "S" da Synapse — cópia de `assets/logo-s-mark.svg` do design system.
- * O gradiente recebe um id único por instância para não colidir quando a
- * marca aparece duas vezes na mesma página (barra lateral e tela de entrar).
+ * Marca da Synapse — a **mesma arte do favicon**, redonda (T218).
+ *
+ * Até 2026-08-03 isto era um "S" desenhado à mão em SVG, herdado do design
+ * system, que não era o logotipo da empresa. A marca de verdade mora em
+ * `public/marca-synapse.png`, recortada em círculo, e é o mesmo arquivo que
+ * `app/icon.png` serve como ícone da aba — assim a aba do navegador e o canto
+ * da tela mostram a mesma coisa, que é o mínimo que se espera de uma marca.
+ *
+ * `next/image` com `width`/`height` explícitos: sem eles a imagem empurraria o
+ * layout ao carregar (Web Interface Guidelines § Images). `priority` porque a
+ * marca está sempre acima da dobra — na barra lateral, na tela de entrar e na
+ * tela de espera.
  */
 export function MarcaSynapse({
   tamanho = 31,
-  idGradiente = "synapse-s",
-  ...props
-}: PropsIcone & { idGradiente?: string }) {
+  className,
+  prioridade = true,
+}: {
+  tamanho?: number;
+  className?: string;
+  /** Desligue em marca que não aparece de primeira. */
+  prioridade?: boolean;
+}) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 200 200"
+    <Image
+      src="/marca-synapse.png"
+      alt="Synapse"
       width={tamanho}
       height={tamanho}
-      role="img"
-      aria-label="Synapse"
-      {...props}
-    >
-      <defs>
-        <linearGradient id={idGradiente} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#A78BFA" />
-          <stop offset="100%" stopColor="#7C5CE0" />
-        </linearGradient>
-      </defs>
-      <rect width="200" height="200" rx="44" fill="#F3EFFE" />
-      <path
-        d="M134 66.5c-3-11.5-14.5-19.5-31-19.5-19 0-33 10.5-33 26 0 14 10.5 21 28 25l14 3c10 2.2 15 5.5 15 12 0 7.5-7.5 12.5-20 12.5-13.5 0-22-5.5-24.5-16.5H62c2 20 18 32 42 32 22.5 0 38-11 38-28.5 0-14.5-9-22.5-28.5-26.5l-13-2.7c-10-2-15.5-5-15.5-11.5 0-7.5 7-12 18.5-12 11 0 18.5 4.5 21 12.5h9.5z"
-        fill={`url(#${idGradiente})`}
-      />
-    </svg>
+      priority={prioridade}
+      className={cn("rounded-full object-contain", className)}
+    />
   );
 }

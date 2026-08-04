@@ -76,13 +76,45 @@ negócio (Princípio IV).
 
 ## Decisões que surpreendem quem lê o código pela primeira vez
 
-**`NullPool` — o backend não mantém pool.** Quem faz o pooling é o pgbouncer do
-Supabase. Pool em memória de função serverless acumula conexão morta. Ver o cabeçalho
-de [`app/db.py`](app/db.py).
+**O backend mantém um pool pequeno, e isso mudou em 2026-08-04.** Antes era `NullPool`
+— uma conexão nova por requisição, deixando todo o pooling para o Supabase, pelo medo
+de função serverless congelada com conexão pendurada. Medido contra o banco real, o
+medo custava caro: **2812 ms por consulta com `NullPool` contra 1328 ms com pool
+reaproveitado**, porque conexão nova paga handshake TLS, autenticação no pooler e a
+introspecção de tipos do asyncpg (cara aqui, porque o schema usa enums próprios). O
+medo original é endereçado por `pool_pre_ping` e `pool_recycle`, não ignorado.
+`DB_POOL_TAMANHO=0` volta ao arranjo antigo sem tocar em código. Ver o cabeçalho de
+[`app/db.py`](app/db.py).
 
-**Prepared statement desligado.** No pooler em modo *transaction* a conexão troca entre
-requisições e o statement preparado não existe na nova. `DATABASE_URL` tem que apontar
-para a **porta 6543**, não a 5432.
+**Prepared statement desligado, e não dá para religar.** No pooler em modo *transaction*
+a conexão troca entre requisições e o statement preparado não existe na nova.
+`DATABASE_URL` tem que apontar para a **porta 6543**, não a 5432. Tentado de novo em
+2026-08-04 agora que há pool: valeria mais 440 ms por consulta e o pooler responde
+`InvalidSQLStatementNameError` sob concorrência. Fica desligado. O preço é replanejar
+toda consulta (`Planning 1.45 ms` contra `Execution 0.18 ms` no `EXPLAIN` do Dashboard),
+e é por isso que o caminho escolhido foi **reduzir o número de consultas**, não acelerar
+cada uma.
+
+**Leitura também abre transação, e cortar isso quebra.** O `BEGIN`/`COMMIT` de todo
+`GET` parece desperdício — são duas viagens de rede a mais. Tentado em 2026-08-04:
+entregar leitura em `AUTOCOMMIT` produz `InvalidSQLStatementNameError` **intermitente**,
+com nome de statement único (ou seja, não é colisão). No pooler em modo *transaction*, é
+a transação aberta que obriga o pooler a manter o cliente na mesma conexão de servidor
+entre o `Parse` e o `Bind` do asyncpg. Sem ela, as duas etapas podem cair em conexões
+diferentes. Revertido, e escrito por extenso na nota 4 de [`app/db.py`](app/db.py) —
+é o tipo de erro que passa em teste e falha em produção.
+
+**O Dashboard faz três consultas, não vinte.** [`app/dashboard/repositorio.py`](app/dashboard/repositorio.py)
+expõe `numeros`, `series` e `blocos`; cada uma junta o que antes eram funções separadas
+chamadas em série pela rota. Medido: **9,2x mais rápido, com 101 valores conferidos um a
+um contra a implementação anterior e nenhuma divergência**.
+
+**`not exists` dentro de `filter (where …)` não vira anti-join.** O planejador o executa
+por linha e **não reaproveita entre agregados** — o `EXPLAIN` mostrava `SubPlan 1`,
+`SubPlan 3` e `SubPlan 5`, três planos idênticos para a mesma pergunta. Por isso o
+recorte do pai de split (`RN-11`) virou junção lateral em `dashboard/repositorio.py` e
+`lancamentos/repositorio.py`. Onde a condição cai no `WHERE` — é o caso de
+`relatorios/repositorio.py` — ela continua `not exists`, porque ali o anti-join acontece.
 
 **Só ES256 é aceito no token.** O projeto usa chave assimétrica (JWKS) — conferido em
 2026-07-30, fecha o "a verificar" de research.md D-03. Não há segredo de JWT em

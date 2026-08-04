@@ -6,6 +6,7 @@ import { Archive, ArchiveRestore, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Quadro } from "@/componentes/comum/CabecalhoTela";
 import { EstadoVazio } from "@/componentes/comum/EstadoVazio";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { BadgeMundo } from "@/componentes/comum/BadgeMundo";
@@ -145,15 +146,16 @@ export function SecaoCadastroSimples({
             }}
           />
           {comMundo ? (
-            <select
-              aria-label="Mundo"
-              value={mundo}
-              onChange={(e) => setMundo(e.target.value as Mundo)}
-              className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-            >
-              <option value="digital">Digital</option>
-              <option value="infra">Infra</option>
-            </select>
+            <Seletor
+              rotuloAcessivel="Mundo"
+              valor={mundo}
+              aoMudar={(v) => setMundo(v as Mundo)}
+              className="w-auto"
+              opcoes={[
+                { valor: "digital", rotulo: "Digital", cor: "var(--mundo-digital)" },
+                { valor: "infra", rotulo: "Infra", cor: "var(--mundo-infra)" },
+              ]}
+            />
           ) : null}
           {comCor ? (
             <input

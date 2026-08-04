@@ -188,6 +188,61 @@ No diálogo "Configurar cards":
 - Arrastar **insere**, não troca: puxar o primeiro para o quarto lugar empurra os três do
   meio para cima. `moverNaLista` é a única regra de reordenação, usada também pelas setas.
 
+### Os 22 dropdowns
+
+Todas as escolhas do sistema eram `<select>` **nativos**: o menu era desenhado pelo sistema
+operacional, então ignorava a fonte Geist, o raio, o roxo da marca e o tema escuro — no
+Windows abria uma lista branca no meio da interface escura. A regra de `select { color; }` em
+`globals.css` remendava a legibilidade, não a aparência.
+
+Agora são o `Select` do **shadcn/ui** (Radix), que já estava instalado em
+`componentes/ui/select.tsx` e nunca tinha sido usado (Princípio II: procurar pronto antes de
+escrever — nada foi baixado nem criado do zero).
+
+`componentes/comum/Seletor.tsx` é a casca que evita repetir sete linhas de `<Select>` em cada
+uma das 22 trocas: recebe `valor`, `aoMudar` e uma lista de `{ valor, rotulo, cor, detalhe }`.
+Ganhos além do visual:
+
+- **ponto colorido** por opção — a cor da categoria vem do banco e é a mesma da tabela, do
+  filtro e do gráfico; status e mundo usam as cores que já existem em tokens;
+- `detalhe` para desambiguar ("BRL · real", "sugerida" na importação);
+- teclado completo e `role="option"` do Radix, com o item ativo destacado e ✓ à direita;
+- menu com a superfície, a sombra e o raio do projeto, igual em claro e escuro.
+
+> **Radix proíbe `value=""` num item** — string vazia é o "nada selecionado" dele, e um item
+> com esse valor derruba o componente em runtime. Metade dos seletores tem uma opção
+> "todos"/"nenhum" que vale exatamente `""` na API. A tradução mora no `Seletor`, num
+> sentinela, e **só entra quando existe uma opção vazia**: sem essa condição um campo
+> obrigatório ainda em branco apontaria para um item inexistente e o placeholder sumiria. Foi
+> o teste que pegou isso, não a leitura.
+
+Nos formulários de lançamento e recorrência os seletores saíram de `register` para
+`Controller`: Radix Select não é um `<input>`, então `register` não o alcança.
+
+### A marca e o ícone da aba
+
+**O logotipo da tela era um "S" desenhado à mão em SVG**, herdado do design system — não era
+a marca da Synapse. Agora a marca de verdade é a única fonte, recortada em círculo:
+
+| Arquivo | Para quê |
+|---|---|
+| `app/icon.png` (512×512) | ícone da aba do navegador |
+| `app/apple-icon.png` (180×180) | atalho na tela de início do iOS |
+| `public/marca-synapse.png` (512×512) | a marca dentro da interface, via `MarcaSynapse` |
+
+O recorte é uma **máscara alfa de verdade**, não `border-radius`: os quatro cantos do PNG têm
+`alpha = 0`. Importa porque a aba do navegador não aplica CSS — um quadrado arredondado só
+por CSS voltaria a ser quadrado ali.
+
+`app/favicon.ico` foi removido. Era um **PNG com extensão `.ico`**, e no App Router o
+`favicon.ico` tem precedência sobre `icon.png` — mantê-lo faria o ícone novo nunca aparecer.
+O conteúdo dele é a fonte dos três arquivos acima.
+
+`MarcaSynapse` virou um `next/image` com `width`/`height` explícitos (sem eles a imagem
+empurra o layout ao carregar) e `priority`, porque a marca está sempre acima da dobra. A prop
+`idGradiente`, que existia só para o `<linearGradient>` do SVG não colidir quando a marca
+aparecia duas vezes na página, deixou de fazer sentido e saiu dos quatro usos.
+
 ### "O mouse avisa que dá para clicar"
 
 Uma regra em `app/globals.css` — não `cursor-pointer` repetido em duzentos lugares. Vale
@@ -245,12 +300,13 @@ ao mesmo tempo, porque o Tailwind espera o primeiro e D-12 escreve o segundo.
 
 ## Testes
 
-`npm run teste` — 51 testes cobrindo o que quebra em silêncio: formatação brasileira
+`npm run teste` — 56 testes cobrindo o que quebra em silêncio: formatação brasileira
 (inclusive o erro de fuso que faria `2026-07-31` virar dia 30), tradução de filtros e
 drill-down, a ida e a volta dos filtros pela URL, envelope de erro da API, os componentes
 comuns, os seis casos da busca global (é campo e não janela; funcionário aparece; clicar
 leva para a tela dele; os quatro grupos no mesmo dropdown; seta + `Enter`; `Esc` limpa) e a
-reordenação do "Configurar cards" (arrastar **insere**, não troca).
+reordenação do "Configurar cards" (arrastar **insere**, não troca) e os cinco casos do
+`Seletor` — com destaque para a opção de valor vazio, que é onde o Radix quebra.
 
 O que **não** está coberto por teste automatizado e depende de olhar a tela ou de dados
 reais: a conferência visual dos dois temas tela a tela (T202), o comportamento com 5.000

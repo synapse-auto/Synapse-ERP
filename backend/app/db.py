@@ -4,13 +4,29 @@ Skill `supabase-postgres-best-practices` acionada antes de escrever (plan.md).
 Três decisões saíram dela e valem ser explicadas, porque as três são
 contraintuitivas:
 
-1. **`NullPool` — o backend não mantém pool próprio.** A regra `conn-pooling` manda
-   usar pooling; a questão é *onde*. Numa função serverless o processo pode ser
-   congelado entre requisições e descartado sem aviso, então um pool em memória
-   acumula conexões mortas que o Postgres só descobre no timeout. Quem faz o
-   pooling é o **pooler do Supabase** (pgbouncer), do lado do banco. O backend abre
-   e fecha. Para 3 usuários o custo do handshake é irrelevante; conexão pendurada
-   não é.
+1. **Pool pequeno e reaproveitado — `NullPool` saiu depois de medição.** A regra
+   `conn-pooling` manda usar pooling; a questão é *onde*. A versão anterior deste
+   arquivo deixava o pooling inteiro para o Supabase e abria uma conexão nova por
+   requisição, no medo de que a função serverless congelasse com conexão pendurada.
+
+   **Medido em 2026-08-04**, mesma consulta, mesmo banco, 12 rodadas:
+
+   | Arranjo | Mediana por consulta |
+   |---|---|
+   | `NullPool` (o de antes) | 2812 ms |
+   | Pool reaproveitado | 1328 ms |
+
+   Conexão nova paga três pedágios: handshake TLS, `pgbouncer.get_auth` no pooler e
+   a **introspecção de tipos do asyncpg** — que aqui é cara porque o schema usa enums
+   próprios (`mundo`, `tipo_lancamento`, `status_lancamento`) e o driver redescobre
+   cada um em toda conexão nova. `pg_stat_statements` contava 4634 execuções de
+   `WITH RECURSIVE typeinfo_tree`.
+
+   O medo original continua legítimo e é endereçado, não ignorado:
+   `pool_pre_ping=True` testa a conexão antes de entregá-la (conexão morta é
+   descartada e refeita, não devolvida ao endpoint) e `pool_recycle` a aposenta antes
+   do corte de ociosidade do pooler. `DB_POOL_TAMANHO=0` volta ao `NullPool` sem
+   tocar em código, caso a plataforma mude.
 
 2. **Prepared statement desligado — e com nome único.** A regra
    `conn-prepared-statements`: no modo *transaction* o pooler devolve a conexão ao fim
@@ -33,6 +49,42 @@ contraintuitivas:
    troca o contador por um UUID, e o nome deixa de colidir com o de qualquer outra
    conexão que esteja compartilhando o servidor.
 
+   **Conferido em 2026-08-04, com pool ligado**: religar o cache de statement é
+   tentador — vale mais 440 ms por consulta na medição — e **não funciona**. Sob
+   concorrência o pooler devolve:
+
+       asyncpg.exceptions.InvalidSQLStatementNameError:
+       prepared statement "__asyncpg_stmt_e__" does not exist
+       NOTE: pgbouncer with pool_mode set to "transaction" … does not support
+       prepared statements properly
+
+   O endereço é `aws-0-…​.pooler.supabase.com:6543` (Supavisor), e em modo
+   *transaction* ele se comporta como o pgbouncer descrito acima. O cache fica em
+   zero. O preço é replanejar toda consulta — `EXPLAIN` real do Dashboard dá
+   `Planning 1.45 ms` contra `Execution 0.18 ms` —, e é por isso que **reduzir o
+   número de consultas** (não acelerar cada uma) foi o caminho tomado no
+   `dashboard/repositorio.py`.
+
+4. **Toda requisição abre transação, inclusive a de leitura — e isso NÃO é desperdício.**
+   Parece ser: `motor.begin()` manda `BEGIN` e `COMMIT` como duas viagens extras, e o
+   `pg_stat_statements` conta 3274 `begin`. **Tentado em 2026-08-04**: entregar `GET` e
+   `HEAD` numa conexão em `AUTOCOMMIT`. Quebra, de forma intermitente:
+
+       asyncpg.exceptions.InvalidSQLStatementNameError:
+       prepared statement "__asyncpg_ef24a4fe31834ceb984694aa20dab46e__" does not exist
+
+   O nome é o UUID da nota 2, então **não é colisão** — o statement de fato não existe
+   naquela conexão. O motivo: mesmo com o cache zerado, o asyncpg fala com o Postgres em
+   duas etapas (`Parse`, depois `Bind`/`Execute`). Em modo *transaction* o pooler só é
+   obrigado a manter o cliente na mesma conexão de servidor **enquanto houver transação
+   aberta**. Sem transação, o `Parse` vai para uma conexão e o `Bind` pode ir para outra,
+   onde aquele statement nunca foi preparado.
+
+   Ou seja: a transação aqui não serve só à atomicidade — ela é o que **prende a conexão
+   de servidor** pelo tempo da consulta. Os dois `BEGIN`/`COMMIT` são o preço de usar
+   pooler em modo *transaction*, não uma sobra a cortar. Quem tentar esta otimização de
+   novo vai encontrar um erro intermitente que passa em teste e falha em produção.
+
 3. **`DATABASE_URL` deve apontar para a porta 6543** (pooler, modo transaction), não
    para a 5432 (conexão direta). A direta esgota `max_connections` com pouca
    concorrência.
@@ -45,6 +97,7 @@ Tarefa: T024
 
 import uuid
 from collections.abc import AsyncIterator
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy import text
@@ -100,9 +153,23 @@ def obter_motor() -> AsyncEngine:
     configuracao = obter_configuracao()
     url, exige_tls = _normaliza_url(str(configuracao.database_url))
 
+    # ver nota 1 no topo — `DB_POOL_TAMANHO=0` volta ao arranjo antigo
+    if configuracao.db_pool_tamanho == 0:
+        opcoes_de_pool: dict[str, Any] = {"poolclass": NullPool}
+    else:
+        opcoes_de_pool = {
+            "pool_size": configuracao.db_pool_tamanho,
+            "max_overflow": configuracao.db_pool_transbordo,
+            "pool_recycle": configuracao.db_pool_reciclagem_s,
+            # Conexão que morreu enquanto a função dormia é descartada aqui, não
+            # entregue ao endpoint. É o que torna reaproveitar seguro em serverless.
+            "pool_pre_ping": True,
+            "pool_timeout": 10,
+        }
+
     _motor = create_async_engine(
         url,
-        poolclass=NullPool,  # ver nota 1 no topo
+        **opcoes_de_pool,
         connect_args={
             # ver nota 2 — cache do asyncpg zerado E nome único por statement
             "statement_cache_size": 0,
@@ -130,6 +197,10 @@ async def obter_conexao() -> AsyncIterator[AsyncConnection]:
     é exatamente o que se quer de um endpoint: ou a escrita inteira valeu, ou nada
     valeu. Importa para o espelho de subcategoria (D-07) e para o parcelamento, que
     gravam em mais de uma tabela e não podem ficar pela metade.
+
+    **Vale para leitura também, e não é sobra** — ver nota 4 no topo: no pooler em
+    modo *transaction* é a transação aberta que garante que `Parse` e `Bind` do mesmo
+    statement cheguem à mesma conexão de servidor.
     """
     motor = obter_motor()
     async with motor.begin() as conexao:
@@ -140,7 +211,7 @@ async def banco_responde() -> bool:
     """Usado por GET /api/saude (contracts/plataforma.md §7)."""
     try:
         motor = obter_motor()
-        async with motor.connect() as conexao:
+        async with motor.begin() as conexao:
             await conexao.execute(text("select 1"))
         return True
     except Exception:

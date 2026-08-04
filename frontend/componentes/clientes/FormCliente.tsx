@@ -17,6 +17,7 @@ import { Label } from "@/componentes/ui/label";
 import { Textarea } from "@/componentes/ui/textarea";
 import { Checkbox } from "@/componentes/ui/checkbox";
 import { PontoMundo } from "@/componentes/comum/BadgeMundo";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { api, ErroApi, mensagemDoErro } from "@/lib/api";
 import { useInvalidarFinanceiro, useServicos } from "@/lib/consultas";
 import type { Cliente, Mundo, TipoCobranca } from "@/lib/tipos";
@@ -165,16 +166,17 @@ export function FormCliente({
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="cobranca">Cobrança</Label>
-          <select
+          <Seletor
             id="cobranca"
-            value={tipoCobranca}
-            onChange={(e) => setTipoCobranca(e.target.value as TipoCobranca)}
-            className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-          >
-            <option value="pontual">Pontual — por projeto</option>
-            <option value="recorrente">Recorrente — mensalidade</option>
-            <option value="parcelada">Parcelada</option>
-          </select>
+            nome="tipo_cobranca"
+            valor={tipoCobranca}
+            aoMudar={(v) => setTipoCobranca(v as TipoCobranca)}
+            opcoes={[
+              { valor: "pontual", rotulo: "Pontual — por projeto" },
+              { valor: "recorrente", rotulo: "Recorrente — mensalidade" },
+              { valor: "parcelada", rotulo: "Parcelada" },
+            ]}
+          />
         </div>
 
         {recorrente ? (
@@ -236,16 +238,23 @@ export function FormCliente({
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="efetivacao-cli">Efetivação da mensalidade</Label>
-              <select
+              <Seletor
                 id="efetivacao-cli"
-                value={efetivacao}
-                onChange={(e) => setEfetivacao(e.target.value as typeof efetivacao)}
-                className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-              >
-                <option value="padrao">Usar o padrão configurado</option>
-                <option value="nao">Manual — exige confirmação (permite alerta de atraso)</option>
-                <option value="sim">Automática na data (nunca aparece como atrasada)</option>
-              </select>
+                nome="efetivar_automaticamente"
+                valor={efetivacao}
+                aoMudar={(v) => setEfetivacao(v as typeof efetivacao)}
+                opcoes={[
+                  { valor: "padrao", rotulo: "Usar o padrão configurado" },
+                  {
+                    valor: "nao",
+                    rotulo: "Manual — exige confirmação (permite alerta de atraso)",
+                  },
+                  {
+                    valor: "sim",
+                    rotulo: "Automática na data (nunca aparece como atrasada)",
+                  },
+                ]}
+              />
             </div>
           </div>
         ) : null}

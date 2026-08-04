@@ -79,7 +79,8 @@ def avalia(
         if item["status"] in STATUS_EM_ATRASO
         # D-05: sem isto, cliente com mensalidade automática apareceria como
         # inadimplente por um lançamento que o sistema vai efetivar sozinho.
-        and not item["efetivar_automaticamente"] and (hoje - item["data"]).days > tolerancia_dias
+        and not item["efetivar_automaticamente"]
+        and (hoje - item["data"]).days > tolerancia_dias
     ]
 
     if not vencidos:

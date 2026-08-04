@@ -31,6 +31,10 @@ dependencies = [
   "fastapi>=0.115,<0.130",
   "pydantic>=2.9,<3",
   "pydantic-settings>=2.6,<3",
+  # Serializador JSON em C. A resposta do Dashboard é grande e cheia de string
+  # decimal formatada; o encoder padrão do FastAPI é o mais lento disponível.
+  # Ver `app/main.py` §Resposta.
+  "orjson>=3.10,<4",
 
   # ── Banco ────────────────────────────────────────────────────────────────
   # SQLAlchemy no modo Core, sem ORM (Princípio I).

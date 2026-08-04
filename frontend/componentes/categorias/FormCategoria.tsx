@@ -15,6 +15,7 @@ import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
 import { Switch } from "@/componentes/ui/switch";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { api, ErroApi, mensagemDoErro } from "@/lib/api";
 import { useInvalidarFinanceiro } from "@/lib/consultas";
 import type { Categoria, TipoCategoria, VinculoSubcategoria } from "@/lib/tipos";
@@ -90,16 +91,17 @@ export function FormCategoria({
           <div className="grid grid-cols-[1fr_110px] gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="tipo-cat">Aceita lançamentos de</Label>
-              <select
+              <Seletor
                 id="tipo-cat"
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value as TipoCategoria)}
-                className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-              >
-                <option value="despesa">Despesa</option>
-                <option value="receita">Receita</option>
-                <option value="ambas">Receita e despesa</option>
-              </select>
+                nome="tipo"
+                valor={tipo}
+                aoMudar={(v) => setTipo(v as TipoCategoria)}
+                opcoes={[
+                  { valor: "despesa", rotulo: "Despesa", cor: "var(--despesa-fg)" },
+                  { valor: "receita", rotulo: "Receita", cor: "var(--receita-fg)" },
+                  { valor: "ambas", rotulo: "Receita e despesa" },
+                ]}
+              />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cor-cat">Cor</Label>
@@ -127,15 +129,16 @@ export function FormCategoria({
           {especial ? (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="vinculo-cat">Vínculo</Label>
-              <select
+              <Seletor
                 id="vinculo-cat"
-                value={vinculo}
-                onChange={(e) => setVinculo(e.target.value as VinculoSubcategoria)}
-                className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-              >
-                <option value="cliente">Clientes</option>
-                <option value="funcionario">Funcionários</option>
-              </select>
+                nome="vinculo"
+                valor={vinculo}
+                aoMudar={(v) => setVinculo(v as VinculoSubcategoria)}
+                opcoes={[
+                  { valor: "cliente", rotulo: "Clientes" },
+                  { valor: "funcionario", rotulo: "Funcionários" },
+                ]}
+              />
               <p className="text-[12px] text-sutil">
                 Um vínculo, uma categoria. Se outra já ocupa este, o sistema recusa e diz qual é.
               </p>

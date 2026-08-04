@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { CabecalhoTela, Quadro } from "@/componentes/comum/CabecalhoTela";
 import { EstadoVazio } from "@/componentes/comum/EstadoVazio";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { Button } from "@/componentes/ui/button";
 import { Paginacao } from "@/componentes/comum/Paginacao";
 import { FormCliente } from "@/componentes/clientes/FormCliente";
@@ -110,19 +111,20 @@ export default function PaginaClientes() {
               className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-sutil [&::-webkit-search-cancel-button]:hidden"
             />
           </div>
-          <select
-            aria-label="Situação"
-            value={situacao}
-            onChange={(e) => {
-              setSituacao(e.target.value as typeof situacao);
+          <Seletor
+            rotuloAcessivel="Situação"
+            valor={situacao}
+            aoMudar={(v) => {
+              setSituacao(v as typeof situacao);
               setPagina(1);
             }}
-            className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao pr-8 pl-3 text-[13px] outline-none"
-          >
-            <option value="">Situação: todas</option>
-            <option value="em_dia">Em dia</option>
-            <option value="atrasado">Atrasado</option>
-          </select>
+            className="w-auto pl-3"
+            opcoes={[
+              { valor: "", rotulo: "Situação: todas" },
+              { valor: "em_dia", rotulo: "Em dia", cor: "var(--st-efetivado-dot)" },
+              { valor: "atrasado", rotulo: "Atrasado", cor: "var(--st-atrasado-dot)" },
+            ]}
+          />
         </div>
 
         {isLoading ? (

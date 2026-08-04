@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IconeBusca } from "@/componentes/comum/icones";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { PontoMundo, ROTULO_MUNDO } from "@/componentes/comum/BadgeMundo";
 import { rotuloDoStatus } from "@/componentes/comum/BadgeStatus";
 import { Popover, PopoverContent, PopoverTrigger } from "@/componentes/ui/popover";
@@ -27,8 +28,8 @@ import type { ResumoFiltrado, StatusLancamento } from "@/lib/tipos";
  *   página divergiria da soma do filtro).
  */
 
-const SELETOR =
-  "h-[34px] rounded-[6px] border border-linha-controle bg-superficie-cartao pr-8 pl-[11px] text-[13px] text-[var(--ink-700)] dark:text-[var(--fg)] outline-none cursor-pointer";
+/** Altura de barra de ferramentas: 34px, largura pelo conteúdo. */
+const SELETOR = "h-[34px] w-auto rounded-[6px] pl-[11px]";
 
 const STATUS: StatusLancamento[] = [
   "efetivado",
@@ -178,70 +179,65 @@ export function BarraFiltros({
           ) : null}
         </div>
 
-        <select
-          aria-label="Tipo"
-          value={filtros.tipo}
-          onChange={(e) =>
-            aoMudar({ tipo: e.target.value as FiltrosLancamento["tipo"], pagina: 1 })
+        <Seletor
+          rotuloAcessivel="Tipo"
+          valor={filtros.tipo}
+          aoMudar={(v) => aoMudar({ tipo: v as FiltrosLancamento["tipo"], pagina: 1 })}
+          className={SELETOR}
+          opcoes={[
+            { valor: "", rotulo: "Tipo: todos" },
+            { valor: "receita", rotulo: "Receita", cor: "var(--receita-fg)" },
+            { valor: "despesa", rotulo: "Despesa", cor: "var(--despesa-fg)" },
+          ]}
+        />
+
+        <Seletor
+          rotuloAcessivel="Status"
+          valor={filtros.status.length === 1 ? filtros.status[0] : ""}
+          aoMudar={(v) =>
+            aoMudar({ status: v ? [v as StatusLancamento] : [], pagina: 1 })
           }
           className={SELETOR}
-        >
-          <option value="">Tipo: todos</option>
-          <option value="receita">Receita</option>
-          <option value="despesa">Despesa</option>
-        </select>
+          opcoes={[
+            { valor: "", rotulo: "Status: todos" },
+            ...STATUS.map((s) => ({
+              valor: s,
+              rotulo: rotuloDoStatus(s),
+              cor: `var(--st-${s}-dot)`,
+            })),
+          ]}
+        />
 
-        <select
-          aria-label="Status"
-          value={filtros.status.length === 1 ? filtros.status[0] : ""}
-          onChange={(e) =>
-            aoMudar({
-              status: e.target.value ? [e.target.value as StatusLancamento] : [],
-              pagina: 1,
-            })
-          }
-          className={SELETOR}
-        >
-          <option value="">Status: todos</option>
-          {STATUS.map((s) => (
-            <option key={s} value={s}>
-              {rotuloDoStatus(s)}
-            </option>
-          ))}
-        </select>
-
-        <select
-          aria-label="Categoria"
-          value={filtros.categoria_id.length === 1 ? filtros.categoria_id[0] : ""}
-          onChange={(e) =>
-            aoMudar({ categoria_id: e.target.value ? [e.target.value] : [], pagina: 1 })
-          }
+        <Seletor
+          rotuloAcessivel="Categoria"
+          valor={filtros.categoria_id.length === 1 ? filtros.categoria_id[0] : ""}
+          aoMudar={(v) => aoMudar({ categoria_id: v ? [v] : [], pagina: 1 })}
           className={cn(SELETOR, "max-w-[210px]")}
-        >
-          <option value="">Categoria: todas</option>
-          {(categorias?.itens ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nome}
-            </option>
-          ))}
-        </select>
+          opcoes={[
+            { valor: "", rotulo: "Categoria: todas" },
+            // A cor da categoria vem do banco e é a mesma da tabela e do gráfico.
+            ...(categorias?.itens ?? []).map((c) => ({
+              valor: c.id,
+              rotulo: c.nome,
+              cor: c.cor,
+            })),
+          ]}
+        />
 
         {mundoGlobal === "ambos" ? (
-          <select
-            aria-label="Mundo da lista"
-            value={filtros.mundoDaLista}
-            onChange={(e) =>
-              aoMudar({
-                mundoDaLista: e.target.value as FiltrosLancamento["mundoDaLista"],
-                pagina: 1,
-              })
+          <Seletor
+            rotuloAcessivel="Mundo da lista"
+            valor={filtros.mundoDaLista}
+            aoMudar={(v) =>
+              aoMudar({ mundoDaLista: v as FiltrosLancamento["mundoDaLista"], pagina: 1 })
             }
             className={SELETOR}
-          >
-            <option value="">Mundo: ambos</option>
-            <option value="digital">Digital</option>
-            <option value="infra">Infra</option>
-          </select>
+            opcoes={[
+              { valor: "", rotulo: "Mundo: ambos", cor: "var(--mundo-ambos)" },
+              { valor: "digital", rotulo: "Digital", cor: "var(--mundo-digital)" },
+              { valor: "infra", rotulo: "Infra", cor: "var(--mundo-infra)" },
+            ]}
+          />
         ) : (
           <span
             className="inline-flex h-[34px] items-center gap-[7px] rounded-[6px] px-3 font-[family-name:var(--font-display)] text-[13px] font-bold"

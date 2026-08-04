@@ -32,3 +32,12 @@ if (!window.ResizeObserver) {
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = vi.fn();
 }
+
+// O Radix Select usa a API de captura de ponteiro para acompanhar o arraste no
+// menu aberto. O jsdom não a implementa, e sem estes três o `Seletor` estoura
+// no primeiro clique — em teste, não no navegador.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+}

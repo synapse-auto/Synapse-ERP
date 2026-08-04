@@ -9,6 +9,20 @@ D-02), então navegador e API compartilham origem. Middleware de CORS aqui só
 existiria para permitir chamada de outra origem — que é exatamente o que não se
 quer.
 
+## Resposta: ORJSON e compressão
+
+`GET /api/dashboard` devolve dezenas de milhares de caracteres — 15 cards, dois
+gráficos de 12 meses, blocos especiais —, quase tudo string decimal formatada. Duas
+trocas baratas, nenhuma delas mexendo em regra:
+
+- **`ORJSONResponse` como classe padrão.** O encoder de série do FastAPI passa por
+  `jsonable_encoder` em Python puro; o orjson serializa em C. Não muda o JSON, muda
+  quanto custa produzi-lo.
+- **`GZipMiddleware` a partir de 1 kB.** Resposta menor que isso não compensa o custo
+  de comprimir. Vale mesmo com a Vercel comprimindo na borda: entre a função do
+  backend e a função do Next.js que faz o proxy (research.md D-02) há um salto de rede
+  que a borda não cobre.
+
 Tarefas: T032 (app), T033 (`GET /api/saude`)
 """
 
@@ -20,8 +34,9 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import ORJSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.anexos.rotas import roteador as roteador_anexos
 from app.anexos.rotas import roteador_upload as roteador_anexos_upload
@@ -108,20 +123,26 @@ app = FastAPI(
     redoc_url=None,
     openapi_url="/api/openapi.json",
     lifespan=ciclo_de_vida,
+    # ver §Resposta no topo
+    default_response_class=ORJSONResponse,
 )
+
+# 1000 bytes: abaixo disso comprimir custa mais do que economiza. Registrado antes
+# dos routers de propósito — middleware no Starlette embrulha o que vem depois.
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
 
 # ── Tratamento de erro: uma resposta, um formato ─────────────────────────────
 
 
 @app.exception_handler(ErroDaApi)
-async def trata_erro_da_api(request: Request, erro: ErroDaApi) -> JSONResponse:
+async def trata_erro_da_api(request: Request, erro: ErroDaApi) -> ORJSONResponse:
     """Todo erro previsto sai no formato de contracts/README.md §Erros."""
-    return JSONResponse(status_code=erro.status, content=erro.como_corpo())
+    return ORJSONResponse(status_code=erro.status, content=erro.como_corpo())
 
 
 @app.exception_handler(RequestValidationError)
-async def trata_erro_de_validacao(request: Request, erro: RequestValidationError) -> JSONResponse:
+async def trata_erro_de_validacao(request: Request, erro: RequestValidationError) -> ORJSONResponse:
     """Traduz o erro do Pydantic para o nosso formato, em PT-BR.
 
     Sem isto, corpo malformado responderia no formato do FastAPI (`detail` com lista
@@ -137,11 +158,11 @@ async def trata_erro_de_validacao(request: Request, erro: RequestValidationError
         "Alguns campos precisam de correção.",
         campos=campos or None,
     )
-    return JSONResponse(status_code=convertido.status, content=convertido.como_corpo())
+    return ORJSONResponse(status_code=convertido.status, content=convertido.como_corpo())
 
 
 @app.exception_handler(StarletteHTTPException)
-async def trata_erro_http(request: Request, erro: StarletteHTTPException) -> JSONResponse:
+async def trata_erro_http(request: Request, erro: StarletteHTTPException) -> ORJSONResponse:
     """Traz o 404 e o 405 do próprio framework para o formato único.
 
     Sem isto, caminho inexistente respondia `{"detail":"Not Found"}` — o formato do
@@ -155,7 +176,7 @@ async def trata_erro_http(request: Request, erro: StarletteHTTPException) -> JSO
         405: "Esta operação não é permitida neste endereço.",
         401: "Faça login para continuar.",
     }
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=erro.status_code,
         content={
             "erro": {
@@ -170,7 +191,7 @@ async def trata_erro_http(request: Request, erro: StarletteHTTPException) -> JSO
 
 
 @app.exception_handler(Exception)
-async def trata_erro_inesperado(request: Request, erro: Exception) -> JSONResponse:
+async def trata_erro_inesperado(request: Request, erro: Exception) -> ORJSONResponse:
     """Rede de segurança: erro não previsto também sai no formato único.
 
     O detalhe vai para o log, não para a resposta — mensagem de exceção entrega
@@ -178,7 +199,7 @@ async def trata_erro_inesperado(request: Request, erro: Exception) -> JSONRespon
     PT-BR que diz o que fazer.
     """
     registrador.exception("Erro não tratado em %s %s", request.method, request.url.path)
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=500,
         content={
             "erro": {

@@ -37,10 +37,32 @@ ORDEM_PADRAO = "l.data"
 
 # `RN-11`: o pai de um split sai dos totais. Fica num lugar só para lista, resumo e
 # saldo aplicarem exatamente o mesmo recorte.
-_SEM_PAI_DE_SPLIT = """
-  not exists (select 1 from lancamentos p
-              where p.lancamento_pai_id = l.id and p.excluido_em is null)
+#
+# ── Por que é uma junção lateral e não `not exists` solto ────────────────────
+#
+# `not exists` dentro de `filter (where …)` **não vira anti-join**: o Postgres o
+# planeja como subconsulta correlacionada e a executa **por linha**. Pior, ele não
+# reaproveita entre agregados — `EXPLAIN` do Dashboard mostrava `SubPlan 1`,
+# `SubPlan 3` e `SubPlan 5`, três planos idênticos para a mesma condição, cada um
+# rodando uma vez por linha.
+#
+# A lateral calcula **uma vez por linha** e todo mundo lê a coluna. Onde a condição
+# pode ficar no `WHERE` (é o caso de `saldo_por_mundo`) ela continua lá em forma de
+# `not sp.tem_partes` — no `WHERE` o planejador transforma em anti-join de verdade.
+#
+# Com 24 lançamentos nada disso aparece; com os 5.000 do alvo de desempenho (T097) é
+# a diferença entre 5.000 e 15.000 sondagens de índice por card.
+_PARTES = """
+  left join lateral (
+    select exists (
+      select 1 from lancamentos p
+      where p.lancamento_pai_id = l.id and p.excluido_em is null
+    ) as tem_partes
+  ) sp on true
 """
+
+# Lido como condição: "esta linha não é pai de um split".
+_SEM_PAI_DE_SPLIT = "not sp.tem_partes"
 
 _SELECAO = """
   l.id, l.mundo, l.tipo, l.descricao, l.valor, l.data, l.status,
@@ -58,16 +80,16 @@ _SELECAO = """
   -- pelo próprio id faria a parte aparecer "sem comprovante" tendo um.
   (select count(*) from anexos a
    where a.lancamento_id = coalesce(l.lancamento_pai_id, l.id)) as quantidade_anexos,
-  exists (select 1 from lancamentos p
-          where p.lancamento_pai_id = l.id and p.excluido_em is null) as tem_partes
+  sp.tem_partes
 """
 
-_JUNCOES = """
+_JUNCOES = f"""
   from lancamentos_ativos l
   join categorias c        on c.id  = l.categoria_id
   left join subcategorias s on s.id = l.subcategoria_id
   left join servicos sv     on sv.id = l.servico_id
   left join centros_custo cc on cc.id = l.centro_custo_id
+  {_PARTES}
 """
 
 
@@ -201,6 +223,7 @@ async def conta_e_soma(
                         where l.tipo = 'despesa' and l.status = 'efetivado' and {_SEM_PAI_DE_SPLIT}
                       ), 0) as total_despesas
                     from lancamentos_ativos l
+                    {_PARTES}
                     where {onde}
                     """),
                 parametros,
@@ -230,6 +253,7 @@ async def quebra_por_mundo(
                              case when l.tipo = 'receita' then l.valor else -l.valor end
                            ) filter (where l.status = 'efetivado' and {_SEM_PAI_DE_SPLIT}), 0) as resultado
                     from lancamentos_ativos l
+                    {_PARTES}
                     where {onde}
                     group by l.mundo
                     """),
@@ -310,6 +334,7 @@ async def por_id(
                     left join subcategorias s on s.id = l.subcategoria_id
                     left join servicos sv     on sv.id = l.servico_id
                     left join centros_custo cc on cc.id = l.centro_custo_id
+                    {_PARTES}
                     where l.id = :id
                     """),
                 {"id": str(lancamento_id)},
@@ -367,6 +392,7 @@ async def saldo_por_mundo(conexao: AsyncConnection, mundos: list[str]) -> dict[s
                            coalesce(sum(l.valor) filter (where l.tipo = 'receita'), 0) as receitas,
                            coalesce(sum(l.valor) filter (where l.tipo = 'despesa'), 0) as despesas
                     from lancamentos_ativos l
+                    {_PARTES}
                     where l.mundo = any(cast(:mundos as mundo[]))
                       and l.status = 'efetivado'
                       and {_SEM_PAI_DE_SPLIT}

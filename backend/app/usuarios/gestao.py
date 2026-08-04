@@ -172,10 +172,18 @@ async def _cria_no_auth(*, email: str, nome: str) -> UUID:
 
 @roteador.get("", summary="Lista os usuários", description="Papel: **gestor**.")
 async def listar(usuario: Gestor, conexao: Conexao) -> dict[str, Any]:
-    linhas = (await conexao.execute(text("""
+    linhas = (
+        (
+            await conexao.execute(
+                text("""
                     select id, nome, email, papel, ativo, criado_em
                     from usuarios order by ativo desc, lower(nome)
-                    """))).mappings().all()
+                    """)
+            )
+        )
+        .mappings()
+        .all()
+    )
     return {
         "itens": [_para_json(linha) for linha in linhas],
         # Vai na resposta para a tela poder desabilitar o botão **antes** de o usuário

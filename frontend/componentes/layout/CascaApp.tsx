@@ -96,7 +96,7 @@ function TelaDeEspera() {
   return (
     <div className="flex h-dvh items-center justify-center bg-superficie-app">
       <div className="flex flex-col items-center gap-3">
-        <MarcaSynapse tamanho={40} idGradiente="marca-espera" className="animate-pulse rounded-[6px]" />
+        <MarcaSynapse tamanho={40} className="animate-pulse" />
         <span className="text-[13px] text-sutil">Carregando…</span>
       </div>
     </div>

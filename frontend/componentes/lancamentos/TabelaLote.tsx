@@ -14,6 +14,7 @@ import {
 } from "@/componentes/ui/dialog";
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { useCategorias, useConfiguracoes } from "@/lib/consultas";
 import { useEstadoGlobal } from "@/lib/estado-global";
 import { paraApi } from "@/lib/formato";
@@ -161,14 +162,15 @@ export function TabelaLote({ aberta, aoFechar }: { aberta: boolean; aoFechar: ()
                     placeholder="Descrição"
                     onChange={(e) => atualizar(i, "descricao", e.target.value)}
                   />
-                  <select
-                    value={l.tipo}
-                    onChange={(e) => atualizar(i, "tipo", e.target.value)}
-                    className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-                  >
-                    <option value="despesa">Despesa</option>
-                    <option value="receita">Receita</option>
-                  </select>
+                  <Seletor
+                    rotuloAcessivel={`Tipo da linha ${i + 1}`}
+                    valor={l.tipo}
+                    aoMudar={(v) => atualizar(i, "tipo", v)}
+                    opcoes={[
+                      { valor: "despesa", rotulo: "Despesa", cor: "var(--despesa-fg)" },
+                      { valor: "receita", rotulo: "Receita", cor: "var(--receita-fg)" },
+                    ]}
+                  />
                   <Input
                     inputMode="decimal"
                     value={l.valor}
@@ -176,20 +178,15 @@ export function TabelaLote({ aberta, aoFechar }: { aberta: boolean; aoFechar: ()
                     className="numerico text-right"
                     onChange={(e) => atualizar(i, "valor", e.target.value)}
                   />
-                  <select
-                    value={l.categoria_id}
-                    onChange={(e) => atualizar(i, "categoria_id", e.target.value)}
-                    className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-                  >
-                    <option value="">Categoria…</option>
-                    {(categorias?.itens ?? [])
+                  <Seletor
+                    rotuloAcessivel={`Categoria da linha ${i + 1}`}
+                    valor={l.categoria_id}
+                    aoMudar={(v) => atualizar(i, "categoria_id", v)}
+                    placeholder="Categoria…"
+                    opcoes={(categorias?.itens ?? [])
                       .filter((c) => c.tipo === "ambas" || c.tipo === l.tipo)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.nome}
-                        </option>
-                      ))}
-                  </select>
+                      .map((c) => ({ valor: c.id, rotulo: c.nome, cor: c.cor }))}
+                  />
                   <Button
                     type="button"
                     variant="ghost"

@@ -24,7 +24,7 @@ from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import ORJSONResponse
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.comum import periodo as mod_periodo
@@ -89,8 +89,13 @@ def _valida_formato(formato: str) -> str:
     return formato
 
 
-def _json(corpo: dict[str, Any]) -> JSONResponse:
+def _json(corpo: dict[str, Any]) -> ORJSONResponse:
     """Envelope JSON explícito — `dict` solto não serve nestas rotas.
+
+    `ORJSONResponse`, não `JSONResponse`: aqui a classe padrão do app não vale, porque
+    estas rotas declaram a sua (ver abaixo). Um relatório de matriz mensal é o maior
+    JSON que a API produz depois do Dashboard — vale serializar em C. Ver §Resposta em
+    `app/main.py`.
 
     As quatro declaram `response_class=Response` para poderem devolver CSV e PDF.
     Isso torna `Response` (o cru, que só aceita `bytes`/`str`) a classe padrão de
@@ -99,7 +104,7 @@ def _json(corpo: dict[str, Any]) -> JSONResponse:
     `AttributeError: 'dict' object has no attribute 'encode'` — um 500 em todo
     relatório no formato padrão, que é o que a tela usa.
     """
-    return JSONResponse(corpo)
+    return ORJSONResponse(corpo)
 
 
 def _arquivo(conteudo: bytes, *, nome: str, tipo: str) -> Response:

@@ -76,7 +76,7 @@ export function FormEntrar() {
           style={{ background: "var(--grad-brand-soft)" }}
         >
           <div className="flex items-center gap-3">
-            <MarcaSynapse tamanho={36} idGradiente="marca-entrar" className="rounded-[6px]" />
+            <MarcaSynapse tamanho={36} />
             <div className="flex flex-col leading-[1.15]">
               <span className="font-[family-name:var(--font-display)] text-[16px] font-bold tracking-[-0.02em] text-forte">
                 Synapse ERP
@@ -107,7 +107,7 @@ export function FormEntrar() {
 
         <div className="flex flex-col justify-center gap-6 p-8 sm:p-10">
           <div className="flex flex-col gap-1.5 md:hidden">
-            <MarcaSynapse tamanho={34} idGradiente="marca-entrar-movel" className="rounded-[6px]" />
+            <MarcaSynapse tamanho={34} />
           </div>
 
           <div className="flex flex-col gap-1">

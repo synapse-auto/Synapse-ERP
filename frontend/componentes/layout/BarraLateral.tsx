@@ -106,7 +106,7 @@ export function BarraLateral({ className }: { className?: string }) {
       )}
     >
       <div className="flex h-[var(--cabecalho-altura)] flex-none items-center gap-[10px] border-b border-linha-suave px-[18px]">
-        <MarcaSynapse tamanho={31} idGradiente="marca-lateral" className="block flex-none rounded-[6px]" />
+        <MarcaSynapse tamanho={31} className="block flex-none" />
         <div className="flex min-w-0 flex-col leading-[1.15]">
           <span className="font-[family-name:var(--font-display)] text-[15px] font-bold tracking-[-0.02em] text-forte">
             Synapse ERP

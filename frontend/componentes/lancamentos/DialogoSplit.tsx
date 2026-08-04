@@ -13,6 +13,7 @@ import {
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { useCategorias } from "@/lib/consultas";
 import { dinheiro } from "@/lib/formato";
 import { ErroApi } from "@/lib/api";
@@ -124,17 +125,17 @@ export function DialogoSplit({
               </div>
               <div className="flex flex-col gap-1.5">
                 {i === 0 ? <Label className="text-[12px]">Categoria</Label> : null}
-                <select
-                  value={p.categoria_id}
-                  onChange={(e) => atualizar(i, "categoria_id", e.target.value)}
-                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-                >
-                  {(categorias?.itens ?? []).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome}
-                    </option>
-                  ))}
-                </select>
+                <Seletor
+                  rotuloAcessivel={`Categoria da parte ${i + 1}`}
+                  valor={p.categoria_id}
+                  aoMudar={(v) => atualizar(i, "categoria_id", v)}
+                  placeholder="Escolha…"
+                  opcoes={(categorias?.itens ?? []).map((c) => ({
+                    valor: c.id,
+                    rotulo: c.nome,
+                    cor: c.cor,
+                  }))}
+                />
               </div>
               <div className="flex flex-col gap-1.5">
                 {i === 0 ? <Label className="text-[12px]">Valor</Label> : null}

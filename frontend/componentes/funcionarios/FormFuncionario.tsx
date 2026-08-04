@@ -15,6 +15,7 @@ import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
 import { PontoMundo } from "@/componentes/comum/BadgeMundo";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { api, ErroApi, mensagemDoErro } from "@/lib/api";
 import { useInvalidarFinanceiro } from "@/lib/consultas";
 import { useEstadoGlobal } from "@/lib/estado-global";
@@ -138,15 +139,16 @@ export function FormFuncionario({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="tipo-fun">Contratação</Label>
-            <select
+            <Seletor
               id="tipo-fun"
-              value={tipo}
-              onChange={(e) => setTipo(e.target.value as TipoContratacao)}
-              className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-            >
-              <option value="pj">PJ</option>
-              <option value="freelancer">Freelancer</option>
-            </select>
+              nome="tipo_contratacao"
+              valor={tipo}
+              aoMudar={(v) => setTipo(v as TipoContratacao)}
+              opcoes={[
+                { valor: "pj", rotulo: "PJ" },
+                { valor: "freelancer", rotulo: "Freelancer" },
+              ]}
+            />
           </div>
         </div>
 

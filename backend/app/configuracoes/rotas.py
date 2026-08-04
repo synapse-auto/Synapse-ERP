@@ -31,6 +31,7 @@ from fastapi import APIRouter, Body, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.comum import cache_configuracoes
 from app.comum.auditoria import registra_auditoria
 from app.comum.erros import ErroValidacao
 from app.db import obter_conexao
@@ -127,7 +128,10 @@ def _valida(chave: str, valor: Any) -> None:
 async def _clientes_inadimplentes(conexao: AsyncConnection, *, tolerancia: int) -> set[str]:
     """Quem está atrasado com uma dada tolerância — usado antes e depois da mudança."""
     hoje = date.today()
-    linhas = (await conexao.execute(text("""
+    linhas = (
+        (
+            await conexao.execute(
+                text("""
                     select c.id,
                            jsonb_agg(jsonb_build_object(
                              'data', l.data, 'valor', l.valor, 'status', l.status,
@@ -139,7 +143,12 @@ async def _clientes_inadimplentes(conexao: AsyncConnection, *, tolerancia: int) 
                     where c.arquivado_em is null
                       and l.tipo = 'receita' and l.status in ('pendente','atrasado')
                     group by c.id
-                    """))).mappings().all()
+                    """)
+            )
+        )
+        .mappings()
+        .all()
+    )
 
     atrasados = set()
     for linha in linhas:
@@ -255,6 +264,11 @@ async def atualizar(
             usuario_id=usuario.id,
             alteracoes={chave: {"de": existentes[chave]["valor"], "para": valor}},
         )
+
+    # Quem acabou de salvar tem que ver o valor novo já na próxima leitura desta mesma
+    # requisição (o cálculo de efeitos abaixo depende disso). Ver
+    # `app/comum/cache_configuracoes.py` §"O que este cache NÃO promete".
+    cache_configuracoes.invalida()
 
     efeitos: dict[str, Any] = {}
     if muda_tolerancia:

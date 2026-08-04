@@ -48,8 +48,7 @@ def _componentes():
         )
     except ImportError as erro:  # pragma: no cover — depende do ambiente
         raise ErroDePdf(
-            "A geração de PDF não está disponível agora. Exporte em CSV — são os mesmos "
-            "números.",
+            "A geração de PDF não está disponível agora. Exporte em CSV — são os mesmos números.",
             requisito="FR-094",
         ) from erro
 

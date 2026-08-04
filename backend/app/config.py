@@ -37,6 +37,32 @@ class Configuracao(BaseSettings):
         )
     )
 
+    # Afinação de conexão. É parâmetro de **infraestrutura**, não de negócio — por
+    # isso vive aqui e não na tabela `configuracoes`: quem precisa dele é o processo
+    # ao subir, antes de existir banco para consultar.
+    db_pool_tamanho: int = Field(
+        default=2,
+        ge=0,
+        description=(
+            "Conexões reaproveitadas por processo. `0` volta ao NullPool (uma conexão "
+            "nova por requisição). Medido em 2026-08-04: reaproveitar vale 2,1x por "
+            "consulta — ver app/db.py."
+        ),
+    )
+    db_pool_transbordo: int = Field(
+        default=3,
+        ge=0,
+        description="Conexões extras além do pool sob pico. Fechadas assim que sobram.",
+    )
+    db_pool_reciclagem_s: int = Field(
+        default=240,
+        gt=0,
+        description=(
+            "Idade máxima de uma conexão. Abaixo do corte de ociosidade do pooler do "
+            "Supabase, para o descarte ser nosso e não uma conexão morta na mão."
+        ),
+    )
+
     # ── Supabase ─────────────────────────────────────────────────────────────
     supabase_url: str = Field(description="Endereço do projeto Supabase (Settings → API).")
 

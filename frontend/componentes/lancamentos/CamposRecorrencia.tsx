@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { UseFormReturn } from "react-hook-form";
+import { Controller, type UseFormReturn } from "react-hook-form";
 import { api } from "@/lib/api";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { data as formatarData, dinheiro } from "@/lib/formato";
 import type { RespostaPrevia } from "@/lib/tipos";
 import type { ValoresLancamento } from "./FormLancamento";
@@ -23,7 +24,7 @@ import type { ValoresLancamento } from "./FormLancamento";
  * O que existe abaixo é o formulário, não o texto.
  */
 export function CamposRecorrencia({ form }: { form: UseFormReturn<ValoresLancamento> }) {
-  const { register, watch } = form;
+  const { register, watch, control } = form;
   const [previa, setPrevia] = useState<RespostaPrevia | null>(null);
   const [buscando, setBuscando] = useState(false);
 
@@ -72,16 +73,24 @@ export function CamposRecorrencia({ form }: { form: UseFormReturn<ValoresLancame
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="frequencia">Frequência</Label>
-          <select
-            id="frequencia"
-            {...register("frequencia")}
-            className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-          >
-            <option value="mensal">Mensal</option>
-            <option value="semanal">Semanal</option>
-            <option value="anual">Anual</option>
-            <option value="dias">A cada N dias</option>
-          </select>
+          <Controller
+            control={control}
+            name="frequencia"
+            render={({ field }) => (
+              <Seletor
+                id="frequencia"
+                nome={field.name}
+                valor={field.value ?? "mensal"}
+                aoMudar={field.onChange}
+                opcoes={[
+                  { valor: "mensal", rotulo: "Mensal" },
+                  { valor: "semanal", rotulo: "Semanal" },
+                  { valor: "anual", rotulo: "Anual" },
+                  { valor: "dias", rotulo: "A cada N dias" },
+                ]}
+              />
+            )}
+          />
         </div>
 
         {frequencia === "mensal" ? (

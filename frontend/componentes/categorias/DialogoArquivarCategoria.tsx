@@ -13,6 +13,7 @@ import {
 } from "@/componentes/ui/dialog";
 import { Button } from "@/componentes/ui/button";
 import { Label } from "@/componentes/ui/label";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { api, ErroApi, mensagemDoErro } from "@/lib/api";
 import { useInvalidarFinanceiro } from "@/lib/consultas";
 import { dinheiro, inteiro } from "@/lib/formato";
@@ -121,22 +122,17 @@ export function DialogoArquivarCategoria({
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="destino">Mover os lançamentos para</Label>
-              <select
+              <Seletor
                 id="destino"
-                value={destino}
-                onChange={(e) => {
-                  setDestino(e.target.value);
-                  if (e.target.value) setSomenteLeitura(false);
+                nome="categoria_destino_id"
+                valor={destino}
+                aoMudar={(v) => {
+                  setDestino(v);
+                  if (v) setSomenteLeitura(false);
                 }}
-                className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-              >
-                <option value="">Escolha a categoria de destino…</option>
-                {outras.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
+                placeholder="Escolha a categoria de destino…"
+                opcoes={outras.map((c) => ({ valor: c.id, rotulo: c.nome, cor: c.cor }))}
+              />
             </div>
 
             <label className="flex cursor-pointer items-start gap-2 text-[13px]">

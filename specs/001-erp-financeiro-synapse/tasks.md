@@ -709,6 +709,8 @@ abertas pelo mesmo motivo de antes: dependem de painel ou de dados reais no banc
 - [X] T214 Estado de tela na URL nos dois sentidos: filtros, ordenação, página e lançamento aberto em Lançamentos (`paraUrl`/`daUrl`), `?aba=` em Relatórios e `?secao=` em Configurações — sem isso, chegar em `/lancamentos` já estando lá não fazia nada
 - [X] T215 Regra única de `cursor: pointer` + estados de hover que faltavam; `useMovimentoReduzido()` desliga a animação em JavaScript do Recharts
 - [X] T216 Varredura contra o **Web Interface Guidelines** (skill `/web-design-guidelines`) e correção do que ela apontou: foco, teclado, formulários, `select` nativo no tema escuro, celular, "pular para o conteúdo", `aria-live` e rótulos
+- [X] T219 **Os 22 `<select>` nativos viraram o Select do shadcn/ui** (Radix), via `componentes/comum/Seletor.tsx`. Ponto colorido por opção com a cor que vem do banco, item ativo destacado, menu com a superfície e a sombra do projeto, igual em claro e escuro. Os seletores do react-hook-form saíram de `register` para `Controller`
+- [X] T218 **A marca da Synapse substitui o "S" desenhado à mão** e vira o ícone da aba, recortada em círculo por máscara alfa (`app/icon.png`, `app/apple-icon.png`, `public/marca-synapse.png`). `app/favicon.ico` — que era um PNG com extensão trocada e tinha precedência sobre `icon.png` — foi removido
 - [X] T217 **Grade do Dashboard em duas colunas de verdade** + largura por card. Cada bloco tinha um `grid` próprio com um filho só, então nada ficava lado a lado. `cards_disponiveis[].largura` (`inteira`/`metade`) resolve preferência → catálogo → padrão por grupo, e "Configurar cards" ganhou **arrastar** (mantendo as setas, que funcionam no teclado) e o botão de largura
 
 ### O que continua aberto
@@ -744,13 +746,15 @@ em vez de funcionar como pesquisa.
 | 5 | **Lançamentos ganhou URL de mão dupla.** Sem isso, clicar num resultado da busca **estando já na tela** trocava o endereço e não acontecia nada — bug que a própria mudança nº 3 teria introduzido | `lancamentos/filtros.ts`, `TelaLancamentos.tsx` |
 | 6 | **`cursor: pointer` numa regra só**, cobrindo também os papéis ARIA que o Radix põe em `div`. `button` do HTML nasce `cursor: default`: era essa a causa de "vários botões o mouse não fica apontando" | `app/globals.css` |
 | 6b | **O Dashboard nunca pôs dois cards lado a lado**: cada bloco não-numérico ganhava um `grid lg:grid-cols-2` **próprio, com um filho só**. Virou uma grade única de duas colunas; `largura` (`inteira`/`metade`) vem do servidor, resolvida em preferência → `largura_padrao` do catálogo → padrão por grupo. "Configurar cards" ganhou arrastar (com as setas mantidas para teclado) e o botão de largura | `dashboard/rotas.py`, `usuarios/rotas.py`, `TelaDashboard.tsx`, `ConfigurarCards.tsx` |
+| 6c | **A marca era um "S" genérico em SVG**, não o logotipo da Synapse, e o ícone da aba era um PNG com extensão `.ico`. A arte de verdade virou a única fonte, recortada em círculo por máscara alfa (cantos com `alpha = 0`, porque a aba do navegador não aplica CSS). `MarcaSynapse` passou a `next/image` com dimensões explícitas | `app/icon.png`, `app/apple-icon.png`, `public/marca-synapse.png`, `comum/icones.tsx` |
+| 6d | **Os 22 dropdowns eram `<select>` nativos** — menu desenhado pelo sistema operacional, sem a fonte, o raio, o roxo nem o tema do projeto. Trocados pelo `Select` do shadcn/ui, que já estava instalado e nunca fora usado (Princípio II). O `Seletor` esconde o sentinela que o Radix exige para a opção de valor `""` — e só o aplica quando essa opção existe, senão o placeholder de campo obrigatório sumia. Bug achado por teste, não por leitura | `comum/Seletor.tsx` + 12 arquivos |
 | 7 | **Varredura do Web Interface Guidelines**: foco na linha da tabela, `Espaço` abrindo linha, `transition-all` fora de 7 primitivos, `prefers-reduced-motion` alcançando o Recharts, `name`/`autocomplete`/`inputmode` nos formulários, confirmação antes de descartar lançamento preenchido, `select` nativo legível no tema escuro do Windows, rolagem horizontal presa na tabela, painéis que não estouram a tela do celular, "pular para o conteúdo", `aria-live` e hover nas linhas que eram clicáveis mudas | ~30 arquivos |
 
 ### Testado, rodando
 
 ```
 frontend: npx tsc --noEmit ; npx next lint     → sem erros
-frontend: npx vitest run                       → 51 passed  (eram 37)
+frontend: npx vitest run                       → 56 passed  (eram 37)
 frontend: npx next build                       → compilou · 13 rotas
 frontend: Chrome headless na página servida    → `getComputedStyle(html).fontFamily`
                                                  começa em `Geist`; `document.fonts
@@ -782,6 +786,88 @@ conferem `largura` saindo em `cards_disponiveis` e a escolha do usuário vencend
 - **T204, T206, T207, T210** dependem de dados reais ou de painel — inalteradas.
 - **`cmdk` continua no `package.json`** sem uso, junto de 16 outros primitivos do shadcn.
   Mexer no lockfile numa entrega de polimento não valia o risco.
+
+---
+
+## Auditoria de desempenho — 2026-08-04 🟢
+
+Pedido do dono do projeto: passar o projeto inteiro pela Skill
+`supabase-postgres-best-practices` e deixar a plataforma o mais rápida e fluida possível.
+
+### O diagnóstico, antes de mexer em qualquer coisa
+
+Medido no banco de produção, não suposto. **O SQL nunca foi o gargalo**: a agregação
+principal do Dashboard executa em `0,18 ms`, e a tabela `lancamentos` tem 24 linhas. O que
+custa é a **ida ao banco**:
+
+| Evidência | Onde saiu |
+|---|---|
+| `Planning 1.45 ms` contra `Execution 0.18 ms` | `EXPLAIN (analyze)` da consulta do Dashboard |
+| 20 consultas em série numa requisição de Dashboard | leitura de `dashboard/rotas.py` |
+| 2399 execuções de `select valor from configuracoes where chave = $1` | `pg_stat_statements` |
+| 4634 execuções de `WITH RECURSIVE typeinfo_tree` (introspecção do asyncpg) | `pg_stat_statements` |
+| 7117 `insert into lancamentos`, média 16 ms | `pg_stat_statements` |
+| 609 `update recorrencias … where id = $2` | `pg_stat_statements` |
+| `SubPlan 1`, `SubPlan 3`, `SubPlan 5` — três planos idênticos | `EXPLAIN` da mesma consulta |
+
+### O que foi feito
+
+| # | Mudança | Ganho medido | Onde |
+|---|---|---|---|
+| 1 | **Dashboard: 20 consultas viram 3** (`numeros`, `series`, `blocos`) | **9,0x**, com **103 valores conferidos** um a um contra a implementação anterior e nenhuma divergência | `dashboard/repositorio.py`, `dashboard/rotas.py` |
+| 2 | **Pool de conexão reaproveitado** no lugar do `NullPool` | **2,1x por consulta** (2812 ms → 1328 ms) | `app/db.py`, `app/config.py` |
+| 3 | **Cache de `configuracoes`** em memória, 60 s, tabela inteira numa consulta | 2399 consultas → ~50; 3 viagens a menos por Dashboard | `comum/cache_configuracoes.py` |
+| 4 | **`ORJSONResponse` + `GZipMiddleware`** | encode em C no lugar de Python puro | `app/main.py`, `pyproject.toml` |
+| 5 | **Busca global: 4 consultas viram 1** (`union all` com `limit` por ramo) | 3 viagens a menos por tecla digitada | `busca/rotas.py` |
+| 6 | **Junção lateral no lugar de `not exists` repetido** (`RN-11`, pai de split) | 3 subplanos viram 1; `loops` = linhas, não 3× linhas | `lancamentos/repositorio.py`, `dashboard/repositorio.py` |
+| 7 | **Escrita da rotina diária em lote**: `insert … select from unnest(…)` para as ocorrências, `update … from unnest(…)` para os cursores, um `INSERT` para todas as notificações de vencimento | 100 idas → 1 por recorrência; 609 `UPDATE` → 1; N avisos → 1 | `recorrencias/repositorio.py`, `recorrencias/servico.py`, `rotinas/diaria.py`, `notificacoes/servico.py` |
+
+### O que foi tentado e **não** deu certo — as duas valem mais que os ganhos
+
+**Religar o cache de prepared statement.** Com pool ligado valeria mais 440 ms por consulta.
+O endereço é Supavisor (`aws-0-…​.pooler.supabase.com:6543`), que em modo *transaction* se
+comporta como pgbouncer: sob concorrência responde
+`InvalidSQLStatementNameError: prepared statement "__asyncpg_stmt_e__" does not exist`.
+Fica desligado — o comentário que já estava em `app/db.py` estava certo, e agora tem prova.
+
+**Entregar `GET` em `AUTOCOMMIT`** para poupar o `BEGIN`/`COMMIT` de toda leitura (3274
+`begin` em `pg_stat_statements`). Quebra de forma **intermitente**, com
+`InvalidSQLStatementNameError` de nome único — ou seja, não é colisão. No pooler em modo
+*transaction* é a transação aberta que obriga a manter o cliente na mesma conexão de
+servidor entre o `Parse` e o `Bind` do asyncpg; sem ela, as duas etapas caem em conexões
+diferentes. **Revertido.** É o tipo de erro que passa em teste e falha em produção, e por
+isso está escrito por extenso na nota 4 de `app/db.py`.
+
+### Índices — nada removido, de propósito
+
+O advisor do Supabase aponta 21 índices "nunca usados" e 5 FKs sem índice. **Nenhum foi
+mexido.** "Nunca usado" com 24 linhas quer dizer "o planejador prefere varrer a tabela", não
+"inútil"; e as FKs sem índice (`criado_por`, `atualizado_por`, `efetivado_por`,
+`excluido_por`) já têm o desvio justificado em `004_lancamentos.sql`, que continua válido —
+não há cascade e nenhuma consulta de `contracts/` filtra por esses campos. **A decisão fica
+para depois de T204**, quando houver 5.000 lançamentos e o advisor puder dizer algo.
+
+### Testado, rodando
+
+```
+backend: ruff check + ruff format              → sem erros
+backend: pytest tests/unidade tests/contrato   → 432 passed
+backend: pytest tests/integracao               → 171 passed  (banco real)
+backend: comparação velho × novo do Dashboard  → 103 valores, 0 divergências
+backend: EXPLAIN (analyze) antes e depois      → SubPlan 1/3/5 vira SubPlan 1
+```
+
+### O que ficou de fora
+
+- **Paginação por `OFFSET`** em `GET /api/lancamentos` continua como está. A regra
+  `data-pagination` prefere cursor, mas a lista ordena por 5 colunas e keyset aqui dá
+  trabalho real. Registrado para reavaliar em **T204**, com dados.
+- **`analyze` depois de carregar o histórico** — enquanto a tabela tiver 24 linhas o
+  planejador acerta por sorte. Entra em T204.
+- **`Cache-Control`/`ETag` nas rotas de cadastro** não foi adicionado. O React Query já
+  segura no cliente por `staleTime`; o ganho seria só em recarregar a página.
+- **T204 continua aberta** e agora é a tarefa que fecha esta auditoria: a medição com 5.000
+  lançamentos é o que decide índice a mais, índice a menos e paginação.
 
 ---
 

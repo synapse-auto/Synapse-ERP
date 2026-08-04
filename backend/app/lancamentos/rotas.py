@@ -12,7 +12,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import ORJSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -329,7 +329,9 @@ async def criar(
         }
     },
 )
-async def criar_em_lote(corpo: LoteEntrada, usuario: Autenticado, conexao: Conexao) -> JSONResponse:
+async def criar_em_lote(
+    corpo: LoteEntrada, usuario: Autenticado, conexao: Conexao
+) -> ORJSONResponse:
     # Dois níveis de SAVEPOINT. O de fora desfaz o lote inteiro; o de dentro desfaz
     # UMA linha para que a seguinte ainda possa ser tentada — dentro de uma transação,
     # o Postgres recusa qualquer comando depois de um erro até voltar a um savepoint.
@@ -360,7 +362,7 @@ async def criar_em_lote(corpo: LoteEntrada, usuario: Autenticado, conexao: Conex
 
     if erros:
         await lote.rollback()
-        return JSONResponse(status_code=400, content={"criados": 0, "erros": erros})
+        return ORJSONResponse(status_code=400, content={"criados": 0, "erros": erros})
 
     await lote.commit()
     ids = [UUID(item["id"]) for item in criados]
@@ -368,7 +370,7 @@ async def criar_em_lote(corpo: LoteEntrada, usuario: Autenticado, conexao: Conex
     for item in criados:
         item["tags"] = tags.get(item["id"], [])
 
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=201, content={"criados": len(criados), "erros": [], "itens": criados}
     )
 
@@ -882,7 +884,10 @@ async def excluir(lancamento_id: UUID, usuario: Autenticado, conexao: Conexao) -
 async def listar_lixeira(usuario: Autenticado, conexao: Conexao) -> dict[str, Any]:
     retencao = int(await servico.le_configuracao(conexao, "lixeira_retencao_dias", padrao=90))
 
-    linhas = (await conexao.execute(text("""
+    linhas = (
+        (
+            await conexao.execute(
+                text("""
                     select l.id, l.mundo, l.tipo, l.descricao, l.valor, l.data, l.status,
                            l.excluido_em, c.nome as categoria_nome, c.cor as categoria_cor,
                            u.nome as excluido_por_nome
@@ -891,7 +896,12 @@ async def listar_lixeira(usuario: Autenticado, conexao: Conexao) -> dict[str, An
                     left join usuarios u on u.id = l.excluido_por
                     where l.excluido_em is not null
                     order by l.excluido_em desc
-                    """))).mappings().all()
+                    """)
+            )
+        )
+        .mappings()
+        .all()
+    )
 
     return {
         "itens": [

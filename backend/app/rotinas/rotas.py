@@ -121,10 +121,18 @@ async def rodar_semanal(conexao: Conexao) -> dict[str, Any]:
     ),
 )
 async def estado(usuario: Gestor, conexao: Conexao) -> dict[str, Any]:
-    linhas = (await conexao.execute(text("""
+    linhas = (
+        (
+            await conexao.execute(
+                text("""
                     select nome, ultima_execucao_em, ultima_data_processada, ultimo_resultado
                     from execucoes_rotina order by nome
-                    """))).mappings().all()
+                    """)
+            )
+        )
+        .mappings()
+        .all()
+    )
     return {
         "itens": [
             {

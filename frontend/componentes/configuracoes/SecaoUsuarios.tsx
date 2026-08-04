@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Quadro } from "@/componentes/comum/CabecalhoTela";
 import { EstadoVazio } from "@/componentes/comum/EstadoVazio";
+import { Seletor } from "@/componentes/comum/Seletor";
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
@@ -134,17 +135,17 @@ export function SecaoUsuarios() {
                   <span className="text-[12px] text-sutil">{u.email}</span>
                 </span>
 
-                <select
-                  aria-label={`Papel de ${u.nome}`}
-                  value={u.papel}
-                  onChange={(e) =>
-                    mudarPapel.mutate({ id: u.id, u, novo: e.target.value as PapelUsuario })
-                  }
-                  className="h-8 rounded-[6px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
-                >
-                  <option value="gestor">Gestor</option>
-                  <option value="operador">Operador</option>
-                </select>
+                <Seletor
+                  rotuloAcessivel={`Papel de ${u.nome}`}
+                  valor={u.papel}
+                  aoMudar={(v) => mudarPapel.mutate({ id: u.id, u, novo: v as PapelUsuario })}
+                  compacto
+                  className="w-auto rounded-[6px]"
+                  opcoes={[
+                    { valor: "gestor", rotulo: "Gestor" },
+                    { valor: "operador", rotulo: "Operador" },
+                  ]}
+                />
 
                 <Button
                   size="sm"
@@ -188,15 +189,16 @@ export function SecaoUsuarios() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="papel-usr">Papel</Label>
-              <select
+              <Seletor
                 id="papel-usr"
-                value={papel}
-                onChange={(e) => setPapel(e.target.value as PapelUsuario)}
-                className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
-              >
-                <option value="operador">Operador</option>
-                <option value="gestor">Gestor</option>
-              </select>
+                nome="papel"
+                valor={papel}
+                aoMudar={(v) => setPapel(v as PapelUsuario)}
+                opcoes={[
+                  { valor: "operador", rotulo: "Operador" },
+                  { valor: "gestor", rotulo: "Gestor" },
+                ]}
+              />
             </div>
             {erro ? (
               <p

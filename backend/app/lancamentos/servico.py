@@ -16,6 +16,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.comum import cache_configuracoes
 from app.comum.erros import ErroNaoEncontrado, ErroRegraViolada, ErroValidacao
 from app.config import obter_configuracao
 from app.dominio import cambio
@@ -29,12 +30,13 @@ TEMPO_LIMITE_CAMBIO = httpx.Timeout(4.0)
 
 
 async def le_configuracao(conexao: AsyncConnection, chave: str, padrao: Any = None) -> Any:
-    valor = (
-        await conexao.execute(
-            text("select valor from configuracoes where chave = :chave"), {"chave": chave}
-        )
-    ).scalar_one_or_none()
-    return padrao if valor is None else valor
+    """Um parâmetro de negócio, de `configuracoes`.
+
+    A assinatura é a de sempre; o que mudou por baixo é que a tabela inteira vem numa
+    consulta só e fica em memória por um minuto, em vez de uma viagem ao banco por
+    chave. Motivo e limites em `app/comum/cache_configuracoes.py`.
+    """
+    return await cache_configuracoes.le(conexao, chave, padrao)
 
 
 # ── `RN-01` — subcategoria obrigatória em categoria especial ─────────────────
@@ -168,10 +170,7 @@ async def valida_vinculos_de_mundo(
             )
         if linha["mundo"] != mundo:
             raise ErroRegraViolada(
-                (
-                    f"O centro de custo '{linha['nome']}' é de "
-                    f"{mod_mundo.ROTULOS[linha['mundo']]}."
-                ),
+                (f"O centro de custo '{linha['nome']}' é de {mod_mundo.ROTULOS[linha['mundo']]}."),
                 requisito="RN-15",
                 campos={"centro_custo_id": "Centro de custo de outro mundo."},
             )

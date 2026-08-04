@@ -134,6 +134,11 @@ async def _materializa_recorrencias(
     ate = await servico_recorrencias.horizonte_configurado(conexao, hoje)
     pendentes = await repositorio_recorrencias.a_materializar(conexao, ate=ate)
 
+    # Os marcadores de todas as recorrências do lote vão num `UPDATE` só, no fim
+    # (Skill: `data-batch-inserts`). Eram um por recorrência — 609 execuções em
+    # `pg_stat_statements`. Por isso `grava_cursor=False`.
+    cursores: dict[UUID, date] = {}
+
     for linha in pendentes[:MAXIMO_DE_RECORRENCIAS_POR_EXECUCAO]:
         # O autor da ocorrência é quem criou a regra. Atribuir a rotina exigiria um
         # usuário-robô em `usuarios` e faria a auditoria dizer "criado pelo sistema"
@@ -144,11 +149,18 @@ async def _materializa_recorrencias(
             usuario_id=usuario_sistema or linha["criado_por"],
             ate=ate,
             hoje=hoje,
+            grava_cursor=False,
         )
+        if geracao.cursor is not None:
+            cursores[linha["id"]] = geracao.cursor
         resultado.ocorrencias_geradas += geracao.geradas
         resultado.recorrencias_processadas += 1
         if not geracao.concluida:
             resultado.recorrencias_pendentes_de_geracao += 1
+
+    # Antes de qualquer `return`: sem isto a execução seguinte regeraria o mesmo
+    # intervalo e gastaria a invocação inteira batendo no índice único.
+    await repositorio_recorrencias.marca_gerada_ate_em_lote(conexao, cursores)
 
     if len(pendentes) > MAXIMO_DE_RECORRENCIAS_POR_EXECUCAO:
         sobra = len(pendentes) - MAXIMO_DE_RECORRENCIAS_POR_EXECUCAO
@@ -225,40 +237,53 @@ async def _alerta_de_vencimento(
     if not usuarios:
         return
 
-    for dias in antecedencias:
-        vencem = (
-            (
-                await conexao.execute(
-                    text("""
-                        select l.id, l.mundo, l.tipo, l.descricao, l.valor, l.data
-                        from lancamentos_ativos l
-                        where l.data = :quando
-                          and l.status in ('programado','pendente')
-                        order by l.valor desc
-                        """),
-                    {"quando": hoje + timedelta(days=int(dias))},
-                )
+    # Uma consulta para todas as antecedências, e uma escrita para todos os avisos.
+    # Eram uma consulta por antecedência e um `INSERT` por lançamento
+    # (Skill: `data-batch-inserts`).
+    vencem = (
+        (
+            await conexao.execute(
+                text("""
+                    select l.id, l.mundo, l.tipo, l.descricao, l.valor, l.data,
+                           (l.data - cast(:hoje as date)) as antecedencia
+                    from lancamentos_ativos l
+                    where l.data = any(cast(:quando as date[]))
+                      and l.status in ('programado','pendente')
+                    order by l.valor desc
+                    """),
+                {
+                    "hoje": hoje,
+                    "quando": [hoje + timedelta(days=int(dias)) for dias in antecedencias],
+                },
             )
-            .mappings()
-            .all()
         )
+        .mappings()
+        .all()
+    )
 
-        for item in vencem:
-            verbo = "receber" if item["tipo"] == "receita" else "pagar"
-            quando = "amanhã" if dias == 1 else f"em {dias} dias"
-            resultado.notificacoes_criadas += await servico_notificacoes.cria(
-                conexao,
-                tipo="vencimento",
-                titulo=f"{item['descricao']} vence {quando}",
-                corpo=(
+    avisos = []
+    for item in vencem:
+        dias = int(item["antecedencia"])
+        verbo = "receber" if item["tipo"] == "receita" else "pagar"
+        quando = "amanhã" if dias == 1 else f"em {dias} dias"
+        avisos.append(
+            {
+                "titulo": f"{item['descricao']} vence {quando}",
+                "corpo": (
                     f"{formata_dinheiro(item['valor'])} a {verbo} em "
                     f"{item['data'].strftime('%d/%m/%Y')}."
                 ),
-                chave=servico_notificacoes.chave_de_vencimento(item["id"], int(dias)),
-                mundo=item["mundo"],
-                lancamento_id=item["id"],
-                usuarios=usuarios,
-            )
+                # A chave inclui a antecedência: "vence em 7" e "vence em 3" são avisos
+                # diferentes do mesmo lançamento, e é isso que se quer.
+                "chave": servico_notificacoes.chave_de_vencimento(item["id"], dias),
+                "mundo": item["mundo"],
+                "lancamento_id": item["id"],
+            }
+        )
+
+    resultado.notificacoes_criadas += await servico_notificacoes.cria_varias(
+        conexao, tipo="vencimento", itens=avisos, usuarios=usuarios
+    )
 
 
 # ── Passo 4 — alerta de inadimplência (`FR-097`, T126) ─────────────────────
@@ -284,7 +309,10 @@ async def _alerta_de_inadimplencia(
     if not usuarios:
         return
 
-    clientes = (await conexao.execute(text("""
+    clientes = (
+        (
+            await conexao.execute(
+                text("""
                     select c.id, c.nome,
                            jsonb_agg(jsonb_build_object(
                              'data', l.data, 'valor', l.valor, 'status', l.status,
@@ -297,8 +325,16 @@ async def _alerta_de_inadimplencia(
                       and l.tipo = 'receita'
                       and l.status in ('pendente','atrasado')
                     group by c.id, c.nome
-                    """))).mappings().all()
+                    """)
+            )
+        )
+        .mappings()
+        .all()
+    )
 
+    # Quem decide se está atrasado é o domínio, cliente a cliente. Só a **escrita** é
+    # que vai em lote — era um `INSERT` por inadimplente (Skill: `data-batch-inserts`).
+    avisos = []
     for cliente in clientes:
         situacao = mod_inadimplencia.avalia(
             [
@@ -317,18 +353,21 @@ async def _alerta_de_inadimplencia(
             continue
 
         resultado.clientes_marcados_inadimplentes += 1
-        resultado.notificacoes_criadas += await servico_notificacoes.cria(
-            conexao,
-            tipo="inadimplencia",
-            titulo=f"{cliente['nome']} está com pagamento atrasado",
-            corpo=(
-                f"{formata_dinheiro(situacao.valor_atrasado)} vencidos há "
-                f"{situacao.dias_atraso} dias."
-            ),
-            chave=servico_notificacoes.chave_de_inadimplencia(cliente["id"], hoje),
-            cliente_id=cliente["id"],
-            usuarios=usuarios,
+        avisos.append(
+            {
+                "titulo": f"{cliente['nome']} está com pagamento atrasado",
+                "corpo": (
+                    f"{formata_dinheiro(situacao.valor_atrasado)} vencidos há "
+                    f"{situacao.dias_atraso} dias."
+                ),
+                "chave": servico_notificacoes.chave_de_inadimplencia(cliente["id"], hoje),
+                "cliente_id": cliente["id"],
+            }
         )
+
+    resultado.notificacoes_criadas += await servico_notificacoes.cria_varias(
+        conexao, tipo="inadimplencia", itens=avisos, usuarios=usuarios
+    )
 
 
 # ── Passo 5 — faxina do estado temporário ───────────────────────────────────

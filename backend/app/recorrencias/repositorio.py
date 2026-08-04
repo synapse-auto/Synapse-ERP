@@ -257,19 +257,51 @@ async def marca_gerada_ate(conexao: AsyncConnection, recorrencia_id: UUID, ate: 
     )
 
 
-async def insere_ocorrencia(
+async def marca_gerada_ate_em_lote(conexao: AsyncConnection, cursores: dict[UUID, date]) -> None:
+    """O mesmo que `marca_gerada_ate`, para várias recorrências numa ida ao banco.
+
+    A rotina diária avança o marcador de até 100 recorrências por execução, e fazia
+    isso com um `UPDATE` cada — `pg_stat_statements` contou 609 execuções da forma
+    singular. `update … from unnest(…)` faz as 100 numa (Skill: `data-batch-inserts`).
+    """
+    if not cursores:
+        return
+    await conexao.execute(
+        text("""
+            update recorrencias r
+            set gerada_ate = greatest(coalesce(r.gerada_ate, novo.ate), novo.ate)
+            from unnest(cast(:ids as uuid[]), cast(:ates as date[])) as novo(id, ate)
+            where r.id = novo.id
+            """),
+        {
+            "ids": [str(chave) for chave in cursores],
+            "ates": list(cursores.values()),
+        },
+    )
+
+
+async def insere_ocorrencias(
     conexao: AsyncConnection,
     *,
     recorrencia: dict[str, Any],
-    quando: date,
-    status: str,
+    ocorrencias: list[tuple[date, str]],
     usuario_id: UUID,
-) -> bool:
-    """Grava uma ocorrência. Devolve `False` quando ela já existia.
+) -> int:
+    """Grava as ocorrências de **uma** recorrência numa ida ao banco.
+
+    Devolve quantas foram criadas de fato — as que já existiam não contam.
 
     O `on conflict do nothing` sobre `(recorrencia_id, data)` é o coração da
     idempotência de D-08: a rotina não precisa saber o que já gerou, só tentar.
+
+    **Era uma linha por `INSERT`** (Skill: `data-batch-inserts`). Com o lote de geração
+    em 100 datas, uma recorrência nova custava 100 idas ao banco; `pg_stat_statements`
+    registrava 7117 execuções da forma singular, com média de 16 ms cada — quase tudo
+    rede. O `unnest` de dois arrays paralelos (a data e o status daquela data) resolve
+    numa. Tudo que **não** varia por data continua como parâmetro escalar.
     """
+    if not ocorrencias:
+        return 0
     resultado = await conexao.execute(
         text("""
             insert into lancamentos (
@@ -277,15 +309,19 @@ async def insere_ocorrencia(
               categoria_id, subcategoria_id, servico_id, centro_custo_id,
               efetivar_automaticamente, efetivado_em, efetivado_por,
               recorrencia_id, criado_por
-            ) values (
+            )
+            select
               cast(:mundo as mundo), cast(:tipo as tipo_lancamento), :descricao, :valor,
-              :data, cast(:status as status_lancamento),
+              o.quando, o.status,
               :categoria_id, :subcategoria_id, :servico_id, :centro_custo_id,
               :efetivar_automaticamente,
-              case when :status = 'efetivado' then now() end,
-              case when :status = 'efetivado' then cast(:usuario as uuid) end,
-              :recorrencia_id, cast(:usuario as uuid)
-            )
+              case when o.status = 'efetivado' then now() end,
+              case when o.status = 'efetivado' then cast(:usuario as uuid) end,
+              cast(:recorrencia_id as uuid), cast(:usuario as uuid)
+            from unnest(
+              cast(:datas as date[]),
+              cast(:status_por_data as status_lancamento[])
+            ) as o(quando, status)
             on conflict (recorrencia_id, data) where recorrencia_id is not null do nothing
             """),
         {
@@ -293,8 +329,6 @@ async def insere_ocorrencia(
             "tipo": recorrencia["tipo"],
             "descricao": recorrencia["descricao"],
             "valor": recorrencia["valor"],
-            "data": quando,
-            "status": status,
             "categoria_id": recorrencia["categoria_id"],
             "subcategoria_id": recorrencia["subcategoria_id"],
             "servico_id": recorrencia["servico_id"],
@@ -302,9 +336,11 @@ async def insere_ocorrencia(
             "efetivar_automaticamente": recorrencia["efetivar_automaticamente"],
             "recorrencia_id": str(recorrencia["id"]),
             "usuario": str(usuario_id),
+            "datas": [quando for quando, _ in ocorrencias],
+            "status_por_data": [status for _, status in ocorrencias],
         },
     )
-    return (resultado.rowcount or 0) > 0
+    return resultado.rowcount or 0
 
 
 async def remove_futuras_nao_efetivadas(

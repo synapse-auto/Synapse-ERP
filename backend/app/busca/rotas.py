@@ -12,10 +12,17 @@ uma letra casa com quase tudo, e o resultado seria inútil e caro ao mesmo tempo
 Lançamentos e funcionários respeitam o mundo ativo; clientes e categorias não têm mundo
 (`RF-101`, D-04).
 
+**As quatro famílias saem de uma consulta só, por `union all`.** Eram quatro idas ao
+banco em série, uma esperando a outra, num endereço que é chamado a cada tecla
+digitada: o que mandava no tempo de resposta não era o trabalho do Postgres (0,1 ms
+por família) e sim as quatro viagens de rede. Cada ramo do `union all` mantém o
+próprio `order by` e o próprio `limit`, então o resultado é o mesmo — a diferença é o
+número de viagens. `row_number()` carrega a ordem de cada ramo para fora, porque
+`union all` não promete preservar ordem de entrada.
+
 Tarefas: T132, T212 (funcionários entram na busca — Boss 4)
 """
 
-from decimal import Decimal
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
@@ -34,6 +41,81 @@ Conexao = Annotated[AsyncConnection, Depends(obter_conexao)]
 
 MINIMO_DE_CARACTERES = 2
 LIMITE_PADRAO = 5
+
+# ── Os quatro ramos do `union all` ──────────────────────────────────────────
+#
+# Cada ramo já monta o objeto que vai para a tela, com `jsonb_build_object`. Dinheiro
+# e data saem como texto direto do Postgres (`::text` em `numeric(14,2)` devolve
+# `"1234.56"`; em `date`, o ISO 8601 que o contrato pede), então não sobra formatação
+# para o Python fazer — o que também evita a conversão para `Decimal` e de volta.
+#
+# O nome da família é fixo em cada ramo e o `order by familia, posicao` no fim ordena
+# por ele; por isso os nomes seguem a ordem alfabética que a tela espera
+# (categoria < cliente < funcionario < lancamento não importa: o agrupamento é por
+# chave no Python, e a ordem que importa é a `posicao` dentro de cada família).
+
+_RAMO_LANCAMENTOS = """
+select 'lancamentos' as familia, row_number() over () as posicao,
+       jsonb_build_object(
+         'id', t.id::text, 'descricao', t.descricao, 'valor', t.valor::text,
+         'data', t.data::text, 'mundo', t.mundo, 'tipo', t.tipo,
+         'status', t.status, 'categoria', t.categoria_nome
+       ) as item
+from (
+  select l.id, l.descricao, l.valor, l.data, l.mundo, l.tipo, l.status,
+         c.nome as categoria_nome
+  from lancamentos_ativos l
+  join categorias c on c.id = l.categoria_id
+  where l.mundo = any(cast(:mundos as mundo[]))
+    and l.descricao % :termo
+  order by similarity(l.descricao, :termo) desc, l.data desc
+  limit :limite
+) t
+"""
+
+_RAMO_CLIENTES = """
+select 'clientes', row_number() over (),
+       jsonb_build_object('id', t.id::text, 'nome', t.nome, 'empresa', t.empresa)
+from (
+  select id, nome, empresa
+  from clientes
+  where arquivado_em is null
+    and (nome % :termo or coalesce(empresa, '') % :termo)
+  order by similarity(nome, :termo) desc
+  limit :limite
+) t
+"""
+
+# Funcionário tem mundo (`RN-15`), então segue o mundo ativo como o lançamento.
+# Busca por nome **e por função**: quem procura "designer" quer a pessoa, não
+# precisa lembrar o nome dela.
+_RAMO_FUNCIONARIOS = """
+select 'funcionarios', row_number() over (),
+       jsonb_build_object('id', t.id::text, 'nome', t.nome,
+                          'funcao', t.funcao, 'mundo', t.mundo)
+from (
+  select id, nome, funcao, mundo
+  from funcionarios
+  where arquivado_em is null
+    and mundo = any(cast(:mundos as mundo[]))
+    and (nome % :termo or funcao % :termo)
+  order by greatest(similarity(nome, :termo), similarity(funcao, :termo)) desc
+  limit :limite
+) t
+"""
+
+_RAMO_CATEGORIAS = """
+select 'categorias', row_number() over (),
+       jsonb_build_object('id', t.id::text, 'nome', t.nome,
+                          'cor', t.cor, 'icone', t.icone)
+from (
+  select id, nome, cor, icone
+  from categorias
+  where arquivada_em is null and nome % :termo
+  order by similarity(nome, :termo) desc
+  limit :limite
+) t
+"""
 
 
 @roteador.get(
@@ -66,119 +148,29 @@ async def buscar(
 
     mundos = mod_mundo.resolve_filtro(mundo)
 
-    lancamentos = (
-        (
-            await conexao.execute(
-                text("""
-                    select l.id, l.descricao, l.valor, l.data, l.mundo, l.tipo, l.status,
-                           c.nome as categoria_nome
-                    from lancamentos_ativos l
-                    join categorias c on c.id = l.categoria_id
-                    where l.mundo = any(cast(:mundos as mundo[]))
-                      and l.descricao % :termo
-                    order by similarity(l.descricao, :termo) desc, l.data desc
-                    limit :limite
-                    """),
-                {"mundos": mundos, "termo": termo, "limite": limite},
-            )
+    linhas = (
+        await conexao.execute(
+            text(f"""
+                {_RAMO_LANCAMENTOS}
+                union all
+                {_RAMO_CLIENTES}
+                union all
+                {_RAMO_FUNCIONARIOS}
+                union all
+                {_RAMO_CATEGORIAS}
+                order by familia, posicao
+                """),
+            {"mundos": mundos, "termo": termo, "limite": limite},
         )
-        .mappings()
-        .all()
-    )
+    ).all()
 
-    clientes = (
-        (
-            await conexao.execute(
-                text("""
-                    select id, nome, empresa
-                    from clientes
-                    where arquivado_em is null
-                      and (nome % :termo or coalesce(empresa, '') % :termo)
-                    order by similarity(nome, :termo) desc
-                    limit :limite
-                    """),
-                {"termo": termo, "limite": limite},
-            )
-        )
-        .mappings()
-        .all()
-    )
-
-    # Funcionário tem mundo (`RN-15`), então segue o mundo ativo como o lançamento.
-    # Busca por nome **e por função**: quem procura "designer" quer a pessoa, não
-    # precisa lembrar o nome dela.
-    funcionarios = (
-        (
-            await conexao.execute(
-                text("""
-                    select id, nome, funcao, mundo
-                    from funcionarios
-                    where arquivado_em is null
-                      and mundo = any(cast(:mundos as mundo[]))
-                      and (nome % :termo or funcao % :termo)
-                    order by greatest(similarity(nome, :termo), similarity(funcao, :termo)) desc
-                    limit :limite
-                    """),
-                {"mundos": mundos, "termo": termo, "limite": limite},
-            )
-        )
-        .mappings()
-        .all()
-    )
-
-    categorias = (
-        (
-            await conexao.execute(
-                text("""
-                    select id, nome, cor, icone
-                    from categorias
-                    where arquivada_em is null and nome % :termo
-                    order by similarity(nome, :termo) desc
-                    limit :limite
-                    """),
-                {"termo": termo, "limite": limite},
-            )
-        )
-        .mappings()
-        .all()
-    )
-
-    return {
-        "termo": termo,
-        "lancamentos": [
-            {
-                "id": str(linha["id"]),
-                "descricao": linha["descricao"],
-                "valor": f"{Decimal(str(linha['valor'])):.2f}",
-                "data": linha["data"].isoformat(),
-                "mundo": linha["mundo"],
-                "tipo": linha["tipo"],
-                "status": linha["status"],
-                "categoria": linha["categoria_nome"],
-            }
-            for linha in lancamentos
-        ],
-        "clientes": [
-            {"id": str(linha["id"]), "nome": linha["nome"], "empresa": linha["empresa"]}
-            for linha in clientes
-        ],
-        "funcionarios": [
-            {
-                "id": str(linha["id"]),
-                "nome": linha["nome"],
-                "funcao": linha["funcao"],
-                "mundo": linha["mundo"],
-            }
-            for linha in funcionarios
-        ],
-        "categorias": [
-            {
-                "id": str(linha["id"]),
-                "nome": linha["nome"],
-                "cor": linha["cor"],
-                "icone": linha["icone"],
-            }
-            for linha in categorias
-        ],
-        "minimo_de_caracteres": MINIMO_DE_CARACTERES,
+    achados: dict[str, list[dict[str, Any]]] = {
+        "lancamentos": [],
+        "clientes": [],
+        "funcionarios": [],
+        "categorias": [],
     }
+    for familia, _posicao, item in linhas:
+        achados[familia].append(item)
+
+    return {"termo": termo, **achados, "minimo_de_caracteres": MINIMO_DE_CARACTERES}
