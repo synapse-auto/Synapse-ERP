@@ -52,7 +52,11 @@ constituição exige.
   data e nunca vence. Logo o alerta de inadimplência depende do checkbox estar desligado
   (research.md D-05).
 - **Não existe saldo inicial** (research.md D-06). O caixa é o resultado dos lançamentos
-  efetivados; até o histórico estar carregado, o número fica menor que a realidade.
+  efetivados; até o histórico estar carregado, o número fica menor que a realidade. É por
+  isso que existe o **cliente retroativo** (`RF-64`, 2026-08-04): o cadastro de cliente
+  recorrente aceita um mês de início no passado e gera as mensalidades já efetivadas até
+  hoje. **Não tem gerador próprio** — é a recorrência de sempre com `data_inicio` no
+  passado. Antes de escrever geração de série, procure a que já existe.
 - **Toda `RN-xx` mora em `backend/app/dominio/`**, um módulo por regra. Componente de tela
   nunca fala com o banco, nem contém regra de negócio.
 - **Nada hardcoded** (`RNF-02`, Princípio VII): rótulos de card, cores, limites, prazos e

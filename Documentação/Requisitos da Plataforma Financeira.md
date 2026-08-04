@@ -277,6 +277,31 @@ O cálculo usa despesas recorrentes + programadas dos próximos 30 dias vs. sald
 **RF-62 — Recorrência vinculada.** 🟠 Cliente recorrente gera automaticamente o lançamento programado da mensalidade (integra `RF-15`).
 **RF-63 — Alerta de inadimplência.** 🟠 Pagamento esperado não efetivado até X dias após o vencimento → cliente marcado `Atrasado` e destacado no Dashboard (`RF-44`, `RF-46a`) e no topo da lista de clientes (ver `RN-10`).
 
+**RF-64 — Cliente retroativo ("cliente desde").** 🟠 *Acrescentado em 2026-08-04; fecha a
+decisão nº 4 de §15, que estava declarada desde 2026-07-27 e sem requisito próprio.*
+
+No cadastro de cliente **recorrente**, um checkbox "Já era cliente antes do sistema" revela
+mês e ano de início. Ao salvar, as mensalidades daquele mês até o mês atual são criadas
+**já efetivadas** — entram no caixa na hora (`RN-05`) e reconstroem o histórico de receita.
+Sem isso, o Dashboard de quem já tinha clientes nasce menor que a realidade, porque **não
+existe saldo inicial** (§15.4 e research.md D-06): o caixa é literalmente a soma dos
+lançamentos efetivados.
+
+- Mês e ano bastam — o dia de cada cobrança é o `dia_cobranca` que o cadastro já tem.
+- **Só cobrança recorrente.** Pontual e parcelada não têm série mensal a reconstruir.
+- **Mês atual não gera nada de retroativo** — é o comportamento de sempre, sem duplicar o
+  mês corrente.
+- Limite de quão atrás dá para ir: `configuracoes.cliente_retroativo_meses_maximo`
+  (padrão 120 meses), nunca fixo no código (`RNF-02`).
+- Os lançamentos gerados são lançamentos normais: editáveis, canceláveis, na lixeira
+  (`RN-08`), filtráveis por mundo e período como qualquer outro.
+- "Cliente desde 03/2025" e o tempo de casa aparecem no perfil e na lista — **derivados**
+  do lançamento mais antigo, nunca gravados (mesma escolha de `RN-10`).
+
+**RN-05a** já dizia que ocorrência de data passada nasce `efetivado`; este requisito só abre
+o caminho para ela ser usada no cadastro de cliente, onde a data de início estava fixa em
+"hoje".
+
 ---
 
 ## 8. Aba **Funcionários** 🟠
@@ -404,7 +429,7 @@ Exibição mensal + acumulado no ano. Comparativo com período anterior.
 1. **Caixa único** — sem separação por contas bancárias.
 2. **Só Synapse** — sem multi-empresa.
 3. **3 usuários:** Lucas (gestor), sócio (gestor), contadora (operadora — faz lançamentos).
-4. **Clientes recorrentes existem** — mensalidades ativas. Data de início retroativa essencial para popular histórico.
+4. **Clientes recorrentes existem** — mensalidades ativas. Data de início retroativa essencial para popular histórico. *(Entregue em 2026-08-04 — ver `RF-64`.)*
 5. **2 funcionários:** Dylan (n8n/IA, R$1.200/mês), Marcondes (Java, R$900/mês).
 6. **Efetivação automática por padrão** — checkbox por lançamento; default ativado, desativável quando quiser confirmação manual.
 7. **USD → BRL** — entrada em dólar convertida via API pública; todo o sistema opera em real.

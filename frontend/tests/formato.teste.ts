@@ -8,9 +8,11 @@ import {
   iniciais,
   instante,
   intervalo,
+  mesAno,
   mesCurto,
   paraApi,
   percentual,
+  tempoDeCasa,
 } from "@/lib/formato";
 
 /**
@@ -102,5 +104,34 @@ describe("apoio", () => {
   it("pluraliza contadores", () => {
     expect(contar(1, "lançamento")).toBe("1 lançamento");
     expect(contar(2, "lançamento")).toBe("2 lançamentos");
+  });
+});
+
+/**
+ * "Cliente desde" — o rótulo que aparece no perfil e na lista depois de o histórico
+ * retroativo ser carregado. A data vem do servidor como ISO completa (o lançamento
+ * mais antigo); o dia não interessa a quem lê.
+ */
+describe("tempo de casa", () => {
+  it("escreve mês e ano, ignorando o dia", () => {
+    expect(mesAno("2025-03-10")).toBe("03/2025");
+    expect(mesAno("2025-03")).toBe("03/2025");
+    expect(mesAno(null)).toBe("—");
+  });
+
+  it("conta meses de calendário, não dias divididos por 30", () => {
+    const hoje = new Date();
+    const menos = (meses: number) => {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - meses, 10);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-10`;
+    };
+
+    expect(tempoDeCasa(menos(0))).toBe("menos de 1 mês");
+    expect(tempoDeCasa(menos(1))).toBe("1 mês");
+    expect(tempoDeCasa(menos(6))).toBe("6 meses");
+    expect(tempoDeCasa(menos(12))).toBe("1 ano");
+    expect(tempoDeCasa(menos(18))).toBe("1 ano e 6 meses");
+    expect(tempoDeCasa(menos(25))).toBe("2 anos e 1 mês");
+    expect(tempoDeCasa(null)).toBe("—");
   });
 });

@@ -871,6 +871,95 @@ backend: EXPLAIN (analyze) antes e depois      → SubPlan 1/3/5 vira SubPlan 1
 
 ---
 
+## Cliente retroativo — "cliente desde" (2026-08-04) — `RF-64`
+
+Pedido do dono do projeto. Fecha a decisão nº 4 de §15 do documento-mestre, declarada desde
+2026-07-27 ("data de início retroativa essencial para popular histórico") e até aqui sem
+requisito próprio.
+
+### O que a investigação achou antes de escrever qualquer coisa
+
+**O mecanismo já existia inteiro.** `dominio/recorrencia.py` gera de `data_inicio` até o
+horizonte; `RN-05a` faz ocorrência de data passada nascer `efetivado`; o *clamp* do dia 31
+está lá; `insere_ocorrencias` grava o lote num `insert … select from unnest`; o índice único
+`(recorrencia_id, data)` cuida da idempotência. **A única coisa que faltava** era
+`app/clientes/rotas.py` parar de fixar `"data_inicio": date.today()`.
+
+Isso mudou o tamanho da entrega: em vez de um gerador novo, um módulo de **20 linhas úteis**
+que decide qual mês é aceitável.
+
+### As duas perguntas que precisavam de resposta antes
+
+| Pergunta | Resposta | Por quê |
+|---|---|---|
+| `clientes` precisa de coluna `cliente_desde`? | **Não** | `least(criado_em, receita efetivada mais antiga)` sai do `select` que a lista e o perfil já faziam — nenhuma ida ao banco a mais. Gravar criaria uma segunda verdade para manter em dia a cada edição, cancelamento ou restauração de lançamento antigo. Mesmo raciocínio de `RN-10` (data-model §3.4) |
+| O que quebra ao ganhar dados antigos? | **Uma coisa** | `receita_mensal` do perfil era 12 meses fixos e cortava justamente o histórico recém-carregado, em silêncio. Passou a acompanhar o tempo de casa (piso 12, teto 36). Nenhuma consulta assume que lançamento de cliente começa na data de criação do cliente — o vínculo é a subcategoria espelho, e todas as agregações partem dela |
+
+### O que mudou
+
+- **`app/dominio/cliente_retroativo.py`** (novo) — as três recusas: mês no futuro, mês além
+  de `configuracoes.cliente_retroativo_meses_maximo`, retroativo fora de cobrança
+  recorrente. Mês corrente devolve `None`: comportamento de sempre, sem duplicar.
+- **`migracoes/014_seed_cliente_retroativo.sql`** (novo) — a chave do limite, padrão 120
+  meses. Aplicada no banco; `select count(*) from configuracoes` = **19**.
+- **`app/clientes/rotas.py`** — campo `cliente_desde` (`AAAA-MM`), `data_inicio` deixa de ser
+  fixo, bloco `recorrencia.retroativo` na resposta, `Idempotency-Key` no `POST`, `PUT`
+  recusa o campo, janela do gráfico do perfil.
+- **`app/clientes/repositorio.py`** — `cliente_desde` derivado no `_SELECAO`.
+- **Frontend** — checkbox e mês/ano em `FormCliente`, "Cliente desde 03/2025" no perfil,
+  "cliente há 1 ano e 6 meses" na lista, `mesAno`/`tempoDeCasa` em `lib/formato.ts`.
+
+**Pesquisa de componente pronto (Princípio II)**: `shadcn` não tem *month picker*
+(`search -q "month picker"` volta vazio); os 500 resultados de "month" no `@reui` são
+calendário de dia ou agenda de eventos; os `react-month-picker` do GitHub trazem CSS
+próprio. O campo é dois valores fechados, não uma data — dois `Seletor` do próprio projeto.
+Detalhe em `frontend/README.md`.
+
+### Testado, rodando
+
+```
+backend: ruff check + ruff format                       → sem erros
+backend: pytest tests/unidade tests/contrato            → 448 passed
+backend: pytest tests/integracao/test_cliente_retroativo→  16 passed  (banco real)
+backend: pytest tests/integracao/test_cadastros         →  26 passed  (banco real)
+frontend: tsc --noEmit + eslint                         → sem erros
+frontend: npm run teste                                 →  64 passed
+```
+
+O cenário pedido, conferido no Postgres: cliente com início **18 meses atrás**, o caixa sobe
+exatamente `valor × ocorrências efetivadas gravadas` (os dois lados conferidos, não a conta
+escrita à mão), o mês corrente **não** duplica (as datas geradas com `cliente_desde` do mês
+atual são idênticas às geradas sem nada), dia 31 vira 28/29 em fevereiro e volta a 31 em
+março, e repetir o `POST` com a mesma `Idempotency-Key` devolve o mesmo cliente sem mexer no
+caixa.
+
+**Desempenho medido, não afirmado**: um teste conta os `execute` da conexão e prova que
+**36 meses custam as mesmas 13 idas ao banco que 6**. Ele falha se alguém trocar isso por um
+laço de `insert`.
+
+### O que ficou de fora
+
+- **Carregar histórico de cliente que já existe.** O `PUT` recusa `cliente_desde` em vez de
+  ignorar. O caminho hoje é editar a recorrência da mensalidade (`PUT /api/recorrencias/{id}`),
+  que já aceita `data_inicio` no passado. Um botão "carregar histórico" no perfil seria
+  entrega separada.
+- **O `422` de confirmação de `FR-027`** (`recorrencia_aviso_ocorrencias`, 24) não passou a
+  valer no cadastro de cliente — nunca valeu ali, e ligá-lo agora colocaria um passo a mais
+  no meio de um fluxo que hoje é um clique. A resposta já devolve quantas e quanto.
+- **Valor variável ao longo do histórico.** A mensalidade retroativa usa o
+  `valor_recorrente` atual para todos os meses. Quem reajustou o contrato no meio do caminho
+  corrige os meses antigos na tela de Lançamentos, um a um.
+- **Anexos e comprovantes** dos meses carregados: os lançamentos nascem sem anexo.
+- **Conferência visual em navegador** do novo bloco do formulário — coberto por teste de
+  componente (6 casos), não por olho.
+
+**Achado de caminho, corrigido**: `test_cadastrar_cliente_cria_a_subcategoria_espelho` usava
+o nome fixo "Estrutural Vidros" e passou a falhar com `IntegrityError` quando um cliente real
+com esse nome entrou na base. Nome sorteado, como o resto do arquivo já fazia. Não tem
+relação com esta entrega — apareceu ao rodar a suíte.
+
+---
+
 ## Dependências e ordem de execução
 
 ### Entre as fases bosses

@@ -280,6 +280,39 @@ mora em `estilos/tema-escuro.css`, sobrescrevendo os **mesmos papéis** do claro
 componente sabe que existe tema. `next-themes` marca `class="dark"` e `data-theme="dark"`
 ao mesmo tempo, porque o Tailwind espera o primeiro e D-12 escreve o segundo.
 
+## Cliente retroativo — "Já era cliente antes do sistema" (2026-08-04)
+
+Em `componentes/clientes/FormCliente.tsx`, dentro do bloco de cobrança recorrente: um
+checkbox que revela **mês** e **ano** de início (`RF-64`). Ao salvar, o servidor cria as
+mensalidades passadas já efetivadas e a resposta traz o texto pronto ("18 cobranças do
+histórico foram lançadas…") e o total — a tela mostra, não remonta a conta (`RNF-02`).
+
+Três condições valem na tela porque valem no servidor, e errar aqui só apareceria como um
+`400` depois de a pessoa preencher tudo: o bloco **não** existe em cobrança pontual ou
+parcelada, **não** existe na edição (o `PUT` recusa `cliente_desde`) e avisa quando o mês
+escolhido é o corrente — caso em que nada de histórico é criado.
+
+**Pesquisa antes de escrever (Princípio II).** Procurado um seletor de mês/ano pronto:
+
+| Onde | O que tem | Serve? |
+|---|---|---|
+| `shadcn` | `search -q "month picker"` volta **vazio**; `-q "month"` acha só o bloco `login-02` | não |
+| `Reui` | 500 resultados com "month", todos calendário de **dia** (`c-calendar-8`, "Month and year selection", é a legenda de um calendário completo) ou agenda de eventos | não |
+| GitHub | `react-month-picker` e parentes | traz CSS próprio para reconciliar com os tokens |
+
+O campo é **dois valores fechados**, não uma data. Dois `Seletor` — o componente que este
+projeto já usa no lugar de `<select>` nativo — custam zero dependência e já respeitam fonte,
+raio, cor e os dois temas. A lista de anos vai 10 anos para trás; quem manda no limite de
+verdade é `configuracoes.cliente_retroativo_meses_maximo`, no servidor.
+
+O `POST` de cliente passou a mandar `Idempotency-Key` (`novaChaveIdempotencia()`): sem ela,
+a repetição depois de um timeout criaria um segundo cliente com o histórico inteiro de novo.
+
+**Onde o passado aparece depois**: perfil ("Cliente desde 03/2025" no cabeçalho, gráfico
+mensal cobrindo o tempo de casa em vez de 12 meses fixos, total histórico, lançamentos),
+lista de clientes ("cliente há 1 ano e 6 meses"), e — por serem lançamentos normais —
+Dashboard, Relatórios e Lançamentos, sem nada de específico ter sido escrito para isso.
+
 ## Divergências e pendências conhecidas
 
 | # | O quê | Situação |
@@ -300,13 +333,16 @@ ao mesmo tempo, porque o Tailwind espera o primeiro e D-12 escreve o segundo.
 
 ## Testes
 
-`npm run teste` — 56 testes cobrindo o que quebra em silêncio: formatação brasileira
+`npm run teste` — 64 testes cobrindo o que quebra em silêncio: formatação brasileira
 (inclusive o erro de fuso que faria `2026-07-31` virar dia 30), tradução de filtros e
 drill-down, a ida e a volta dos filtros pela URL, envelope de erro da API, os componentes
 comuns, os seis casos da busca global (é campo e não janela; funcionário aparece; clicar
 leva para a tela dele; os quatro grupos no mesmo dropdown; seta + `Enter`; `Esc` limpa) e a
 reordenação do "Configurar cards" (arrastar **insere**, não troca) e os cinco casos do
-`Seletor` — com destaque para a opção de valor vazio, que é onde o Radix quebra.
+`Seletor` — com destaque para a opção de valor vazio, que é onde o Radix quebra. Desde
+2026-08-04, também os seis casos do **cliente retroativo** (não aparece em pontual, aparece
+em recorrente, os campos só depois do checkbox, some na edição, avisa no mês corrente, e o
+corpo sai como `AAAA-MM` sem dia) e o "tempo de casa" contado em meses de calendário.
 
 O que **não** está coberto por teste automatizado e depende de olhar a tela ou de dados
 reais: a conferência visual dos dois temas tela a tela (T202), o comportamento com 5.000

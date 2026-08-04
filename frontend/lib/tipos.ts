@@ -156,8 +156,23 @@ export interface Cliente {
   total_recebido_historico: string;
   /** Cliente sem lançamento nenhum aparece nos três estados do seletor (D-04). */
   sem_movimentacao?: boolean;
+  /**
+   * Desde quando é cliente — **derivado**, nunca gravado (data-model §3.4): a receita
+   * efetivada mais antiga dele, limitada por baixo pela data de cadastro. Preenchido
+   * pelo histórico retroativo do cadastro (`cliente_desde` no `POST`).
+   */
+  cliente_desde: string | null;
   observacoes?: string | null;
   arquivado_em: string | null;
+}
+
+/** O bloco `recorrencia.retroativo` da resposta do `POST /api/clientes`. */
+export interface ResumoRetroativo {
+  desde: string;
+  ocorrencias_efetivadas: number;
+  valor_total: string | null;
+  /** Texto pronto em PT-BR — a tela não remonta a contagem (`RNF-02`). */
+  mensagem: string;
 }
 
 export interface RecorrenciaResumo {

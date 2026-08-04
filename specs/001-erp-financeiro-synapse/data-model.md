@@ -169,6 +169,29 @@ a configuração muda, e gravar exigiria reescrever todos os clientes a cada mud
 parâmetro (o *edge case* "mudança de tolerância reavalia os já marcados" resolve-se de graça
 sendo derivado).
 
+**"Cliente desde" também é derivado** (2026-08-04), pelo mesmo raciocínio e depois de a
+alternativa ser considerada. Não existe coluna `cliente_desde`: a data é
+
+```sql
+least(clientes.criado_em::date, min(lançamento de receita efetivado do cliente).data)
+```
+
+calculada no `select` que a lista e o perfil já fazem — **nenhuma ida ao banco a mais**, que
+é o que custa caro aqui (ver o cabeçalho de `backend/app/db.py`). Gravar criaria uma segunda
+verdade para manter em dia toda vez que um lançamento antigo fosse editado, cancelado ou
+restaurado da lixeira; derivar acompanha sozinho. `least` ignora `null`, então cliente sem
+lançamento nenhum é cliente desde o cadastro, e cliente cuja primeira mensalidade só vence no
+mês que vem não vira "cliente desde o futuro".
+
+**Histórico retroativo no cadastro** (`cliente_desde` no `POST`, `RN-05a`): informar o mês em
+que o cliente passou a ser cliente gera as ocorrências passadas da mensalidade, do mês
+informado até o mês atual, **já `efetivado`** — e portanto contando no saldo (`RN-05`). Não
+há mecanismo novo: é a recorrência de sempre com `data_inicio` no passado, o que era possível
+em `recorrencias` desde B2 e estava fixo em `date.today()` só no cadastro de cliente. Isso
+importa porque **não existe saldo inicial** (research.md D-06) — sem carregar o passado, o
+caixa de quem já tinha clientes nasce menor que a realidade. O limite de quão atrás dá para
+ir vem de `configuracoes.cliente_retroativo_meses_maximo` (§3.15), nunca do código.
+
 ### 3.5. `clientes_servicos`
 
 | Campo | Tipo |
@@ -390,9 +413,10 @@ diferença de arredondamento absorvida na última parcela.
 | `atualizado_em` | timestamptz NOT NULL |
 
 Tabela que materializa `RNF-02`/`FR-106`/Princípio VII. **Seed completo** — a tabela abaixo tem
-17 linhas, mas a linha de câmbio declara **duas** chaves, então o total é **18 chaves**.
-Conferido no banco em 2026-07-30 (`17`, migração `007`) e de novo em 2026-07-30 depois da
-migração `009` (`18`): `select count(*) from configuracoes` devolve `18`.
+18 linhas, mas a linha de câmbio declara **duas** chaves, então o total é **19 chaves**.
+Conferido no banco em 2026-07-30 (`17`, migração `007`), de novo em 2026-07-30 depois da
+migração `009` (`18`) e em 2026-08-04 depois da `014` (`19`): `select count(*) from
+configuracoes` devolve `19`.
 
 | Chave | Valor padrão | Requisito |
 |---|---|---|
@@ -411,6 +435,7 @@ migração `009` (`18`): `select count(*) from configuracoes` devolve `18`.
 | `tema_padrao` | `"auto"` | `FR-109` |
 | `efetivacao_automatica_padrao` | `true` | `RF-17` |
 | `efetivacao_automatica_padrao_receita_cliente` | `false` | D-05 — ver research.md |
+| `cliente_retroativo_meses_maximo` | `120` | §3.4 — até quantos meses atrás o cadastro aceita carregar o histórico da mensalidade ("cliente desde"). Migração `014` |
 | `dashboard_cards_disponiveis` | `[{id,rotulo,grupo,ordem_padrao,visivel_padrao}, …]` | `RF-48`, `FR-071` |
 | `cambio_fonte_primaria` / `cambio_fonte_alternativa` | `"awesomeapi"` / `"bcb_ptax"` | `RN-12` |
 
@@ -699,6 +724,7 @@ centavos incomoda menos numa parcela que ninguém anunciou.
 | `011_importacoes.sql` | tabela `importacoes` — o estado das três etapas da importação (`FR-044`). **Não estava entre as 19 tabelas do desenho**: a necessidade só ficou clara ao implementar o fluxo de três requisições, que precisa do conteúdo lido sobrevivendo entre elas. Memória não serve (cada requisição da Vercel pode cair numa instância diferente — o mesmo motivo de D-01). Dado **temporário**: expira em 24h — recusado em `importacao/rotas.py` e apagado pela rotina diária (§5.15) |
 | `012_chaves_idempotencia.sql` | tabela `chaves_idempotencia` — o cabeçalho `Idempotency-Key` (contracts/README.md) deixa de viver na memória do processo. Nasceu na auditoria de fim do Boss 2 (2026-07-31), que encontrou aberta a divergência que o README do backend declarava desde B0: memória de função serverless não sobrevive entre invocações, e a repetição após timeout de rede — o caso que o mecanismo existe para cobrir — cai em instância nova. Dado **temporário**: expira em 10 minutos, limpo pela rotina diária. PK `(usuario_id, rota, chave)`; ver §3.20 |
 | `013_seed_card_receita_servico.sql` | acrescenta o card `receita_servico` a `dashboard_cards_disponiveis` (§3.15) — o bloco de `FR-064`/`RF-43b`. O dado existia desde B3 e o componente desde C4, mas o catálogo nasceu com **18** entradas e nenhuma era essa; como `FR-106` proíbe rótulo de card no frontend, a grade ignorava o id em silêncio e o bloco nunca era desenhado. Estava anotado como divergência nº 1 no `frontend/README.md`. Nenhuma linha de código muda. `update` com `jsonb_agg` entrada a entrada, e não valor novo inteiro, porque `PUT /api/configuracoes` aceita esta chave e sobrescrever apagaria ajuste do gestor. Guardado por `not (valor @> …)`, então é idempotente. Posição 16, fechando o grupo `grafico`; os três especiais descem uma casa |
+| `014_seed_cliente_retroativo.sql` | chave `cliente_retroativo_meses_maximo` (§3.15) — o limite do histórico retroativo de cliente. Nasceu com a função "cliente desde" (2026-08-04): o cadastro passou a aceitar um mês de início no passado e gerar as mensalidades já efetivadas até hoje. "Quantos meses atrás" é limite de negócio e não mora no código (Princípio VII). Nenhuma tabela muda: o mecanismo inteiro é a recorrência que já existia, com `data_inicio` deixando de ser fixo em `date.today()` |
 | `010_ocorrencia_unica_por_data.sql` | índice único `lancamentos (recorrencia_id, data) where recorrencia_id is not null`. Nasceu em B2/T083: **sem ele a idempotência de D-08 não existe**. É o que permite `insert … on conflict do nothing` em vez de um `select` antes de cada ocorrência (N+1 numa função com duração limitada), e cobre o caso de duas invocações simultâneas. Deliberadamente **não** é parcial em `excluido_em is null`: excluir uma ocorrência não pode fazê-la renascer na próxima execução da rotina (§3.13). **Consequência descoberta na auditoria de 2026-07-31**: soft delete não libera a data, então o caminho que apaga **para regerar** — editar a série com `esta_e_futuras` — precisa de remoção definitiva, senão o `on conflict do nothing` não insere nada e a série fica sem futuro em silêncio. Ver §5.10 |
 
 As `003`/`004` têm dependência circular entre `subcategorias.cliente_id` e

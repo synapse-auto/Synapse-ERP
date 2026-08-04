@@ -11,7 +11,7 @@ import { Paginacao } from "@/componentes/comum/Paginacao";
 import { FormCliente } from "@/componentes/clientes/FormCliente";
 import { SituacaoCliente } from "@/componentes/clientes/SituacaoCliente";
 import { useClientes, useSessao } from "@/lib/consultas";
-import { dinheiro, iniciais } from "@/lib/formato";
+import { dinheiro, iniciais, tempoDeCasa } from "@/lib/formato";
 import { ROTULO_MUNDO } from "@/componentes/comum/BadgeMundo";
 
 /**
@@ -158,6 +158,12 @@ export default function PaginaClientes() {
                       {c.empresa ?? "—"}
                       {c.servicos.length > 0
                         ? ` · ${c.servicos.map((s) => s.nome).join(", ")}`
+                        : ""}
+                      {/* Tempo de casa — derivado do lançamento mais antigo. Só entra
+                          quando há passado de verdade: num cliente cadastrado hoje a
+                          linha seria "cliente desde hoje", que não informa nada. */}
+                      {c.cliente_desde && tempoDeCasa(c.cliente_desde) !== "menos de 1 mês"
+                        ? ` · cliente há ${tempoDeCasa(c.cliente_desde)}`
                         : ""}
                     </span>
                   </span>

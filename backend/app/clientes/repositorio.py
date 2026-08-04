@@ -50,10 +50,36 @@ _SEM_MOVIMENTACAO_NENHUMA = """
   )
 """
 
-_SELECAO = """
+# "Cliente desde" é **derivado**, não coluna — o mesmo raciocínio da situação de
+# inadimplência (data-model §3.4): a data já está no dado, e gravá-la criaria uma
+# segunda verdade para manter em dia quando um lançamento antigo é editado ou
+# cancelado.
+#
+# É a receita **efetivada** mais antiga do cliente, limitada por baixo pela data de
+# cadastro: um cliente novo, cuja primeira mensalidade só vence no mês que vem, é
+# cliente desde hoje — não desde o mês que vem. `least` ignora `null`, então cada
+# metade cobre o buraco da outra sem `coalesce` aninhado.
+#
+# Custo: uma varredura por índice em `lancamentos(subcategoria_id)` por linha, na
+# página de 50 — a mesma forma correlacionada que `_SEM_MOVIMENTACAO_NENHUMA` já usa
+# aqui. Não é ida ao banco extra, que é o que custa caro neste projeto (ver `db.py`).
+_CLIENTE_DESDE = """
+  least(
+    c.criado_em::date,
+    (select min(l.data)
+       from lancamentos_ativos l
+       join subcategorias s on s.id = l.subcategoria_id
+      where s.cliente_id = c.id
+        and l.tipo = 'receita'
+        and l.status = 'efetivado')
+  ) as cliente_desde
+"""
+
+_SELECAO = f"""
   c.id, c.nome, c.empresa, c.contato_email, c.contato_telefone,
   c.tipo_cobranca, c.valor_recorrente, c.dia_cobranca, c.mundo_cobranca,
-  c.observacoes, c.arquivado_em, c.criado_em
+  c.observacoes, c.arquivado_em, c.criado_em,
+  {_CLIENTE_DESDE}
 """
 
 

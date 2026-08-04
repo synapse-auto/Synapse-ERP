@@ -14,6 +14,19 @@ Numa transação só (D-07, `FR-082`):
 Se qualquer uma falhar, nenhuma vale. Um cliente sem subcategoria não teria onde receber
 lançamento; uma subcategoria sem recorrência faria a mensalidade nunca aparecer.
 
+## A quarta coisa, quando o cliente já era cliente antes do sistema
+
+`cliente_desde: "2025-03"` acrescenta uma quarta operação **à mesma transação**: as
+ocorrências passadas da mensalidade, do mês informado até o mês atual, nascendo
+`efetivado` (`RN-05a`) e portanto entrando no saldo na hora (`RN-05`).
+
+Não há caminho de gravação novo. A recorrência já sabe gerar do passado — a única coisa
+que mudou é `data_inicio` deixar de ser fixo em `date.today()`. Consequências que vêm
+de graça: o *clamp* do dia 31 em fevereiro é o mesmo, o lote inteiro vai numa ida ao
+banco (`insert … select from unnest`), e o índice único `(recorrencia_id, data)` faz a
+repetição não duplicar nada. A regra de qual mês é aceitável mora em
+`dominio/cliente_retroativo.py`.
+
 ## O detalhe que decide se a inadimplência funciona
 
 `efetivar_automaticamente` da recorrência vem, por padrão, de
@@ -39,12 +52,19 @@ from app.clientes import repositorio
 from app.comum import periodo as mod_periodo
 from app.comum.auditoria import registra_auditoria
 from app.comum.erros import ErroNaoEncontrado, ErroRegraViolada, ErroValidacao
+from app.comum.idempotencia import (
+    chave_de_idempotencia,
+    registra_resposta,
+    resposta_ja_registrada,
+)
 from app.comum.paginacao import Paginacao, envelope, parametros_de_paginacao
 from app.db import obter_conexao
 from app.dominio import arquivamento as mod_arquivamento
+from app.dominio import cliente_retroativo as mod_retroativo
 from app.dominio import espelho_subcategoria as mod_espelho
 from app.dominio import inadimplencia as mod_inadimplencia
 from app.dominio import mundo as mod_mundo
+from app.dominio import recorrencia as mod_recorrencia
 from app.lancamentos.servico import le_configuracao
 from app.recorrencias import repositorio as repositorio_recorrencias
 from app.recorrencias import servico as servico_recorrencias
@@ -81,6 +101,17 @@ class ClienteEntrada(BaseModel):
             "**Não é o mundo do cliente** — cliente não tem mundo (D-04). É o mundo em "
             "que as ocorrências da mensalidade nascem, porque o lançamento precisa de um."
         ),
+    )
+
+    cliente_desde: str | None = Field(
+        default=None,
+        description=(
+            "`AAAA-MM` — mês em que o cliente fechou conosco, quando isso foi **antes** "
+            "do sistema. Gera as ocorrências passadas da mensalidade já `efetivado` "
+            "(`RN-05a`), do mês informado até o mês atual. Mês corrente equivale a não "
+            "informar. Só vale com `tipo_cobranca = recorrente`, e só no `POST`."
+        ),
+        examples=["2025-03"],
     )
 
     servico_ids: list[UUID] = Field(default_factory=list)
@@ -167,6 +198,12 @@ def _para_json(linha: dict[str, Any], situacao, *, servicos=None) -> dict[str, A
         "mundo_cobranca": linha["mundo_cobranca"],
         "observacoes": linha["observacoes"],
         "arquivado_em": linha["arquivado_em"].isoformat() if linha["arquivado_em"] else None,
+        # Derivado, nunca gravado (data-model §3.4): a receita efetivada mais antiga,
+        # limitada por baixo pela data de cadastro. É o que faz "Cliente desde 03/2025"
+        # aparecer sozinho depois de o histórico ser carregado.
+        "cliente_desde": (
+            linha["cliente_desde"].isoformat() if linha.get("cliente_desde") else None
+        ),
         "servicos": [
             {"id": str(s["id"]), "nome": s["nome"], "mundo": s["mundo"]} for s in (servicos or [])
         ],
@@ -177,6 +214,29 @@ def _para_json(linha: dict[str, Any], situacao, *, servicos=None) -> dict[str, A
         "sem_movimentacao": bool(linha.get("sem_movimentacao", False)),
         **situacao.como_dicionario(),
     }
+
+
+# Janela do gráfico de receita mês a mês do perfil.
+MESES_DA_SERIE_MINIMO = 12
+MESES_DA_SERIE_MAXIMO = 36
+
+
+def _meses_da_serie(cliente_desde: date | None, *, hoje: date) -> int:
+    """Quantos meses o gráfico do perfil cobre.
+
+    Era fixo em 12, e com histórico retroativo carregado isso passou a **esconder** o
+    que a função inteira existe para mostrar: um cliente de 18 meses tinha os 6
+    primeiros cortados do gráfico, sem nada na tela dizendo que faltava algo.
+
+    A janela agora acompanha o tempo de casa, com piso de 12 (para o cliente novo não
+    ganhar um gráfico de duas colunas) e teto de 36 (acima disso a série vira um borrão
+    de barras de 4px — quem quer 5 anos usa Relatórios). Não custa consulta extra: o
+    `generate_series` já recebia o número.
+    """
+    if cliente_desde is None:
+        return MESES_DA_SERIE_MINIMO
+    meses = mod_retroativo.meses_entre(cliente_desde, hoje) + 1
+    return max(MESES_DA_SERIE_MINIMO, min(MESES_DA_SERIE_MAXIMO, meses))
 
 
 async def _exige_cliente(conexao: AsyncConnection, cliente_id: UUID) -> dict[str, Any]:
@@ -268,8 +328,14 @@ async def _cria_recorrencia_da_mensalidade(
     subcategoria_id: UUID,
     corpo: ClienteEntrada,
     usuario: UsuarioAutenticado,
+    inicio_retroativo: date | None = None,
 ) -> dict[str, Any] | None:
-    """`FR-082` — a mensalidade vira recorrência no `mundo_cobranca`."""
+    """`FR-082` — a mensalidade vira recorrência no `mundo_cobranca`.
+
+    `inicio_retroativo` é o único parâmetro do histórico: com ele, `data_inicio` nasce
+    no passado e a materialização gera de lá até o horizonte, numa ida ao banco só. Sem
+    ele, `date.today()` — o comportamento de sempre.
+    """
     if corpo.tipo_cobranca != "recorrente":
         return None
 
@@ -296,7 +362,7 @@ async def _cria_recorrencia_da_mensalidade(
             "intervalo_dias": None,
             "dia_vencimento": corpo.dia_cobranca,
             "mes_vencimento": None,
-            "data_inicio": date.today(),
+            "data_inicio": inicio_retroativo or date.today(),
             "data_fim": None,
             "total_parcelas": None,
             "efetivar_automaticamente": automatico,
@@ -310,12 +376,27 @@ async def _cria_recorrencia_da_mensalidade(
     linha = await servico_recorrencias.exige_recorrencia(conexao, nova["id"])
     ate = await servico_recorrencias.horizonte_configurado(conexao)
     geracao = await servico_recorrencias.materializa(conexao, linha, usuario_id=usuario.id, ate=ate)
+
+    retroativo = None
+    if inicio_retroativo is not None:
+        # Recontagem em Python, não no banco: `monta_previa` percorre as mesmas datas
+        # que acabaram de ser geradas, sem custar consulta nenhuma.
+        previa = mod_recorrencia.monta_previa(servico_recorrencias.regra_de(linha), ate=ate)
+        retroativo = mod_retroativo.resumo(
+            desde=inicio_retroativo,
+            ocorrencias=previa.retroativas_efetivadas,
+            valor_unitario=_dinheiro(
+                (corpo.valor_recorrente or Decimal(0)) * previa.retroativas_efetivadas
+            ),
+        )
+
     return {
         "id": str(nova["id"]),
         "rotulo": servico_recorrencias.rotulo_da_regra(linha),
         "ativa": True,
         "efetivar_automaticamente": automatico,
         "geracao": geracao.como_dicionario(),
+        "retroativo": retroativo,
         # Texto de negócio, montado no servidor: a tela precisa explicar por que um
         # cliente com mensalidade automática nunca vai aparecer como inadimplente.
         "aviso_inadimplencia": (
@@ -337,16 +418,47 @@ async def _cria_recorrencia_da_mensalidade(
         "`tipo_cobranca: recorrente` exige `valor_recorrente`, `dia_cobranca` e "
         "`mundo_cobranca`. `efetivar_automaticamente` nulo herda "
         "`configuracoes.efetivacao_automatica_padrao_receita_cliente` — a resposta "
-        "devolve o valor efetivo e a consequência para o alerta de inadimplência (D-05)."
+        "devolve o valor efetivo e a consequência para o alerta de inadimplência (D-05). "
+        '`cliente_desde: "AAAA-MM"` acrescenta uma **quarta** operação à transação: as '
+        "ocorrências passadas da mensalidade, já `efetivado` (`RN-05a`), do mês "
+        "informado até o mês atual. Aceita `Idempotency-Key`."
     ),
 )
-async def criar(corpo: ClienteEntrada, usuario: Gestor, conexao: Conexao) -> dict[str, Any]:
+async def criar(
+    corpo: ClienteEntrada,
+    usuario: Gestor,
+    conexao: Conexao,
+    chave: Annotated[str | None, Depends(chave_de_idempotencia)] = None,
+) -> dict[str, Any]:
+    # Idempotência de verdade é aqui, não só no `on conflict` da ocorrência: sem isto,
+    # a repetição que a Vercel faz depois de um timeout criaria um **segundo cliente**
+    # com o histórico inteiro de novo, e o saldo contaria o passado duas vezes.
+    guardada = await resposta_ja_registrada(
+        conexao, chave, rota="POST /api/clientes", usuario_id=str(usuario.id)
+    )
+    if guardada is not None:
+        return guardada
+
     if corpo.mundo_cobranca is not None and corpo.mundo_cobranca not in mod_mundo.MUNDOS:
         raise ErroValidacao(
             f"Mundo de cobrança '{corpo.mundo_cobranca}' não existe.",
             requisito="RN-15",
             campos={"mundo_cobranca": f"Aceitos: {', '.join(mod_mundo.MUNDOS)}."},
         )
+
+    # O limite vem de `configuracoes` (`RNF-02`), então a validação é aqui e não no
+    # `model_validator` — o Pydantic não tem conexão com o banco.
+    inicio_retroativo = mod_retroativo.resolve_inicio(
+        corpo.cliente_desde,
+        tipo_cobranca=corpo.tipo_cobranca,
+        meses_maximo=int(
+            await le_configuracao(
+                conexao,
+                "cliente_retroativo_meses_maximo",
+                padrao=mod_retroativo.PADRAO_MESES_MAXIMO,
+            )
+        ),
+    )
 
     novo = (
         await conexao.execute(
@@ -382,6 +494,7 @@ async def criar(corpo: ClienteEntrada, usuario: Gestor, conexao: Conexao) -> dic
         subcategoria_id=espelho["id"],
         corpo=corpo,
         usuario=usuario,
+        inicio_retroativo=inicio_retroativo,
     )
 
     await registra_auditoria(
@@ -390,7 +503,13 @@ async def criar(corpo: ClienteEntrada, usuario: Gestor, conexao: Conexao) -> dic
         entidade_id=novo,
         acao="criacao",
         usuario_id=usuario.id,
-        depois={"nome": corpo.nome, "tipo_cobranca": corpo.tipo_cobranca},
+        depois={
+            "nome": corpo.nome,
+            "tipo_cobranca": corpo.tipo_cobranca,
+            # Fica na auditoria porque muda o saldo retroativamente: quem olhar o caixa
+            # de um mês fechado e vir um número diferente precisa achar a explicação.
+            "cliente_desde": corpo.cliente_desde if inicio_retroativo else None,
+        },
     )
 
     linha = await _exige_cliente(conexao, novo)
@@ -401,6 +520,10 @@ async def criar(corpo: ClienteEntrada, usuario: Gestor, conexao: Conexao) -> dic
     )
     resposta["subcategoria_id"] = str(espelho["id"])
     resposta["recorrencia"] = recorrencia
+
+    await registra_resposta(
+        conexao, chave, rota="POST /api/clientes", usuario_id=str(usuario.id), resposta=resposta
+    )
     return resposta
 
 
@@ -463,7 +586,9 @@ async def detalhar(
         "quebra_por_mundo": {k: f"{Decimal(str(v)):.2f}" for k, v in quebra.items()},
         "receita_mensal": [
             {"mes": item["mes"], "valor": f"{Decimal(str(item['valor'])):.2f}"}
-            for item in await repositorio.receita_mensal(conexao, cliente_id)
+            for item in await repositorio.receita_mensal(
+                conexao, cliente_id, meses=_meses_da_serie(linha.get("cliente_desde"), hoje=hoje)
+            )
         ],
         "proximos_recebimentos": [
             {
@@ -523,13 +648,30 @@ async def detalhar(
     summary="Edita o cliente e mantém o espelho em dia",
     description=(
         "Papel: **gestor**. Renomear renomeia a subcategoria espelho na mesma transação "
-        "(D-07) — sem isso o Dashboard continuaria mostrando o nome antigo."
+        "(D-07) — sem isso o Dashboard continuaria mostrando o nome antigo. "
+        "**Não aceita `cliente_desde`**: carregar histórico é operação de cadastro."
     ),
 )
 async def editar(
     cliente_id: UUID, corpo: ClienteEntrada, usuario: Gestor, conexao: Conexao
 ) -> dict[str, Any]:
     atual = await _exige_cliente(conexao, cliente_id)
+
+    # Recusado em vez de ignorado em silêncio. A edição não mexe na recorrência, então
+    # aceitar o campo aqui prometeria um histórico que nunca seria gerado — e o usuário
+    # só descobriria conferindo o saldo. Para corrigir o passado de um cliente que já
+    # existe, o caminho é a recorrência dele (`PUT /api/recorrencias/{id}`).
+    if corpo.cliente_desde is not None:
+        raise ErroValidacao(
+            "O histórico retroativo só é carregado no cadastro do cliente.",
+            requisito="RN-05a",
+            campos={
+                "cliente_desde": (
+                    "Para mudar o passado de um cliente já cadastrado, edite a "
+                    "recorrência da mensalidade."
+                )
+            },
+        )
 
     await conexao.execute(
         text("""

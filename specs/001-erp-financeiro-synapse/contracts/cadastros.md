@@ -133,6 +133,7 @@ Dashboard mostrarem coisas diferentes.
     "servicos": [{ "id": "…", "nome": "CRM" }],
     "situacao": "atrasado", "dias_atraso": 8, "valor_atrasado": "2000.00",
     "total_recebido_periodo": "4000.00", "total_recebido_historico": "34000.00",
+    "cliente_desde": "2025-03-10",
     "arquivado_em": null }],
   "paginacao": {} }
 ```
@@ -144,6 +145,9 @@ Dashboard mostrarem coisas diferentes.
   seletor — a resposta o marca com `sem_movimentacao: true` para o frontend poder explicar.
 - Ordenação padrão põe os `atrasado` no topo (`FR-083`).
 - `situacao` é derivada, nunca gravada (data-model §3.4).
+- `cliente_desde` também é derivado, nunca gravado: `least(criado_em, receita efetivada mais
+  antiga)`. Sai da mesma consulta, sem ida ao banco a mais. É `null` só em resposta antiga —
+  na prática todo cliente tem ao menos a data de cadastro.
 
 ### `POST` / `PUT /api/clientes/{id}`
 
@@ -151,9 +155,49 @@ Dashboard mostrarem coisas diferentes.
 { "nome": "…", "empresa": "…", "contato_email": "…", "contato_telefone": "…",
   "tipo_cobranca": "recorrente", "valor_recorrente": "2000.00",
   "dia_cobranca": 10, "mundo_cobranca": "digital",
+  "cliente_desde": "2025-03",
   "servico_ids": ["…"], "observacoes": null,
   "efetivar_automaticamente": null }
 ```
+
+#### `cliente_desde` — histórico retroativo (2026-08-04, `RN-05a`)
+
+`"AAAA-MM"`, opcional. O mês em que o cliente passou a ser cliente, quando isso foi **antes**
+do sistema existir. O `POST` acrescenta uma **quarta** operação à mesma transação: as
+ocorrências da mensalidade daquele mês até o mês atual, nascendo `efetivado` — logo entrando
+no saldo na hora (`RN-05`) e reconstruindo o histórico de receita. Existe porque **não há
+saldo inicial** (research.md D-06).
+
+O `POST` aceita `Idempotency-Key` (contracts/README.md). Sem ela, a repetição que a Vercel
+faz depois de um timeout criaria um segundo cliente com o histórico inteiro de novo, e o
+caixa contaria o passado duas vezes — o `on conflict` da ocorrência não pega esse caso,
+porque a recorrência seria outra.
+
+| Situação | Resposta |
+|---|---|
+| Mês passado, dentro do limite | `201`, com o bloco `recorrencia.retroativo` |
+| **Mês atual** | `201`, `retroativo: null` — comportamento de sempre, nada é duplicado |
+| Mês no futuro | `400 validacao` / `RN-05a` |
+| Além de `configuracoes.cliente_retroativo_meses_maximo` (padrão 120) | `400 validacao`, com o mês-limite na mensagem |
+| `tipo_cobranca` ≠ `recorrente` | `400 validacao` — pontual e parcelada não têm série a reconstruir |
+| Enviado no **`PUT`** | `400 validacao` — a edição não mexe na recorrência; recusar é melhor que ignorar em silêncio |
+
+```json
+{ "recorrencia": {
+    "id": "…", "rotulo": "Mensal, dia 10",
+    "geracao": { "concluida": true, "geradas": 30, "total": 30, "cursor": "2027-08-04" },
+    "retroativo": {
+      "desde": "2025-03-01",
+      "ocorrencias_efetivadas": 18,
+      "valor_total": "36000.00",
+      "mensagem": "18 cobranças do histórico foram lançadas como efetivadas e já contam no saldo."
+    } } }
+```
+
+O dia de cada cobrança é `dia_cobranca` — o mês de início não carrega dia. O tratamento de
+mês curto é o **mesmo** da recorrência (dia 31 vira 28/29 em fevereiro e volta a 31 em
+março), porque é literalmente a mesma regra: `data_inicio` no passado é tudo o que muda.
+36 meses custam **uma** ida ao banco (`insert … select from unnest`), não 36.
 
 **Precisões de B4 (T106–T108)**, todas conferidas por teste:
 
@@ -180,7 +224,7 @@ Dashboard mostrarem coisas diferentes.
 ### `GET /api/clientes/{id}` — perfil (`FR-081`)
 
 ```json
-{ "…dados do cliente…",
+{ "…dados do cliente…", "cliente_desde": "2025-03-10",
   "total_recebido_historico": "34000.00", "total_recebido_periodo": "4000.00",
   "quebra_por_mundo": { "digital": "34000.00", "infra": "0.00" },
   "receita_mensal": [{ "mes": "2026-06", "valor": "2000.00" }],
@@ -189,6 +233,11 @@ Dashboard mostrarem coisas diferentes.
   "situacao": "atrasado", "dias_atraso": 8,
   "recorrencia": { "id": "…", "rotulo": "Mensal, dia 10", "ativa": true, "efetivar_automaticamente": false } }
 ```
+
+`receita_mensal` cobria 12 meses fixos e passou a acompanhar o tempo de casa (mínimo 12,
+máximo 36, a partir de `cliente_desde`). Com histórico retroativo carregado, os 12 fixos
+cortavam justamente o que tinha acabado de ser carregado — sem nada na tela dizendo que
+faltava algo. Não custa consulta a mais: o `generate_series` já recebia o número.
 
 ### `POST /api/clientes/{id}/arquivar` (`RN-06`, `FR-084`)
 

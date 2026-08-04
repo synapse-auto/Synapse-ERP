@@ -18,9 +18,10 @@ import { Textarea } from "@/componentes/ui/textarea";
 import { Checkbox } from "@/componentes/ui/checkbox";
 import { PontoMundo } from "@/componentes/comum/BadgeMundo";
 import { Seletor } from "@/componentes/comum/Seletor";
-import { api, ErroApi, mensagemDoErro } from "@/lib/api";
+import { api, ErroApi, mensagemDoErro, novaChaveIdempotencia } from "@/lib/api";
 import { useInvalidarFinanceiro, useServicos } from "@/lib/consultas";
-import type { Cliente, Mundo, TipoCobranca } from "@/lib/tipos";
+import { dinheiro } from "@/lib/formato";
+import type { Cliente, Mundo, ResumoRetroativo, TipoCobranca } from "@/lib/tipos";
 
 /**
  * Cadastro de cliente (`FR-080`–`FR-082`).
@@ -37,7 +38,56 @@ import type { Cliente, Mundo, TipoCobranca } from "@/lib/tipos";
  * `efetivar_automaticamente` em branco herda a configuração. A escolha muda o
  * alerta de inadimplência: mensalidade automática nunca vence, e por isso
  * nunca aparece como atrasada. A resposta do servidor traz esse aviso pronto.
+ *
+ * ## "Já era cliente antes" — a quarta coisa
+ *
+ * Marcado o checkbox e escolhido o mês, o `POST` manda `cliente_desde` e o
+ * servidor gera as mensalidades passadas **já efetivadas**, do mês escolhido
+ * até o mês atual. É o que faz o Dashboard e os relatórios pararem de começar
+ * do zero — não existe saldo inicial neste sistema (research.md D-06), o caixa
+ * é a soma dos lançamentos efetivados e mais nada.
+ *
+ * Só aparece em cobrança **recorrente** e só no cadastro: editar um cliente que
+ * já existe não carrega histórico, e o servidor recusa se a tela tentar.
+ *
+ * ### Por que mês e ano são dois `Seletor` e não um componente de calendário
+ *
+ * Pesquisa registrada (Princípio II, 2026-08-04): `shadcn` não tem *month
+ * picker* — `search @shadcn -q "month picker"` volta vazio e `-q "month"` só
+ * acha o bloco `login-02`. O `@reui` tem 500 resultados com "month", mas todos
+ * são calendário de **dia** (`c-calendar-8`, "Month and year selection", é a
+ * legenda de um calendário completo) ou agenda de eventos. No GitHub, os
+ * `react-month-picker` da praça trazem CSS próprio para reconciliar com os
+ * tokens. Nenhum entrega o que o campo é: dois valores fechados. Dois `Seletor`
+ * — o componente que este projeto já usa em vez de `<select>` nativo — custam
+ * zero dependência e já respeitam fonte, raio, cor e tema.
  */
+const HOJE = new Date();
+
+const MESES = [
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
+];
+
+/**
+ * Anos oferecidos, do atual para trás.
+ *
+ * O limite de verdade é do servidor (`configuracoes.cliente_retroativo_meses_maximo`,
+ * 120 meses por padrão) e é ele quem recusa — a lista aqui é só o que faz sentido
+ * escolher com o dedo. Um ano fora dela não vira erro silencioso: não existe na lista.
+ */
+const ANOS = Array.from({ length: 11 }, (_, i) => HOJE.getFullYear() - i);
+
 export function FormCliente({
   aberta,
   cliente,
@@ -61,6 +111,9 @@ export function FormCliente({
   const [servicoIds, setServicoIds] = useState<string[]>([]);
   const [observacoes, setObservacoes] = useState("");
   const [efetivacao, setEfetivacao] = useState<"padrao" | "sim" | "nao">("padrao");
+  const [retroativo, setRetroativo] = useState(false);
+  const [mesInicio, setMesInicio] = useState(String(HOJE.getMonth() + 1));
+  const [anoInicio, setAnoInicio] = useState(String(HOJE.getFullYear() - 1));
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -79,24 +132,46 @@ export function FormCliente({
     setServicoIds(cliente?.servicos.map((s) => s.id) ?? []);
     setObservacoes(cliente?.observacoes ?? "");
     setEfetivacao("padrao");
+    setRetroativo(false);
+    setMesInicio(String(HOJE.getMonth() + 1));
+    setAnoInicio(String(HOJE.getFullYear() - 1));
   }, [aberta, cliente]);
 
   const salvar = useMutation({
     mutationFn: (corpo: Record<string, unknown>) =>
       cliente
         ? api.put<Record<string, unknown>>(`/api/clientes/${cliente.id}`, { corpo })
-        : api.post<Record<string, unknown>>("/api/clientes", { corpo }),
+        : api.post<Record<string, unknown>>("/api/clientes", {
+            corpo,
+            // Sem isto, a repetição que a Vercel faz depois de um timeout criaria um
+            // segundo cliente com o histórico inteiro de novo — e o caixa contaria o
+            // passado duas vezes.
+            chaveIdempotencia: novaChaveIdempotencia(),
+          }),
     onSuccess: (r) => {
       invalidar();
-      const rec = (r as { recorrencia?: { aviso_inadimplencia?: string } }).recorrencia;
+      const rec = (
+        r as { recorrencia?: { aviso_inadimplencia?: string; retroativo?: ResumoRetroativo } }
+      ).recorrencia;
       if (rec?.aviso_inadimplencia) setAviso(rec.aviso_inadimplencia);
-      toast.success(cliente ? "Cliente atualizado." : "Cliente criado.");
+      toast.success(cliente ? "Cliente atualizado." : "Cliente criado.", {
+        // O texto e o valor vêm do servidor (`RNF-02`): a tela não remonta a conta.
+        description: rec?.retroativo
+          ? `${rec.retroativo.mensagem} Total: ${dinheiro(rec.retroativo.valor_total)}.`
+          : undefined,
+      });
       if (!rec?.aviso_inadimplencia) aoFechar();
     },
     onError: (e) => setErro(e instanceof ErroApi ? e.message : mensagemDoErro(e)),
   });
 
   const recorrente = tipoCobranca === "recorrente";
+  // Retroativo é operação de cadastro: o servidor recusa no `PUT`, então o bloco não
+  // aparece na edição em vez de aparecer e falhar depois de a pessoa preencher.
+  const podeRetroagir = recorrente && !cliente;
+  const desdeEscolhido = `${anoInicio}-${String(Number(mesInicio)).padStart(2, "0")}`;
+  const mesCorrente = desdeEscolhido === `${HOJE.getFullYear()}-${String(HOJE.getMonth() + 1).padStart(2, "0")}`;
+  const noFuturo = new Date(Number(anoInicio), Number(mesInicio) - 1, 1) > HOJE;
 
   return (
     <Dialog open={aberta} onOpenChange={(v) => (!v ? aoFechar() : undefined)}>
@@ -256,6 +331,55 @@ export function FormCliente({
                 ]}
               />
             </div>
+
+            {podeRetroagir ? (
+              <div className="flex flex-col gap-3 border-t border-linha-suave pt-4">
+                <label className="flex cursor-pointer items-start gap-2.5 text-[13px]">
+                  <Checkbox
+                    checked={retroativo}
+                    onCheckedChange={(v) => setRetroativo(v === true)}
+                    aria-describedby="ajuda-retroativo"
+                  />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="font-medium">Já era cliente antes do sistema</span>
+                    <span id="ajuda-retroativo" className="text-[12px] text-sutil">
+                      Lança as mensalidades do passado como recebidas, do mês de início
+                      até agora. Elas entram no caixa e no histórico de receita.
+                    </span>
+                  </span>
+                </label>
+
+                {retroativo ? (
+                  <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium">Cliente desde</span>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Seletor
+                        rotuloAcessivel="Mês de início"
+                        valor={mesInicio}
+                        aoMudar={setMesInicio}
+                        opcoes={MESES.map((nome, i) => ({
+                          valor: String(i + 1),
+                          rotulo: nome.charAt(0).toUpperCase() + nome.slice(1),
+                        }))}
+                      />
+                      <Seletor
+                        rotuloAcessivel="Ano de início"
+                        valor={anoInicio}
+                        aoMudar={setAnoInicio}
+                        opcoes={ANOS.map((a) => ({ valor: String(a), rotulo: String(a) }))}
+                      />
+                    </div>
+                    <p className="text-[12px] text-sutil">
+                      {noFuturo
+                        ? "Esse mês ainda não chegou — escolha o mês atual ou um mês passado."
+                        : mesCorrente
+                          ? "É o mês atual: nada de histórico é criado, só a mensalidade daqui pra frente."
+                          : `O dia de cada cobrança é o dia ${dia || "—"}, o mesmo da mensalidade.`}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -314,7 +438,7 @@ export function FormCliente({
             {aviso ? "Fechar" : "Cancelar"}
           </Button>
           <Button
-            disabled={!nome.trim() || salvar.isPending}
+            disabled={!nome.trim() || salvar.isPending || (retroativo && podeRetroagir && noFuturo)}
             aria-busy={salvar.isPending}
             onClick={() =>
               salvar.mutate({
@@ -328,6 +452,7 @@ export function FormCliente({
                   : null,
                 dia_cobranca: recorrente ? Number(dia) : null,
                 mundo_cobranca: recorrente ? mundoCobranca : null,
+                cliente_desde: retroativo && podeRetroagir ? desdeEscolhido : null,
                 servico_ids: servicoIds,
                 observacoes: observacoes.trim() || null,
                 efetivar_automaticamente:

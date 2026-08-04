@@ -18,7 +18,7 @@ import { PainelDetalhe } from "@/componentes/lancamentos/PainelDetalhe";
 import { CaixaDeDica, COR } from "@/componentes/graficos/base";
 import { api, mensagemDoErro } from "@/lib/api";
 import { useCliente, useInvalidarFinanceiro, useSessao } from "@/lib/consultas";
-import { dinheiro, iniciais, mesCurto } from "@/lib/formato";
+import { dinheiro, iniciais, mesAno, mesCurto, tempoDeCasa } from "@/lib/formato";
 import type { MundoFiltro } from "@/lib/tipos";
 
 /**
@@ -80,6 +80,13 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
             {c.empresa ?? "—"}
             {c.contato_email ? <span className="text-sutil">· {c.contato_email}</span> : null}
             {c.contato_telefone ? <span className="text-sutil">· {c.contato_telefone}</span> : null}
+            {/* Derivado do lançamento mais antigo, nunca gravado (data-model §3.4).
+                Com o histórico retroativo carregado, é aqui que "desde quando" aparece. */}
+            {c.cliente_desde ? (
+              <span className="text-sutil" title={`Cliente há ${tempoDeCasa(c.cliente_desde)}`}>
+                · Cliente desde {mesAno(c.cliente_desde)}
+              </span>
+            ) : null}
           </span>
         }
         acoes={

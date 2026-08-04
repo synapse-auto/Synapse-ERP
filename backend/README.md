@@ -68,7 +68,7 @@ ruff check . ; black --check .
 | `app/comum/` | Erro, paginação, período, idempotência, auditoria |
 | `app/seguranca/` | `auth.py` valida o token; `rbac.py` decide o papel |
 | `app/<dominio>/` | `rotas.py` → `servico.py` → `repositorio.py`, nessa ordem de dependência |
-| `migracoes/` | SQL versionado, `001`…`013` (data-model §7) |
+| `migracoes/` | SQL versionado, `001`…`014` (data-model §7) |
 | `api/index.py` | Só reexporta o app para a Vercel |
 
 Camada de tela **nunca** fala com o banco, e `repositorio.py` **nunca** contém regra de
@@ -171,6 +171,33 @@ função. Devolver o `dict` do formato `json` fazia o Starlette chamar `.encode(
 `AttributeError: 'dict' object has no attribute 'encode'`, `500` em toda a tela de
 Relatórios. O helper `_json()` de [`app/relatorios/rotas.py`](app/relatorios/rotas.py)
 existe para que a próxima rota de formato duplo não repita o erro.
+
+**Cliente retroativo não tem código de geração próprio — e isso foi o ponto (2026-08-04).**
+"Carregar o histórico de um cliente que já era cliente há 18 meses" parece pedir um caminho
+novo de gravação: gerar N datas, montar N lançamentos, inseri-los. Não pede. A recorrência
+já fazia tudo — `RN-05a` faz ocorrência passada nascer `efetivado`, o *clamp* do dia 31
+existe, `insert … select from unnest` grava o lote numa ida ao banco e o índice único
+`(recorrencia_id, data)` cuida da idempotência. **A única coisa que faltava era
+`data_inicio` deixar de ser fixo em `date.today()`** no cadastro de cliente.
+
+O que foi escrito de fato: [`app/dominio/cliente_retroativo.py`](app/dominio/cliente_retroativo.py),
+que decide **qual mês é aceitável** (não futuro, não além de
+`configuracoes.cliente_retroativo_meses_maximo`, só em cobrança recorrente, mês corrente =
+nada de retroativo). Medido:
+[`tests/integracao/test_cliente_retroativo.py`](tests/integracao/test_cliente_retroativo.py)
+conta os `execute` da conexão e prova que 36 meses custam **as mesmas 13 idas ao banco** que
+6 — o teste falha se algum dia alguém trocar isso por um laço de `insert`.
+
+O `POST /api/clientes` passou a aceitar `Idempotency-Key` na mesma leva. Sem ela, a
+repetição que a Vercel faz depois de um timeout criaria um **segundo cliente** com o
+histórico inteiro de novo: o `on conflict` da ocorrência não pega esse caso, porque a
+recorrência seria outra, e o caixa contaria o passado duas vezes.
+
+**"Cliente desde" é derivado, não coluna.** `least(criado_em, receita efetivada mais
+antiga)`, calculado no `select` que a lista e o perfil já faziam — zero ida ao banco a mais,
+que é o que custa caro aqui. Gravar criaria uma segunda verdade para manter em dia toda vez
+que um lançamento antigo fosse editado, cancelado ou restaurado da lixeira. Mesmo raciocínio
+de `RN-10` (data-model §3.4).
 
 ## Por que `vercel.json` não tem `rewrites`
 

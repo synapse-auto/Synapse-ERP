@@ -158,6 +158,34 @@ export function mesCurto(iso: string | null | undefined, vazio = "—"): string 
   return `${mes}/${String(d.getFullYear()).slice(2)}`;
 }
 
+/** `"2025-03-10"` → `"03/2025"` — "cliente desde", onde o dia não importa. */
+export function mesAno(iso: string | null | undefined, vazio = "—"): string {
+  if (!iso) return vazio;
+  const d = iso.length === 7 ? dataDaApi(`${iso}-01`) : dataDaApi(iso);
+  return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+/**
+ * Tempo de casa a partir da data de início: `"1 ano e 6 meses"`, `"3 meses"`.
+ *
+ * Conta **meses de calendário**, não dias divididos por 30 — quem é cliente desde
+ * 03/2025 faz um ano em 03/2026, não 12 meses e meio depois.
+ */
+export function tempoDeCasa(iso: string | null | undefined, vazio = "—"): string {
+  if (!iso) return vazio;
+  const inicio = dataDaApi(iso);
+  const hoje = new Date();
+  const meses =
+    (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth());
+  if (meses <= 0) return "menos de 1 mês";
+  if (meses < 12) return contar(meses, "mês", "meses");
+
+  const anos = Math.floor(meses / 12);
+  const resto = meses % 12;
+  const parteAnos = contar(anos, "ano");
+  return resto === 0 ? parteAnos : `${parteAnos} e ${contar(resto, "mês", "meses")}`;
+}
+
 /** `"2026-07-01"` → `"Julho de 2026"` — título de período. */
 export function mesPorExtenso(iso: string | null | undefined, vazio = "—"): string {
   if (!iso) return vazio;

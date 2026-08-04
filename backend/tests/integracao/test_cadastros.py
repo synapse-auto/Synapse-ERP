@@ -78,8 +78,16 @@ def _recorrente(nome: str | None = None, **sobrescreve) -> rotas_clientes.Client
 
 
 async def test_cadastrar_cliente_cria_a_subcategoria_espelho(conexao_de_teste):
+    """O nome é sorteado de propósito.
+
+    Era fixo em "Estrutural Vidros" e passou a falhar em 2026-08-04, quando um cliente
+    real com esse nome entrou na base: `clientes_nome_ativos_uidx` recusa o segundo, e o
+    teste morria em `IntegrityError` sem ter nada a ver com o que ele mede. Todo teste
+    daqui cria o que precisa (`conftest`, "regra para teste novo") — este era a exceção.
+    """
     usuario = await _usuario(conexao_de_teste)
-    criado = await rotas_clientes.criar(_cliente("Estrutural Vidros"), usuario, conexao_de_teste)
+    nome = f"Estrutural Vidros {uuid4().hex[:6]}"
+    criado = await rotas_clientes.criar(_cliente(nome), usuario, conexao_de_teste)
 
     espelho = (
         (
@@ -96,7 +104,7 @@ async def test_cadastrar_cliente_cria_a_subcategoria_espelho(conexao_de_teste):
         .first()
     )
     assert espelho is not None, "O cliente nasceu sem subcategoria — D-07 quebrado."
-    assert espelho["nome"] == "Estrutural Vidros"
+    assert espelho["nome"] == nome
     assert espelho["vinculo"] == "cliente"
 
 
@@ -264,9 +272,9 @@ async def test_inadimplentes_vem_no_topo_da_lista(conexao_de_teste):
     await _cria_receita_vencida(conexao_de_teste, usuario, devedor["id"], dias=20)
 
     lista = await rotas_clientes.listar(usuario, conexao_de_teste, _paginacao(200))
-    assert (
-        lista["itens"][0]["id"] == devedor["id"]
-    ), "O inadimplente não ficou no topo — a ordenação alfabética venceu a situação."
+    assert lista["itens"][0]["id"] == devedor["id"], (
+        "O inadimplente não ficou no topo — a ordenação alfabética venceu a situação."
+    )
 
 
 # ── Renomear e arquivar mantêm o espelho em dia ────────────────────────────
