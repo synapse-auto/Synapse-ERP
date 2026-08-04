@@ -1,7 +1,7 @@
 "use client";
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { CaixaDeDica } from "./base";
+import { CaixaDeDica, useMovimentoReduzido } from "./base";
 import { dinheiro, percentual } from "@/lib/formato";
 import { EstadoVazio } from "@/componentes/comum/EstadoVazio";
 import type { FatiaCategoria } from "@/lib/tipos";
@@ -26,6 +26,8 @@ export function DespesasCategoria({
   total: string;
   aoEscolher: (fatia: FatiaCategoria) => void;
 }) {
+  const semMovimento = useMovimentoReduzido();
+
   if (fatias.length === 0) {
     return (
       <EstadoVazio
@@ -52,6 +54,7 @@ export function DespesasCategoria({
               paddingAngle={1.5}
               stroke="var(--superficie-cartao)"
               strokeWidth={2}
+              isAnimationActive={!semMovimento}
               onClick={(_, i) => aoEscolher(fatias[i])}
             >
               {dados.map((f) => (
@@ -98,17 +101,18 @@ export function DespesasCategoria({
             <button
               type="button"
               onClick={() => aoEscolher(f)}
-              className="flex w-full items-center gap-2 rounded-[8px] px-1.5 py-1 text-left transition-colors hover:bg-[var(--bg-subtle)]"
+              aria-label={`Ver as despesas da categoria ${f.nome}`}
+              className="flex w-full items-center gap-2 rounded-[6px] px-1.5 py-1 text-left transition-colors duration-[var(--dur-fast)] hover:bg-[var(--bg-subtle)]"
             >
               <span
                 aria-hidden
                 className="size-[8px] flex-none rounded-full"
                 style={{ background: f.cor ?? "var(--ink-300)" }}
               />
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--fg)]">
+              <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--fg)]">
                 {f.nome}
               </span>
-              <span className="numerico text-[12.5px] font-semibold text-suave">
+              <span className="numerico text-[13px] font-semibold text-suave">
                 {percentual(f.percentual)}
               </span>
             </button>

@@ -50,13 +50,22 @@ export function CartaoNumerico({
       destaque={hero}
       className={cn("flex flex-col", hero ? "p-[20px_22px]" : "px-5 py-[18px]", className)}
     >
+      {/* Card clicável precisa *parecer* clicável: além do ponteiro, o rótulo
+          muda de cor no hover e o cartão ganha um aviso do que o clique faz.
+          Antes só o `cursor-pointer` avisava, e só depois de já estar em cima. */}
       <Elemento
         {...(clicavel
-          ? { type: "button" as const, onClick: () => aoAbrirFiltro!(card) }
+          ? {
+              type: "button" as const,
+              onClick: () => aoAbrirFiltro!(card),
+              "aria-label": `${card.rotulo}: ${valor}. Ver os lançamentos deste card`,
+              title: "Ver os lançamentos deste card",
+            }
           : {})}
         className={cn(
-          "flex flex-1 flex-col text-left",
-          clicavel && "cursor-pointer rounded-[10px] outline-none",
+          "group/card flex flex-1 flex-col text-left",
+          clicavel &&
+            "-m-1 cursor-pointer rounded-[8px] p-1 transition-colors duration-[var(--dur-fast)] hover:bg-[var(--brand-tint)]/60",
         )}
       >
         <div className="flex items-center justify-between gap-3">
@@ -87,7 +96,7 @@ export function CartaoNumerico({
         {card.quebra_por_mundo && mundo === "ambos" ? (
           <div className="mt-[10px] flex flex-col gap-[5px] border-t border-linha-suave pt-[10px]">
             {Object.entries(card.quebra_por_mundo).map(([m, v]) => (
-              <span key={m} className="flex items-center gap-[7px] text-[11.5px] text-suave">
+              <span key={m} className="flex items-center gap-[7px] text-[12px] text-suave">
                 <span
                   aria-hidden
                   className="size-[7px] flex-none rounded-[2.5px]"
@@ -110,7 +119,7 @@ export function CartaoNumerico({
               .map((c) => (
                 <li
                   key={c.situacao}
-                  className="flex items-center gap-2 text-[11.5px] text-suave"
+                  className="flex items-center gap-2 text-[12px] text-suave"
                 >
                   <span
                     aria-hidden

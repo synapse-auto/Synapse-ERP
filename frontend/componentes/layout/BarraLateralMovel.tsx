@@ -23,8 +23,8 @@ export function BarraLateralMovel() {
       <SheetTrigger asChild>
         <button
           type="button"
-          aria-label="Abrir menu"
-          className="ml-4 flex size-9 flex-none items-center justify-center rounded-[10px] border border-linha-controle bg-superficie-cartao text-[var(--fg-muted)] md:hidden"
+          aria-label="Abrir o menu de navegação"
+          className="ml-3 flex size-9 flex-none items-center justify-center rounded-[8px] border border-linha-controle bg-superficie-cartao text-[var(--fg-muted)] transition-colors duration-[var(--dur-fast)] hover:bg-[var(--bg-subtle)] hover:text-[var(--ink-600)] md:hidden"
         >
           <Menu size={18} />
         </button>

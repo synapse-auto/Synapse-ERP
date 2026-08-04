@@ -213,7 +213,9 @@ export function useBusca(termo: string) {
     // Abaixo de 2 caracteres o backend devolve listas vazias em vez de varrer
     // a tabela; nem chamamos.
     enabled: limpo.length >= 2,
-    queryFn: () => api.get<ResultadoBusca>("/api/busca", { consulta: { q: limpo, mundo, limite: 8 } }),
+    // 5 por grupo: com funcionários (T212) são quatro grupos, e 8 de cada
+    // encheria o dropdown com 32 linhas — ninguém lê a trigésima.
+    queryFn: () => api.get<ResultadoBusca>("/api/busca", { consulta: { q: limpo, mundo, limite: 5 } }),
     placeholderData: keepPreviousData,
   });
 }

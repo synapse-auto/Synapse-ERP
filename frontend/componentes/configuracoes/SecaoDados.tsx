@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
@@ -78,20 +78,20 @@ export function SecaoDados() {
         </div>
         <dl className="grid gap-4 px-4 py-4 sm:grid-cols-2">
           <div>
-            <dt className="text-[11.5px] text-sutil">Última execução</dt>
+            <dt className="text-[12px] text-sutil">Última execução</dt>
             <dd className="text-[13px] text-[var(--fg)]">
               {rotina?.ultima_execucao ? instante(rotina.ultima_execucao) : "nunca"}
             </dd>
           </div>
           <div>
-            <dt className="text-[11.5px] text-sutil">Último dia processado</dt>
+            <dt className="text-[12px] text-sutil">Último dia processado</dt>
             <dd className="text-[13px] text-[var(--fg)]">
               {rotina?.ultima_data_processada ?? "—"}
             </dd>
           </div>
           {rotina?.ultimo_resultado ? (
             <div className="sm:col-span-2">
-              <dt className="mb-1 text-[11.5px] text-sutil">Resultado</dt>
+              <dt className="mb-1 text-[12px] text-sutil">Resultado</dt>
               <dd className="flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-suave">
                 {Object.entries(rotina.ultimo_resultado).map(([k, v]) => (
                   <span key={k}>

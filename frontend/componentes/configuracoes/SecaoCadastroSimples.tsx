@@ -149,7 +149,7 @@ export function SecaoCadastroSimples({
               aria-label="Mundo"
               value={mundo}
               onChange={(e) => setMundo(e.target.value as Mundo)}
-              className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+              className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
             >
               <option value="digital">Digital</option>
               <option value="infra">Infra</option>
@@ -161,7 +161,7 @@ export function SecaoCadastroSimples({
               aria-label="Cor"
               value={cor}
               onChange={(e) => setCor(e.target.value)}
-              className="h-9 w-12 cursor-pointer rounded-[10px] border border-linha-controle bg-superficie-cartao p-1"
+              className="h-9 w-12 cursor-pointer rounded-[8px] border border-linha-controle bg-superficie-cartao p-1"
             />
           ) : null}
           <Button size="sm" disabled={!nome.trim() || criar.isPending} onClick={() => criar.mutate()}>
@@ -174,7 +174,7 @@ export function SecaoCadastroSimples({
       {isLoading ? (
         <div className="flex flex-col gap-2 p-4">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-10 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
+            <div key={i} className="h-10 animate-pulse rounded-[8px] bg-[var(--bg-subtle)]" />
           ))}
         </div>
       ) : (data?.itens.length ?? 0) === 0 ? (
@@ -189,7 +189,7 @@ export function SecaoCadastroSimples({
               {comCor ? (
                 <span
                   aria-hidden
-                  className="size-[10px] flex-none rounded-[3px]"
+                  className="size-[10px] flex-none rounded-[2px]"
                   style={{ background: i.cor ?? "var(--fg-subtle)" }}
                 />
               ) : null}
@@ -206,7 +206,7 @@ export function SecaoCadastroSimples({
                     type="button"
                     aria-label={`Excluir ${i.nome}`}
                     onClick={() => excluir.mutate(i.id)}
-                    className="rounded-[7px] p-1.5 text-suave hover:bg-[var(--st-atrasado-bg)] hover:text-[var(--st-atrasado-fg)]"
+                    className="rounded-[6px] p-1.5 text-suave hover:bg-[var(--st-atrasado-bg)] hover:text-[var(--st-atrasado-fg)]"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -215,7 +215,7 @@ export function SecaoCadastroSimples({
                     type="button"
                     aria-label={`Desarquivar ${i.nome}`}
                     onClick={() => desarquivar.mutate(i.id)}
-                    className="rounded-[7px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
+                    className="rounded-[6px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
                   >
                     <ArchiveRestore size={15} />
                   </button>
@@ -224,7 +224,7 @@ export function SecaoCadastroSimples({
                     type="button"
                     aria-label={`Arquivar ${i.nome}`}
                     onClick={() => arquivar.mutate(i.id)}
-                    className="rounded-[7px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
+                    className="rounded-[6px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
                   >
                     <Archive size={15} />
                   </button>

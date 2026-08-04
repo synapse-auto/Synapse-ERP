@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { cn } from "@/lib/utils";
 import { MUNDOS, useEstadoGlobal } from "@/lib/estado-global";
@@ -29,7 +29,7 @@ export function SeletorMundo({ className }: { className?: string }) {
       <div
         role="radiogroup"
         aria-label="Mundo"
-        className="flex items-center gap-[2px] rounded-[9px] border border-linha-suave bg-segmento p-[3px]"
+        className="flex items-center gap-[2px] rounded-[6px] border border-linha-suave bg-segmento p-[3px]"
       >
         {MUNDOS.map((m) => {
           const ativo = mundo === m.valor;
@@ -41,8 +41,8 @@ export function SeletorMundo({ className }: { className?: string }) {
               aria-checked={ativo}
               onClick={() => definirMundo(m.valor)}
               className={cn(
-                "flex items-center gap-[7px] rounded-[7px] px-3 py-[6px] whitespace-nowrap",
-                "font-[family-name:var(--font-display)] text-[12.5px] font-bold tracking-[-0.01em]",
+                "flex items-center gap-[7px] rounded-[6px] px-3 py-[6px] whitespace-nowrap",
+                "font-[family-name:var(--font-display)] text-[13px] font-bold tracking-[-0.01em]",
                 "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
                 ativo
                   ? "bg-superficie-cartao text-[var(--ink-700)] shadow-[0_1px_2px_rgba(30,22,51,0.08)] dark:text-[var(--fg-strong)]"

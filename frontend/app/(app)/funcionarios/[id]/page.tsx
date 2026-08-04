@@ -56,8 +56,8 @@ export default function PaginaFuncionario({ params }: { params: Promise<{ id: st
 
   if (isLoading || !f) {
     return (
-      <div className="mx-auto max-w-[var(--conteudo-largura-max)] px-[30px] pt-[26px]">
-        <div className="h-40 animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
+      <div className="mx-auto max-w-[var(--conteudo-largura-max)] px-4 pt-5 sm:px-[30px] sm:pt-[26px]">
+        <div className="h-40 animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
       </div>
     );
   }
@@ -65,7 +65,7 @@ export default function PaginaFuncionario({ params }: { params: Promise<{ id: st
   const podeEditar = sessao?.permissoes.cadastros ?? false;
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Funcionários"
         titulo={f.nome}
@@ -136,7 +136,7 @@ export default function PaginaFuncionario({ params }: { params: Promise<{ id: st
 
       {f.proximos_pagamentos.length > 0 ? (
         <Cartao className="flex flex-col gap-3">
-          <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+          <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
             Próximos pagamentos
           </span>
           <ul className="flex flex-col">
@@ -147,7 +147,7 @@ export default function PaginaFuncionario({ params }: { params: Promise<{ id: st
               >
                 <DataBR valor={p.data} formato="curta" className="text-[12px] text-suave" />
                 <BadgeStatus status={p.status} compacto />
-                <span className="numerico flex-1 text-right text-[12.5px] font-semibold">
+                <span className="numerico flex-1 text-right text-[13px] font-semibold">
                   {dinheiro(p.valor)}
                 </span>
               </li>

@@ -701,8 +701,19 @@ abertas pelo mesmo motivo de antes: dependem de painel ou de dados reais no banc
 
 ## Fase final — Polimento e conferência de aceitação
 
+### Boss 4 — polimento entregue em 2026-08-03
+
+- [X] T211 Trocar a tipografia para **Geist** e adotar a densidade da Vercel: escada de raios 4/6/8/10/12/16 e tamanho de fonte sempre inteiro (`frontend/estilos/tokens.css`, `app/layout.tsx`) — divergência declarada do design system, decidida pelo dono do projeto
+- [X] T212 `GET /api/busca` passa a devolver **funcionários**, casando por nome e por função e respeitando o mundo ativo (`RN-15`) — `backend/app/busca/rotas.py`, contracts/consultas.md §4
+- [X] T213 Refazer a busca global: **campo com dropdown**, não `CommandDialog`. `combobox` + `listbox`, `⌘K` e `/` focam em vez de abrir, cada opção é um `<Link>` e leva para a tela do registro (`componentes/layout/BuscaGlobal.tsx`)
+- [X] T214 Estado de tela na URL nos dois sentidos: filtros, ordenação, página e lançamento aberto em Lançamentos (`paraUrl`/`daUrl`), `?aba=` em Relatórios e `?secao=` em Configurações — sem isso, chegar em `/lancamentos` já estando lá não fazia nada
+- [X] T215 Regra única de `cursor: pointer` + estados de hover que faltavam; `useMovimentoReduzido()` desliga a animação em JavaScript do Recharts
+- [X] T216 Varredura contra o **Web Interface Guidelines** (skill `/web-design-guidelines`) e correção do que ela apontou: foco, teclado, formulários, `select` nativo no tema escuro, celular, "pular para o conteúdo", `aria-live` e rótulos
+
+### O que continua aberto
+
 - [ ] T202 Percorrer **todas** as telas nos temas claro e escuro e corrigir o que não estiver legível — cards, gráficos e tabelas (`SC-009`, `FR-109`)
-- [ ] T203 Ajustar Dashboard e Extrato para celular: sem rolagem horizontal, sem precisar ampliar (`SC-012`, `FR-111`)
+- [ ] T203 Ajustar Dashboard e Extrato para celular: sem rolagem horizontal, sem precisar ampliar (`SC-012`, `FR-111`) — *parcialmente atacado em T216: a tabela de Lançamentos passou a rolar dentro de si e o padding das telas caiu no celular; falta conferir na tela*
 - [ ] T204 Reexecutar a medição de desempenho com 5.000 lançamentos na interface real — filtro em menos de 2 s e rolagem fluida (`SC-007`, `FR-113`)
 - [ ] T205 [P] Conferir estado vazio explicativo em todos os cards, gráficos e listas, inclusive o mundo com zero no modo "Ambos" (edge cases)
 - [ ] T206 Executar a **verificação de aceitação** de quickstart.md §8 — os 13 itens, rodando, não por leitura de código; o item 9 duas vezes (pela tela e pela API com token de operador)
@@ -710,6 +721,55 @@ abertas pelo mesmo motivo de antes: dependem de painel ou de dados reais no banc
 - [ ] T208 [P] Conferir `/api/docs` contra os 4 arquivos de `contracts/` — divergência é bug, não detalhe (contracts/README.md)
 - [ ] T209 [P] Atualizar `Documentação/Requisitos da Plataforma Financeira.md`, o `CLAUDE.md` e os READMEs de módulo com o que mudou ao longo da implementação (Princípio V)
 - [ ] T210 Medir a exportação completa de ponta a ponta — menos de 5 minutos (`SC-011`)
+
+---
+
+## Auditoria de polimento — 2026-08-03 (Boss 4)
+
+Pedido do dono do projeto: trocar a tipografia para Geist com a densidade da Vercel, varrer
+a experiência com a skill `/web-design-guidelines` e arrumar os detalhes pequenos —
+principalmente o ponteiro do mouse não avisar que dá para clicar e a busca abrir uma janela
+em vez de funcionar como pesquisa.
+
+### O que mudou
+
+| # | Assunto | Onde |
+|---|---|---|
+| 1 | **Geist** substitui Plus Jakarta Sans + Inter; Geist Mono substitui JetBrains Mono. Auto-hospedadas por `next/font/google`. As três variáveis (`--fonte-display/body/mono`) não mudaram de nome, então nenhum dos ~60 usos precisou ser tocado | `app/layout.tsx`, `estilos/tokens.css`, `app/globals.css` |
+| 2 | **Densidade**: 160 `rounded-[Npx]` remapeados para a escada da Geist e 234 tamanhos quebrados (`12.5px`) virados inteiros. Cor, sombra e grade de 4pt intactas | 53 e 54 arquivos, por script |
+| 3 | **A busca virou campo.** `combobox` + `listbox`, foco preso no campo, `↑↓` por `aria-activedescendant`, opção é `<Link>` (aceita `⌘`+clique), `⌘K` e `/` focam em vez de abrir. `buscaAberta` virou `pedidoDeFocoNaBusca` | `layout/BuscaGlobal.tsx`, `layout/CabecalhoGlobal.tsx`, `lib/estado-global.ts` |
+| 4 | **Funcionário entrou na busca**, por nome e por função, respeitando o mundo (`RN-15`). Clicar leva para `/funcionarios/{id}` | `app/busca/rotas.py`, `lib/tipos.ts`, contracts/consultas.md §4 |
+| 5 | **Lançamentos ganhou URL de mão dupla.** Sem isso, clicar num resultado da busca **estando já na tela** trocava o endereço e não acontecia nada — bug que a própria mudança nº 3 teria introduzido | `lancamentos/filtros.ts`, `TelaLancamentos.tsx` |
+| 6 | **`cursor: pointer` numa regra só**, cobrindo também os papéis ARIA que o Radix põe em `div`. `button` do HTML nasce `cursor: default`: era essa a causa de "vários botões o mouse não fica apontando" | `app/globals.css` |
+| 7 | **Varredura do Web Interface Guidelines**: foco na linha da tabela, `Espaço` abrindo linha, `transition-all` fora de 7 primitivos, `prefers-reduced-motion` alcançando o Recharts, `name`/`autocomplete`/`inputmode` nos formulários, confirmação antes de descartar lançamento preenchido, `select` nativo legível no tema escuro do Windows, rolagem horizontal presa na tabela, painéis que não estouram a tela do celular, "pular para o conteúdo", `aria-live` e hover nas linhas que eram clicáveis mudas | ~30 arquivos |
+
+### Testado, rodando
+
+```
+frontend: npx tsc --noEmit ; npx next lint     → sem erros
+frontend: npx vitest run                       → 48 passed  (eram 37)
+frontend: npx next build                       → compilou · 13 rotas
+frontend: página servida em dev                → CSS gerado traz `font-family: 'Geist'`
+backend:  pytest tests/unidade tests/contrato  → 429 passed
+backend:  pytest -k busca (integração)         → 9 passed  (eram 7)
+backend:  ruff check . ; black --check .       → limpos
+```
+
+Os 11 testes novos do frontend: 5 da ida e volta dos filtros pela URL e 6 da busca global
+(é campo e não janela; o dropdown vazio oferece as telas; funcionário aparece e leva para a
+tela dele; os quatro grupos no mesmo dropdown; seta + `Enter`; `Esc` limpa). Os 2 novos do
+backend afirmam a forma de `funcionarios` na resposta e que abaixo de 2 caracteres a lista
+sai vazia.
+
+### O que **não** foi feito
+
+- **T202 continua aberta.** A varredura foi de código; ninguém olhou as 13 telas nos dois
+  temas. As mudanças de densidade e de fonte pedem justamente essa conferência.
+- **T203 ficou parcial**: a tabela de Lançamentos passou a rolar dentro de si e o padding
+  caiu no celular, mas Dashboard e Extrato não foram medidos num aparelho.
+- **T204, T206, T207, T210** dependem de dados reais ou de painel — inalteradas.
+- **`cmdk` continua no `package.json`** sem uso, junto de 16 outros primitivos do shadcn.
+  Mexer no lockfile numa entrega de polimento não valia o risco.
 
 ---
 

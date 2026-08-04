@@ -34,7 +34,7 @@ export function BadgeStatus({
     <span
       className={cn(
         "inline-flex items-center gap-[6px] rounded-full font-[family-name:var(--font-display)] font-bold whitespace-nowrap",
-        compacto ? "px-[7px] py-[2px] text-[10.5px]" : "px-[9px] py-[3px] text-[11.5px]",
+        compacto ? "px-[7px] py-[2px] text-[11px]" : "px-[9px] py-[3px] text-[12px]",
         className,
       )}
       style={{

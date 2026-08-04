@@ -33,7 +33,7 @@ export function Delta({
       <span
         className={cn(
           "inline-flex items-center rounded-full px-[7px] py-[2px]",
-          "font-[family-name:var(--font-display)] text-[11.5px] font-bold whitespace-nowrap",
+          "font-[family-name:var(--font-display)] text-[12px] font-bold whitespace-nowrap",
           "bg-[var(--bg-muted)] text-[var(--fg-muted)]",
           className,
         )}
@@ -56,7 +56,7 @@ export function Delta({
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-[7px] py-[2px]",
-        "font-[family-name:var(--font-display)] text-[11.5px] font-bold whitespace-nowrap",
+        "font-[family-name:var(--font-display)] text-[12px] font-bold whitespace-nowrap",
         className,
       )}
       style={{

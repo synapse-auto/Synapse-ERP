@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -66,7 +66,7 @@ export function SeletorTags({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex h-7 items-center gap-1 rounded-full border border-dashed border-linha-controle px-2.5 text-[11.5px] text-suave transition-colors hover:border-[var(--purple-400)] hover:text-[var(--lateral-ativo-fg)]"
+            className="flex h-7 items-center gap-1 rounded-full border border-dashed border-linha-controle px-2.5 text-[12px] text-suave transition-colors hover:border-[var(--purple-400)] hover:text-[var(--lateral-ativo-fg)]"
           >
             <Plus size={12} />
             Tag
@@ -76,7 +76,7 @@ export function SeletorTags({
           <div className="flex flex-col gap-3">
             <div className="flex max-h-[180px] flex-col gap-1 overflow-y-auto">
               {todas.length === 0 ? (
-                <p className="text-[11.5px] text-sutil">Nenhuma tag ainda.</p>
+                <p className="text-[12px] text-sutil">Nenhuma tag ainda.</p>
               ) : (
                 todas.map((t) => (
                   <button
@@ -84,7 +84,7 @@ export function SeletorTags({
                     type="button"
                     onClick={() => alternar(t.id)}
                     className={cn(
-                      "flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-[12.5px] transition-colors",
+                      "flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] transition-colors",
                       selecionadas.includes(t.id)
                         ? "bg-[var(--brand-tint-2)] text-[var(--lateral-ativo-fg)]"
                         : "hover:bg-[var(--bg-subtle)]",

@@ -57,14 +57,14 @@ export default function PaginaCategorias() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Estrutura"
         titulo="Categorias"
         apoio="A lista é a mesma nos dois mundos; a contagem e o total respeitam o mundo e o período escolhidos."
         acoes={
           <>
-            <label className="flex cursor-pointer items-center gap-2 text-[12.5px] text-suave">
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-suave">
               <Checkbox
                 checked={incluirArquivadas}
                 onCheckedChange={(v) => setIncluirArquivadas(Boolean(v))}
@@ -85,7 +85,7 @@ export default function PaginaCategorias() {
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-14 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
+              <div key={i} className="h-14 animate-pulse rounded-[8px] bg-[var(--bg-subtle)]" />
             ))}
           </div>
         ) : (data?.itens.length ?? 0) === 0 ? (
@@ -102,7 +102,7 @@ export default function PaginaCategorias() {
               >
                 <span
                   aria-hidden
-                  className="size-[10px] flex-none rounded-[3px]"
+                  className="size-[10px] flex-none rounded-[2px]"
                   style={{ background: c.cor ?? "var(--fg-subtle)" }}
                 />
 
@@ -126,7 +126,7 @@ export default function PaginaCategorias() {
                       </span>
                     ) : null}
                   </span>
-                  <span className="text-[11.5px] text-sutil">
+                  <span className="text-[12px] text-sutil">
                     {c.subcategorias.length === 0
                       ? "sem subcategorias"
                       : `${inteiro(c.subcategorias.length)} ${c.subcategorias.length === 1 ? "subcategoria" : "subcategorias"}`}
@@ -166,7 +166,7 @@ export default function PaginaCategorias() {
                       type="button"
                       aria-label={`Editar ${c.nome}`}
                       onClick={() => setEditando(c)}
-                      className="rounded-[7px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
+                      className="rounded-[6px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
                     >
                       <Pencil size={15} />
                     </button>
@@ -179,7 +179,7 @@ export default function PaginaCategorias() {
                         type="button"
                         aria-label={`Arquivar ${c.nome}`}
                         onClick={() => setArquivando(c)}
-                        className="rounded-[7px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
+                        className="rounded-[6px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
                       >
                         <Archive size={15} />
                       </button>

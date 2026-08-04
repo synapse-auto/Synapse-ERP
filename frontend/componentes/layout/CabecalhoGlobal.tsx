@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { SeletorMundo } from "./SeletorMundo";
 import { SeletorPeriodo } from "./SeletorPeriodo";
 import { SinoNotificacoes } from "./SinoNotificacoes";
-import { BotaoBusca, BuscaGlobal } from "./BuscaGlobal";
+import { BuscaGlobal } from "./BuscaGlobal";
 import { FolhaDeAtalhos } from "./FolhaDeAtalhos";
 import { IconeMais } from "@/componentes/comum/icones";
 import { useEstadoUi } from "@/lib/estado-global";
@@ -15,18 +15,20 @@ import { DESTINOS_DE_ATALHO, useAtalhos } from "@/lib/atalhos";
 /**
  * Cabeçalho global — 64px (T157).
  *
- * Ordem do mockup: busca (300px), seletor de mundo, divisor, espaço,
- * seletor de período, divisor, sino, "Novo lançamento".
+ * Ordem do mockup: busca, seletor de mundo, divisor, espaço, seletor de
+ * período, divisor, sino, "Novo lançamento".
  *
  * É também onde os atalhos globais vivem (`FR-110`), porque é o componente
  * que existe em toda tela de dentro da aplicação. `⌘K` e `Esc` valem mesmo
  * com o foco num campo; `N`, `/`, `?` e as sequências `G`+letra não disparam
  * enquanto se digita — senão escrever "Notion" abriria o formulário.
+ *
+ * T213: `⌘K` **foca** a busca do cabeçalho em vez de abrir uma janela. A busca
+ * deixou de ser um diálogo (ver `BuscaGlobal`).
  */
 export function CabecalhoGlobal({ className }: { className?: string }) {
   const router = useRouter();
-  const buscaAberta = useEstadoUi((e) => e.buscaAberta);
-  const definirBuscaAberta = useEstadoUi((e) => e.definirBuscaAberta);
+  const focarBusca = useEstadoUi((e) => e.focarBusca);
   const abrirNovoLancamento = useEstadoUi((e) => e.abrirNovoLancamento);
   const [atalhosAbertos, setAtalhosAbertos] = useState(false);
 
@@ -36,8 +38,8 @@ export function CabecalhoGlobal({ className }: { className?: string }) {
       comando: true,
       valeDigitando: true,
       grupo: "Ações",
-      descricao: "Busca global",
-      aoDisparar: () => definirBuscaAberta(true),
+      descricao: "Focar a busca global",
+      aoDisparar: focarBusca,
     },
     {
       tecla: "n",
@@ -52,7 +54,7 @@ export function CabecalhoGlobal({ className }: { className?: string }) {
       aoDisparar: () => {
         const campo = document.querySelector<HTMLInputElement>("[data-busca-da-tela]");
         if (campo) campo.focus();
-        else definirBuscaAberta(true);
+        else focarBusca();
       },
     },
     {
@@ -84,18 +86,21 @@ export function CabecalhoGlobal({ className }: { className?: string }) {
     <>
       <header
         className={cn(
-          "flex h-[var(--cabecalho-altura)] flex-none items-center gap-4 px-[26px]",
+          "flex h-[var(--cabecalho-altura)] flex-none items-center gap-2 px-3 sm:gap-4 sm:px-[26px]",
           "border-b border-linha-chrome bg-superficie-cartao",
           className,
         )}
       >
-        <BotaoBusca aoAbrir={() => definirBuscaAberta(true)} className="hidden lg:flex" />
+        {/* A busca ocupa o espaço que sobra: no celular ela é a barra inteira,
+            no desktop para nos 340px do mockup. Não existe mais um `flex-1`
+            vazio — quem empurra o resto para a direita é o próprio campo. */}
+        <BuscaGlobal className="min-w-0 flex-1 lg:max-w-[340px]" />
 
         <SeletorMundo className="hidden md:flex" />
 
         <div aria-hidden className="hidden h-[26px] w-px bg-linha-suave md:block" />
 
-        <div className="flex-1" />
+        <div className="hidden flex-1 lg:block" />
 
         <SeletorPeriodo className="hidden xl:flex" />
 
@@ -103,20 +108,25 @@ export function CabecalhoGlobal({ className }: { className?: string }) {
 
         <SinoNotificacoes />
 
+        {/* Abaixo de `sm` o rótulo some e o botão fica só com o `+`: por isso o
+            `aria-label` e o `title` estão sempre presentes. */}
         <button
           type="button"
           onClick={() => abrirNovoLancamento()}
+          aria-label="Novo lançamento"
+          title="Novo lançamento (N)"
           className={cn(
-            "flex h-9 items-center gap-[7px] rounded-[10px] px-[15px]",
+            "flex h-9 flex-none items-center gap-[7px] rounded-[8px] px-3 sm:px-[15px]",
             "bg-[var(--brand)] text-[var(--fg-onbrand)] shadow-[var(--sombra-acao)]",
-            "font-[family-name:var(--font-display)] text-[13.5px] font-bold tracking-[-0.01em]",
-            "transition-colors hover:bg-[var(--brand-hover)]",
+            "font-[family-name:var(--font-display)] text-[14px] font-semibold tracking-[-0.01em]",
+            "transition-colors duration-[var(--dur-fast)] hover:bg-[var(--brand-hover)]",
+            "active:bg-[var(--brand-press)]",
           )}
         >
           <IconeMais />
           <span className="hidden sm:inline">Novo lançamento</span>
           <span
-            aria-hidden
+            aria-hidden="true"
             className="ml-[2px] hidden rounded-[4px] border border-white/35 px-1 font-mono text-[10px] opacity-65 sm:inline"
           >
             N
@@ -124,7 +134,6 @@ export function CabecalhoGlobal({ className }: { className?: string }) {
         </button>
       </header>
 
-      <BuscaGlobal aberta={buscaAberta} aoMudarAbertura={definirBuscaAberta} />
       <FolhaDeAtalhos aberta={atalhosAbertos} aoFechar={() => setAtalhosAbertos(false)} />
     </>
   );

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -91,17 +91,35 @@ export function FormFuncionario({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="nome-fun">Nome</Label>
-            <Input id="nome-fun" value={nome} onChange={(e) => setNome(e.target.value)} />
+            <Input
+              id="nome-fun"
+              name="nome"
+              autoComplete="off"
+              required
+              placeholder="Nome completo…"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="funcao-fun">Função</Label>
-            <Input id="funcao-fun" value={funcao} onChange={(e) => setFuncao(e.target.value)} />
+            <Input
+              id="funcao-fun"
+              name="funcao"
+              autoComplete="off"
+              placeholder="Designer, Técnico de redes…"
+              value={funcao}
+              onChange={(e) => setFuncao(e.target.value)}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="valor-fun">Valor mensal</Label>
             <Input
               id="valor-fun"
+              name="valor_mensal"
               inputMode="decimal"
+              autoComplete="off"
+              placeholder="3500,00"
               className="numerico"
               value={valor}
               onChange={(e) => setValor(e.target.value)}
@@ -124,7 +142,7 @@ export function FormFuncionario({
               id="tipo-fun"
               value={tipo}
               onChange={(e) => setTipo(e.target.value as TipoContratacao)}
-              className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+              className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
             >
               <option value="pj">PJ</option>
               <option value="freelancer">Freelancer</option>
@@ -133,15 +151,18 @@ export function FormFuncionario({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label>Mundo</Label>
-          <div className="flex gap-2">
+          <span className="text-sm font-medium">Mundo</span>
+          <div role="radiogroup" aria-label="Mundo do funcionário" className="flex gap-2">
             {(["digital", "infra"] as Mundo[]).map((m) => (
               <button
                 key={m}
                 type="button"
+                role="radio"
+                aria-checked={mundo === m}
                 disabled={Boolean(funcionario)}
+                title={funcionario ? "O mundo não muda depois de criado (RN-15)" : undefined}
                 onClick={() => setMundo(m)}
-                className="flex h-9 items-center gap-2 rounded-[10px] border px-3 font-[family-name:var(--font-display)] text-[12.5px] font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex h-9 items-center gap-2 rounded-[8px] border px-3 font-[family-name:var(--font-display)] text-[13px] font-semibold transition-colors duration-[var(--dur-fast)] disabled:cursor-not-allowed disabled:opacity-60"
                 style={
                   mundo === m
                     ? {
@@ -157,7 +178,7 @@ export function FormFuncionario({
               </button>
             ))}
           </div>
-          <p className="text-[11.5px] text-sutil">
+          <p className="text-[12px] text-sutil">
             {funcionario
               ? "O mundo é imutável depois de criado (RN-15)."
               : "A folha vai gerar despesa neste mundo, todo mês, e isso não muda depois."}
@@ -167,7 +188,7 @@ export function FormFuncionario({
         {erro ? (
           <p
             role="alert"
-            className="rounded-[10px] px-3 py-2 text-[12.5px]"
+            className="rounded-[8px] px-3 py-2 text-[13px]"
             style={{ background: "var(--st-atrasado-bg)", color: "var(--st-atrasado-fg)" }}
           >
             {erro}
@@ -180,6 +201,7 @@ export function FormFuncionario({
           </Button>
           <Button
             disabled={!nome.trim() || !valor.trim() || salvar.isPending}
+            aria-busy={salvar.isPending}
             onClick={() =>
               salvar.mutate({
                 nome: nome.trim(),
@@ -191,7 +213,7 @@ export function FormFuncionario({
               })
             }
           >
-            Salvar
+            {salvar.isPending ? "Salvando…" : "Salvar funcionário"}
           </Button>
         </DialogFooter>
       </DialogContent>

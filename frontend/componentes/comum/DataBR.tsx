@@ -24,8 +24,8 @@ export function DataBR({ valor, formato = "completa", className, vazio = "—" }
     const [ano, mes, dia] = valor.slice(0, 10).split("-");
     return (
       <time dateTime={valor.slice(0, 10)} className={cn("flex flex-col leading-[1.1]", className)}>
-        <span className="font-mono text-[12.5px] font-medium text-[var(--fg)]">{`${dia}/${mes}`}</span>
-        <span className="font-mono text-[9.5px] text-sutil">{ano}</span>
+        <span className="font-mono text-[13px] font-medium text-[var(--fg)]">{`${dia}/${mes}`}</span>
+        <span className="font-mono text-[10px] text-sutil">{ano}</span>
       </time>
     );
   }

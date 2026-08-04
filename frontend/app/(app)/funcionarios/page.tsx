@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -33,7 +33,7 @@ export default function PaginaFuncionarios() {
   const total = (data?.itens ?? []).reduce((a, f) => a + Number(f.valor_mensal), 0);
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Gestão"
         titulo="Funcionários"
@@ -49,7 +49,7 @@ export default function PaginaFuncionarios() {
         }
         acoes={
           <>
-            <label className="flex cursor-pointer items-center gap-2 text-[12.5px] text-suave">
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-suave">
               <Checkbox
                 checked={incluirArquivados}
                 onCheckedChange={(v) => setIncluirArquivados(Boolean(v))}
@@ -70,7 +70,7 @@ export default function PaginaFuncionarios() {
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
             {[0, 1].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
+              <div key={i} className="h-16 animate-pulse rounded-[8px] bg-[var(--bg-subtle)]" />
             ))}
           </div>
         ) : (data?.itens.length ?? 0) === 0 ? (
@@ -86,7 +86,7 @@ export default function PaginaFuncionarios() {
                   href={`/funcionarios/${f.id}`}
                   className="flex flex-wrap items-center gap-3 border-b border-[var(--linha-suave)] px-4 py-3 no-underline transition-colors last:border-b-0 hover:bg-[var(--linha-hover)]"
                 >
-                  <span className="flex size-9 flex-none items-center justify-center rounded-[10px] bg-[var(--st-programado-bg)] font-[family-name:var(--font-display)] text-[12px] font-extrabold text-[var(--st-programado-fg)]">
+                  <span className="flex size-9 flex-none items-center justify-center rounded-[8px] bg-[var(--st-programado-bg)] font-[family-name:var(--font-display)] text-[12px] font-extrabold text-[var(--st-programado-fg)]">
                     {iniciais(f.nome)}
                   </span>
                   <span className="flex min-w-[200px] flex-1 flex-col">
@@ -101,7 +101,7 @@ export default function PaginaFuncionarios() {
                         </span>
                       ) : null}
                     </span>
-                    <span className="text-[11.5px] text-sutil">{f.funcao ?? "—"}</span>
+                    <span className="text-[12px] text-sutil">{f.funcao ?? "—"}</span>
                   </span>
 
                   <span className="w-[110px] text-[12px] text-suave">
@@ -109,10 +109,10 @@ export default function PaginaFuncionarios() {
                   </span>
 
                   <span className="flex w-[150px] flex-col items-end">
-                    <span className="numerico text-[13.5px] font-bold text-[var(--despesa-fg)]">
+                    <span className="numerico text-[14px] font-bold text-[var(--despesa-fg)]">
                       {dinheiro(f.valor_mensal)}
                     </span>
-                    <span className="text-[10.5px] text-sutil">todo dia {f.dia_pagamento}</span>
+                    <span className="text-[11px] text-sutil">todo dia {f.dia_pagamento}</span>
                   </span>
                 </Link>
               </li>

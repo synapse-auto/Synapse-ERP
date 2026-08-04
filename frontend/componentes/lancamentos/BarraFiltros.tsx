@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
@@ -28,7 +28,7 @@ import type { ResumoFiltrado, StatusLancamento } from "@/lib/tipos";
  */
 
 const SELETOR =
-  "h-[34px] rounded-[9px] border border-linha-controle bg-superficie-cartao pr-8 pl-[11px] text-[13px] text-[var(--ink-700)] dark:text-[var(--fg)] outline-none cursor-pointer";
+  "h-[34px] rounded-[6px] border border-linha-controle bg-superficie-cartao pr-8 pl-[11px] text-[13px] text-[var(--ink-700)] dark:text-[var(--fg)] outline-none cursor-pointer";
 
 const STATUS: StatusLancamento[] = [
   "efetivado",
@@ -145,21 +145,33 @@ export function BarraFiltros({
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-[9px] border-b border-[var(--linha-suave)] px-4 py-[14px]">
-        <div className="flex h-[34px] min-w-[280px] flex-1 items-center gap-2 rounded-[9px] border border-linha-controle bg-[var(--superficie-lateral)] px-[11px] md:max-w-[340px]">
+        <div className="flex h-[34px] min-w-[280px] flex-1 items-center gap-2 rounded-[6px] border border-linha-controle bg-[var(--superficie-lateral)] px-[11px] md:max-w-[340px]">
           <IconeBusca className="flex-none text-sutil" />
           <input
             data-busca-da-tela
+            type="search"
+            name="busca-lancamentos"
+            aria-label="Buscar nos lançamentos filtrados"
+            autoComplete="off"
+            spellCheck={false}
+            enterKeyHint="search"
             value={buscaLocal}
             onChange={(e) => setBuscaLocal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && buscaLocal) {
+                e.preventDefault();
+                setBuscaLocal("");
+              }
+            }}
             placeholder="Descrição, categoria, cliente…"
-            className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-[var(--fg)] outline-none placeholder:text-sutil"
+            className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-[var(--fg)] outline-none placeholder:text-sutil [&::-webkit-search-cancel-button]:hidden"
           />
           {buscaLocal ? (
             <button
               type="button"
               onClick={() => setBuscaLocal("")}
               aria-label="Limpar busca"
-              className="text-sutil hover:text-[var(--fg)]"
+              className="flex size-5 flex-none items-center justify-center rounded-[6px] text-sutil transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--fg)]"
             >
               <X size={14} />
             </button>
@@ -232,7 +244,7 @@ export function BarraFiltros({
           </select>
         ) : (
           <span
-            className="inline-flex h-[34px] items-center gap-[7px] rounded-[9px] px-3 font-[family-name:var(--font-display)] text-[12.5px] font-bold"
+            className="inline-flex h-[34px] items-center gap-[7px] rounded-[6px] px-3 font-[family-name:var(--font-display)] text-[13px] font-bold"
             style={{
               background: `var(--mundo-${mundoGlobal}-bg)`,
               color: `var(--mundo-${mundoGlobal}-fg)`,
@@ -248,21 +260,21 @@ export function BarraFiltros({
         <div className="flex-1" />
 
         <div className="flex items-center gap-[14px] pr-[2px]">
-          <span className="text-[12.5px] text-sutil">
-            <strong className="font-[family-name:var(--font-display)] text-[13.5px] font-extrabold text-forte">
+          <span className="text-[13px] text-sutil">
+            <strong className="font-[family-name:var(--font-display)] text-[14px] font-extrabold text-forte">
               {resumo?.quantidade ?? 0}
             </strong>{" "}
             resultados
           </span>
           <span aria-hidden className="h-[18px] w-px bg-linha-suave" />
-          <span className="numerico font-[family-name:var(--font-display)] text-[12.5px] font-bold text-[var(--receita-fg)]">
+          <span className="numerico font-[family-name:var(--font-display)] text-[13px] font-bold text-[var(--receita-fg)]">
             + {dinheiro(resumo?.total_receitas ?? "0")}
           </span>
-          <span className="numerico font-[family-name:var(--font-display)] text-[12.5px] font-bold text-[var(--despesa-fg)]">
+          <span className="numerico font-[family-name:var(--font-display)] text-[13px] font-bold text-[var(--despesa-fg)]">
             − {dinheiro(resumo?.total_despesas ?? "0")}
           </span>
           <span
-            className="numerico rounded-full bg-[var(--bg-subtle)] px-[9px] py-[3px] font-[family-name:var(--font-display)] text-[12.5px] font-extrabold"
+            className="numerico rounded-full bg-[var(--bg-subtle)] px-[9px] py-[3px] font-[family-name:var(--font-display)] text-[13px] font-extrabold"
             style={{ color: resultado >= 0 ? "var(--receita-fg)" : "var(--despesa-fg)" }}
           >
             = {dinheiro(resumo?.resultado ?? "0")}
@@ -272,20 +284,21 @@ export function BarraFiltros({
 
       {ativos > 0 ? (
         <div className="flex flex-wrap items-center gap-[7px] border-b border-[var(--linha-suave)] bg-[var(--superficie-lateral)] px-4 py-[10px]">
-          <span className="text-[11.5px] font-medium text-sutil">Filtros ativos</span>
+          <span className="text-[12px] font-medium text-sutil">Filtros ativos</span>
           {marcadores.map((m) => (
             <span
               key={m.chave}
-              className="inline-flex items-center gap-[6px] rounded-full bg-[var(--brand-tint-2)] py-1 pr-[6px] pl-[10px] font-[family-name:var(--font-display)] text-[11.5px] font-semibold text-[var(--lateral-ativo-fg)]"
+              className="inline-flex items-center gap-[6px] rounded-full bg-[var(--brand-tint-2)] py-1 pr-[6px] pl-[10px] font-[family-name:var(--font-display)] text-[12px] font-semibold text-[var(--lateral-ativo-fg)]"
             >
               {m.rotulo}
               <button
                 type="button"
                 onClick={m.limpar}
-                aria-label={`Remover ${m.rotulo}`}
-                className="flex text-[var(--brand-hover)]"
+                aria-label={`Remover o filtro ${m.rotulo}`}
+                title={`Remover o filtro ${m.rotulo}`}
+                className="flex size-[18px] items-center justify-center rounded-full text-[var(--brand-hover)] transition-colors hover:bg-[var(--purple-200)] hover:text-[var(--brand-press)]"
               >
-                <X size={13} strokeWidth={2.4} />
+                <X size={13} strokeWidth={2.4} aria-hidden="true" />
               </button>
             </span>
           ))}
@@ -299,9 +312,9 @@ export function BarraFiltros({
                 por_pagina: filtros.por_pagina,
               })
             }
-            className="text-[11.5px] text-sutil underline underline-offset-2 hover:text-[var(--fg)]"
+            className="rounded-[4px] px-1 text-[12px] text-sutil underline underline-offset-2 transition-colors hover:text-[var(--fg)]"
           >
-            limpar tudo
+            Limpar tudo
           </button>
         </div>
       ) : null}
@@ -329,18 +342,45 @@ function MaisFiltros({
     } as Partial<FiltrosLancamento>);
   }
 
+  // Quantos filtros estão ligados **dentro** deste painel. Sem isso o botão
+  // parece desligado mesmo com três tags marcadas escondidas atrás dele.
+  const dentro =
+    filtros.servico_id.length +
+    filtros.centro_custo_id.length +
+    filtros.tag_id.length +
+    (filtros.valor_min ? 1 : 0) +
+    (filtros.valor_max ? 1 : 0);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex h-[34px] items-center gap-[6px] rounded-[9px] border border-dashed border-[#D6CFEA] bg-superficie-cartao px-[11px] text-[13px] text-suave transition-colors hover:border-[var(--purple-400)] hover:text-[var(--lateral-ativo-fg)] dark:border-[var(--border-strong)]"
+          aria-label={
+            dentro > 0 ? `Mais filtros — ${dentro} ativos` : "Mais filtros: serviço, centro de custo, tags e faixa de valor"
+          }
+          className={cn(
+            "flex h-[34px] items-center gap-[6px] rounded-[6px] border border-dashed px-[11px] text-[13px]",
+            "transition-colors duration-[var(--dur-fast)] hover:border-[var(--purple-400)] hover:text-[var(--lateral-ativo-fg)]",
+            dentro > 0
+              ? "border-solid border-[var(--purple-300)] bg-[var(--brand-tint)] text-[var(--lateral-ativo-fg)]"
+              : "border-[#D6CFEA] bg-superficie-cartao text-suave dark:border-[var(--border-strong)]",
+          )}
         >
-          <Plus size={14} strokeWidth={2} />
+          <Plus size={14} strokeWidth={2} aria-hidden="true" />
           Mais filtros
+          {dentro > 0 ? (
+            <span className="numerico ml-[2px] rounded-full bg-[var(--brand)] px-[6px] text-[11px] font-bold text-[var(--fg-onbrand)]">
+              {dentro}
+            </span>
+          ) : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[360px]">
+      <PopoverContent
+        align="start"
+        collisionPadding={12}
+        className="w-[min(360px,calc(100vw-24px))]"
+      >
         <div className="flex flex-col gap-4">
           <ListaDeMarcar
             titulo="Serviço"
@@ -371,8 +411,11 @@ function MaisFiltros({
                 </Label>
                 <Input
                   id="vmin"
+                  name="valor_min"
                   inputMode="decimal"
-                  placeholder="mínimo"
+                  autoComplete="off"
+                  className="numerico"
+                  placeholder="0,00"
                   value={filtros.valor_min}
                   onChange={(e) => aoMudar({ valor_min: e.target.value, pagina: 1 })}
                 />
@@ -384,8 +427,11 @@ function MaisFiltros({
                 </Label>
                 <Input
                   id="vmax"
+                  name="valor_max"
                   inputMode="decimal"
-                  placeholder="máximo"
+                  autoComplete="off"
+                  className="numerico"
+                  placeholder="5.000,00"
                   value={filtros.valor_max}
                   onChange={(e) => aoMudar({ valor_max: e.target.value, pagina: 1 })}
                 />
@@ -415,11 +461,11 @@ function ListaDeMarcar({
     <div className="flex flex-col gap-2">
       <span className="rotulo-seccao">{titulo}</span>
       {itens.length === 0 ? (
-        <p className="text-[11.5px] text-sutil">{vazio}</p>
+        <p className="text-[12px] text-sutil">{vazio}</p>
       ) : (
         <div className="flex max-h-[132px] flex-col gap-1.5 overflow-y-auto pr-1">
           {itens.map((i) => (
-            <label key={i.id} className="flex cursor-pointer items-center gap-2 text-[12.5px]">
+            <label key={i.id} className="flex cursor-pointer items-center gap-2 text-[13px]">
               <Checkbox
                 checked={marcados.includes(i.id)}
                 onCheckedChange={() => aoAlternar(i.id)}

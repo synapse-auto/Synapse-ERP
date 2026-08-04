@@ -43,7 +43,7 @@ export default function PaginaClientes() {
   const atrasados = (data?.itens ?? []).filter((c) => c.situacao === "atrasado");
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Gestão"
         titulo="Clientes"
@@ -60,7 +60,7 @@ export default function PaginaClientes() {
 
       {atrasados.length > 0 ? (
         <div
-          className="flex flex-wrap items-center gap-3 rounded-[13px] border px-[18px] py-3"
+          className="flex flex-wrap items-center gap-3 rounded-[10px] border px-[18px] py-3"
           style={{
             background: "var(--st-atrasado-bg)",
             borderColor: "var(--st-atrasado-dot)",
@@ -71,7 +71,11 @@ export default function PaginaClientes() {
             {atrasados.length} {atrasados.length === 1 ? "cliente" : "clientes"} além da tolerância
           </span>
           {atrasados.slice(0, 4).map((c) => (
-            <Link key={c.id} href={`/clientes/${c.id}`} className="text-[12.5px] no-underline">
+            <Link
+              key={c.id}
+              href={`/clientes/${c.id}`}
+              className="rounded-[4px] px-1.5 py-0.5 text-[13px] font-medium underline-offset-2 transition-colors hover:bg-[var(--st-atrasado-dot)]/20 hover:underline"
+            >
               {c.nome} · {dinheiro(c.valor_atrasado)}
             </Link>
           ))}
@@ -80,17 +84,30 @@ export default function PaginaClientes() {
 
       <Quadro>
         <div className="flex flex-wrap items-center gap-2 border-b border-linha-suave px-4 py-3">
-          <div className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-[10px] border border-linha-controle bg-[var(--superficie-lateral)] px-3 md:max-w-[320px]">
+          <div className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-[8px] border border-linha-controle bg-[var(--superficie-lateral)] px-3 md:max-w-[320px]">
             <Search size={15} className="text-sutil" />
             <input
               data-busca-da-tela
+              type="search"
+              name="busca-clientes"
+              aria-label="Buscar cliente por nome ou empresa"
+              autoComplete="off"
+              spellCheck={false}
+              enterKeyHint="search"
               value={busca}
               onChange={(e) => {
                 setBusca(e.target.value);
                 setPagina(1);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && busca) {
+                  e.preventDefault();
+                  setBusca("");
+                  setPagina(1);
+                }
+              }}
               placeholder="Nome ou empresa…"
-              className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-sutil"
+              className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-sutil [&::-webkit-search-cancel-button]:hidden"
             />
           </div>
           <select
@@ -100,7 +117,7 @@ export default function PaginaClientes() {
               setSituacao(e.target.value as typeof situacao);
               setPagina(1);
             }}
-            className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao pr-8 pl-3 text-[13px] outline-none"
+            className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao pr-8 pl-3 text-[13px] outline-none"
           >
             <option value="">Situação: todas</option>
             <option value="em_dia">Em dia</option>
@@ -111,7 +128,7 @@ export default function PaginaClientes() {
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
+              <div key={i} className="h-16 animate-pulse rounded-[8px] bg-[var(--bg-subtle)]" />
             ))}
           </div>
         ) : (data?.itens.length ?? 0) === 0 ? (
@@ -127,7 +144,7 @@ export default function PaginaClientes() {
                   href={`/clientes/${c.id}`}
                   className="flex flex-wrap items-center gap-3 border-b border-[var(--linha-suave)] px-4 py-3 no-underline transition-colors last:border-b-0 hover:bg-[var(--linha-hover)]"
                 >
-                  <span className="flex size-9 flex-none items-center justify-center rounded-[10px] bg-[var(--brand-tint-2)] font-[family-name:var(--font-display)] text-[12px] font-extrabold text-[var(--lateral-ativo-fg)]">
+                  <span className="flex size-9 flex-none items-center justify-center rounded-[8px] bg-[var(--brand-tint-2)] font-[family-name:var(--font-display)] text-[12px] font-extrabold text-[var(--lateral-ativo-fg)]">
                     {iniciais(c.nome)}
                   </span>
 
@@ -135,7 +152,7 @@ export default function PaginaClientes() {
                     <span className="font-[family-name:var(--font-display)] text-[14px] font-bold text-forte">
                       {c.nome}
                     </span>
-                    <span className="text-[11.5px] text-sutil">
+                    <span className="text-[12px] text-sutil">
                       {c.empresa ?? "—"}
                       {c.servicos.length > 0
                         ? ` · ${c.servicos.map((s) => s.nome).join(", ")}`
@@ -143,7 +160,7 @@ export default function PaginaClientes() {
                     </span>
                   </span>
 
-                  <span className="flex w-[150px] flex-col text-[11.5px] text-suave">
+                  <span className="flex w-[150px] flex-col text-[12px] text-suave">
                     <span className="text-sutil">Cobrança</span>
                     <span>
                       {c.tipo_cobranca === "recorrente"
@@ -162,10 +179,10 @@ export default function PaginaClientes() {
                   <SituacaoCliente cliente={c} />
 
                   <span className="flex w-[140px] flex-col items-end">
-                    <span className="numerico text-[13.5px] font-bold text-[var(--receita-fg)]">
+                    <span className="numerico text-[14px] font-bold text-[var(--receita-fg)]">
                       {dinheiro(c.total_recebido_periodo)}
                     </span>
-                    <span className="text-[10.5px] text-sutil">
+                    <span className="text-[11px] text-sutil">
                       {dinheiro(c.total_recebido_historico)} no total
                     </span>
                   </span>

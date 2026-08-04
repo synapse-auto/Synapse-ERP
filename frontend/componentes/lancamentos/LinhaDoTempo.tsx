@@ -52,7 +52,7 @@ export function LinhaDoTempo({
             style={{ background: COR[e.acao] }}
           />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <span className="text-[12.5px] text-[var(--fg)]">
+            <span className="text-[13px] text-[var(--fg)]">
               <strong className="font-semibold">{e.usuario?.nome ?? "Sistema"}</strong>{" "}
               {ROTULO[e.acao]}
               {e.alteracao_historica ? (
@@ -70,9 +70,9 @@ export function LinhaDoTempo({
             <span className="text-[11px] text-sutil">{instante(e.criado_em)}</span>
 
             {e.alteracoes && Object.keys(e.alteracoes).length > 0 ? (
-              <ul className="mt-1 flex flex-col gap-0.5 rounded-[8px] bg-[var(--bg-subtle)] px-2.5 py-2">
+              <ul className="mt-1 flex flex-col gap-0.5 rounded-[6px] bg-[var(--bg-subtle)] px-2.5 py-2">
                 {Object.entries(e.alteracoes).map(([campo, mudanca]) => (
-                  <li key={campo} className="text-[11.5px] text-suave">
+                  <li key={campo} className="text-[12px] text-suave">
                     <span className="text-sutil">{campo}:</span>{" "}
                     <span className="line-through opacity-70">{comoTexto(mudanca.de)}</span>{" "}
                     <span aria-hidden>→</span>{" "}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -111,24 +111,55 @@ export function FormCliente({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="nome-cli">Nome</Label>
-            <Input id="nome-cli" value={nome} onChange={(e) => setNome(e.target.value)} />
+            <Input
+              id="nome-cli"
+              name="nome"
+              autoComplete="off"
+              required
+              placeholder="Estrutural Vidros…"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="empresa-cli">Empresa</Label>
-            <Input id="empresa-cli" value={empresa} onChange={(e) => setEmpresa(e.target.value)} />
+            <Input
+              id="empresa-cli"
+              name="empresa"
+              autoComplete="off"
+              placeholder="Razão social…"
+              value={empresa}
+              onChange={(e) => setEmpresa(e.target.value)}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email-cli">E-mail</Label>
             <Input
               id="email-cli"
+              name="contato_email"
               type="email"
+              inputMode="email"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="contato@empresa.com.br"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="fone-cli">Telefone</Label>
-            <Input id="fone-cli" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+            <Input
+              id="fone-cli"
+              name="contato_telefone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="(11) 98888-7777"
+              value={telefone}
+              onChange={(e) => setTelefone(e.target.value)}
+            />
           </div>
         </div>
 
@@ -138,7 +169,7 @@ export function FormCliente({
             id="cobranca"
             value={tipoCobranca}
             onChange={(e) => setTipoCobranca(e.target.value as TipoCobranca)}
-            className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+            className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
           >
             <option value="pontual">Pontual — por projeto</option>
             <option value="recorrente">Recorrente — mensalidade</option>
@@ -147,7 +178,7 @@ export function FormCliente({
         </div>
 
         {recorrente ? (
-          <div className="flex flex-col gap-4 rounded-[12px] border border-linha-suave bg-[var(--bg-subtle)] p-4">
+          <div className="flex flex-col gap-4 rounded-[10px] border border-linha-suave bg-[var(--bg-subtle)] p-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="valor-cli">Valor mensal</Label>
@@ -173,14 +204,16 @@ export function FormCliente({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label>Mundo da cobrança</Label>
-              <div className="flex gap-2">
+              <span className="text-sm font-medium">Mundo da cobrança</span>
+              <div role="radiogroup" aria-label="Mundo da cobrança" className="flex gap-2">
                 {(["digital", "infra"] as Mundo[]).map((m) => (
                   <button
                     key={m}
                     type="button"
+                    role="radio"
+                    aria-checked={mundoCobranca === m}
                     onClick={() => setMundoCobranca(m)}
-                    className="flex h-9 items-center gap-2 rounded-[10px] border px-3 font-[family-name:var(--font-display)] text-[12.5px] font-bold"
+                    className="flex h-9 items-center gap-2 rounded-[8px] border px-3 font-[family-name:var(--font-display)] text-[13px] font-semibold transition-colors duration-[var(--dur-fast)]"
                     style={
                       mundoCobranca === m
                         ? {
@@ -196,7 +229,7 @@ export function FormCliente({
                   </button>
                 ))}
               </div>
-              <p className="text-[11.5px] text-sutil">
+              <p className="text-[12px] text-sutil">
                 É onde a mensalidade vira lançamento. O cliente em si não tem mundo.
               </p>
             </div>
@@ -207,7 +240,7 @@ export function FormCliente({
                 id="efetivacao-cli"
                 value={efetivacao}
                 onChange={(e) => setEfetivacao(e.target.value as typeof efetivacao)}
-                className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
               >
                 <option value="padrao">Usar o padrão configurado</option>
                 <option value="nao">Manual — exige confirmação (permite alerta de atraso)</option>
@@ -219,10 +252,10 @@ export function FormCliente({
 
         {(servicos?.itens.length ?? 0) > 0 ? (
           <div className="flex flex-col gap-2">
-            <Label>Serviços contratados</Label>
+            <span className="text-sm font-medium">Serviços contratados</span>
             <div className="flex flex-wrap gap-3">
               {servicos!.itens.map((s) => (
-                <label key={s.id} className="flex cursor-pointer items-center gap-2 text-[12.5px]">
+                <label key={s.id} className="flex cursor-pointer items-center gap-2 text-[13px]">
                   <Checkbox
                     checked={servicoIds.includes(s.id)}
                     onCheckedChange={() =>
@@ -250,7 +283,7 @@ export function FormCliente({
 
         {aviso ? (
           <p
-            className="rounded-[10px] px-3 py-2.5 text-[12.5px]"
+            className="rounded-[8px] px-3 py-2.5 text-[13px]"
             style={{ background: "var(--st-pendente-bg)", color: "var(--st-pendente-fg)" }}
           >
             {aviso}
@@ -260,7 +293,7 @@ export function FormCliente({
         {erro ? (
           <p
             role="alert"
-            className="rounded-[10px] px-3 py-2 text-[12.5px]"
+            className="rounded-[8px] px-3 py-2 text-[13px]"
             style={{ background: "var(--st-atrasado-bg)", color: "var(--st-atrasado-fg)" }}
           >
             {erro}
@@ -273,6 +306,7 @@ export function FormCliente({
           </Button>
           <Button
             disabled={!nome.trim() || salvar.isPending}
+            aria-busy={salvar.isPending}
             onClick={() =>
               salvar.mutate({
                 nome: nome.trim(),
@@ -292,7 +326,7 @@ export function FormCliente({
               })
             }
           >
-            Salvar
+            {salvar.isPending ? "Salvando…" : "Salvar cliente"}
           </Button>
         </DialogFooter>
       </DialogContent>

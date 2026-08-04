@@ -69,14 +69,14 @@ export function FormEntrar() {
       className="flex min-h-dvh items-center justify-center px-6 py-10"
       style={{ background: "var(--grad-hero)" }}
     >
-      <div className="grid w-full max-w-[980px] overflow-hidden rounded-[28px] border border-linha-chrome bg-superficie-cartao shadow-[var(--shadow-lg)] md:grid-cols-[1.05fr_1fr]">
+      <div className="grid w-full max-w-[980px] overflow-hidden rounded-[16px] border border-linha-chrome bg-superficie-cartao shadow-[var(--shadow-lg)] md:grid-cols-[1.05fr_1fr]">
         {/* Painel de marca — some no celular, onde o formulário é o que importa */}
         <aside
           className="hidden flex-col justify-between p-10 md:flex"
           style={{ background: "var(--grad-brand-soft)" }}
         >
           <div className="flex items-center gap-3">
-            <MarcaSynapse tamanho={36} idGradiente="marca-entrar" className="rounded-[9px]" />
+            <MarcaSynapse tamanho={36} idGradiente="marca-entrar" className="rounded-[6px]" />
             <div className="flex flex-col leading-[1.15]">
               <span className="font-[family-name:var(--font-display)] text-[16px] font-bold tracking-[-0.02em] text-forte">
                 Synapse ERP
@@ -89,7 +89,7 @@ export function FormEntrar() {
             <h1 className="text-[30px] leading-[1.15] font-extrabold tracking-[-0.03em] text-forte">
               Os dois mundos da Synapse, no mesmo lugar.
             </h1>
-            <p className="max-w-[38ch] text-[13.5px] leading-[1.6] text-suave">
+            <p className="max-w-[38ch] text-[14px] leading-[1.6] text-suave">
               Digital e Infra com caixas separados, lançamentos programados que se resolvem na
               data e o resultado do mês sem planilha.
             </p>
@@ -102,12 +102,12 @@ export function FormEntrar() {
             </div>
           </div>
 
-          <p className="text-[11.5px] text-sutil">Uso interno · acesso por convite do gestor</p>
+          <p className="text-[12px] text-sutil">Uso interno · acesso por convite do gestor</p>
         </aside>
 
         <div className="flex flex-col justify-center gap-6 p-8 sm:p-10">
           <div className="flex flex-col gap-1.5 md:hidden">
-            <MarcaSynapse tamanho={34} idGradiente="marca-entrar-movel" className="rounded-[9px]" />
+            <MarcaSynapse tamanho={34} idGradiente="marca-entrar-movel" className="rounded-[6px]" />
           </div>
 
           <div className="flex flex-col gap-1">
@@ -118,7 +118,7 @@ export function FormEntrar() {
           {!configurado ? (
             <p
               role="alert"
-              className="rounded-[10px] border px-3 py-2.5 text-[12.5px]"
+              className="rounded-[8px] border px-3 py-2.5 text-[13px]"
               style={{
                 borderColor: "var(--st-pendente-dot)",
                 background: "var(--st-pendente-bg)",
@@ -126,9 +126,9 @@ export function FormEntrar() {
               }}
             >
               Autenticação não configurada neste ambiente. Falta{" "}
-              <code className="font-mono text-[11.5px]">NEXT_PUBLIC_SUPABASE_URL</code> e{" "}
-              <code className="font-mono text-[11.5px]">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> em{" "}
-              <code className="font-mono text-[11.5px]">.env.local</code>.
+              <code className="font-mono text-[12px]">NEXT_PUBLIC_SUPABASE_URL</code> e{" "}
+              <code className="font-mono text-[12px]">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> em{" "}
+              <code className="font-mono text-[12px]">.env.local</code>.
             </p>
           ) : null}
 
@@ -137,13 +137,18 @@ export function FormEntrar() {
               <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
+                inputMode="email"
                 autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="voce@synapse.com.br"
                 disabled={!configurado || verificando}
+                className="h-10"
               />
             </div>
 
@@ -152,12 +157,14 @@ export function FormEntrar() {
               <div className="relative">
                 <Input
                   id="senha"
+                  name="senha"
                   type={mostrarSenha ? "text" : "password"}
                   autoComplete="current-password"
+                  spellCheck={false}
                   required
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
-                  className="pr-10"
+                  className="h-10 pr-10"
                   disabled={!configurado || verificando}
                 />
                 <button
@@ -174,7 +181,7 @@ export function FormEntrar() {
             {erro ? (
               <p
                 role="alert"
-                className="rounded-[10px] px-3 py-2 text-[12.5px]"
+                className="rounded-[8px] px-3 py-2 text-[13px]"
                 style={{ background: "var(--st-atrasado-bg)", color: "var(--st-atrasado-fg)" }}
               >
                 {erro}
@@ -182,12 +189,12 @@ export function FormEntrar() {
             ) : null}
 
             <Button type="submit" disabled={!configurado || enviando || verificando} className="h-10">
-              {enviando ? <Loader2 className="animate-spin" size={16} /> : null}
-              Entrar
+              {enviando ? <Loader2 className="animate-spin" size={16} aria-hidden="true" /> : null}
+              {enviando ? "Entrando…" : "Entrar"}
             </Button>
           </form>
 
-          <p className="text-[11.5px] text-sutil">
+          <p className="text-[12px] text-sutil">
             Esqueceu a senha? Peça ao gestor para reenviar o convite — não há cadastro público
             neste sistema.
           </p>

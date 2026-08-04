@@ -277,13 +277,22 @@ Matriz meses × categorias com todos os totais, sem foco em variação.
 **Papel**: gestor, operador
 
 ```json
-{ "lancamentos": [{ "id": "…", "descricao": "…", "valor": "2000.00", "data": "2026-06-10", "mundo": "digital" }],
-  "clientes":    [{ "id": "…", "nome": "…", "empresa": "…" }],
-  "categorias":  [{ "id": "…", "nome": "…", "cor": "#…" }] }
+{ "termo": "estrutural",
+  "lancamentos":  [{ "id": "…", "descricao": "…", "valor": "2000.00", "data": "2026-06-10",
+                     "mundo": "digital", "tipo": "receita", "status": "efetivado", "categoria": "…" }],
+  "clientes":     [{ "id": "…", "nome": "…", "empresa": "…" }],
+  "funcionarios": [{ "id": "…", "nome": "…", "funcao": "…", "mundo": "digital" }],
+  "categorias":   [{ "id": "…", "nome": "…", "cor": "#…", "icone": "…" }],
+  "minimo_de_caracteres": 2 }
 ```
 
-Respeita o `mundo` ativo nos lançamentos; clientes e categorias não têm mundo.
+Respeita o `mundo` ativo em **lançamentos e funcionários** (os dois têm `mundo`, `RN-15`);
+clientes e categorias não têm mundo (D-04).
 Mínimo 2 caracteres; abaixo disso devolve listas vazias em vez de varrer a tabela.
+
+`funcionarios` entrou no Boss 4 (T212): a busca casa por **nome e por função**, então
+"designer" acha a pessoa sem precisar lembrar o nome dela. Só funcionário ativo — arquivado
+não aparece.
 
 ---
 

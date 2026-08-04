@@ -16,7 +16,7 @@ export function SituacaoCliente({ cliente }: { cliente: Cliente }) {
 
   return (
     <span
-      className="flex w-[168px] flex-col gap-0.5 rounded-[9px] px-2.5 py-1.5"
+      className="flex w-[168px] flex-col gap-0.5 rounded-[6px] px-2.5 py-1.5"
       style={{
         background: atrasado ? "var(--st-atrasado-bg)" : "var(--st-efetivado-bg)",
         color: atrasado ? "var(--st-atrasado-fg)" : "var(--st-efetivado-fg)",
@@ -27,7 +27,7 @@ export function SituacaoCliente({ cliente }: { cliente: Cliente }) {
           : undefined
       }
     >
-      <span className="font-[family-name:var(--font-display)] text-[11.5px] font-bold">
+      <span className="font-[family-name:var(--font-display)] text-[12px] font-bold">
         {atrasado ? `Atrasado há ${cliente.dias_atraso} dias` : "Em dia"}
       </span>
       {atrasado ? (
@@ -38,7 +38,7 @@ export function SituacaoCliente({ cliente }: { cliente: Cliente }) {
             : ""}
         </span>
       ) : cliente.tolerancia_dias != null ? (
-        <span className="text-[10.5px] opacity-80">
+        <span className="text-[11px] opacity-80">
           tolerância de {cliente.tolerancia_dias} dias
         </span>
       ) : null}

@@ -30,7 +30,7 @@ export function CabecalhoTela({
         <h1 className="text-[27px] leading-[1.1] font-extrabold tracking-[-0.03em] text-forte">
           {titulo}
         </h1>
-        {apoio ? <p className="mt-[5px] text-[13.5px] text-suave">{apoio}</p> : null}
+        {apoio ? <p className="mt-[5px] text-[14px] text-suave">{apoio}</p> : null}
       </div>
       {acoes ? <div className="flex flex-wrap items-center gap-2">{acoes}</div> : null}
     </div>
@@ -50,9 +50,9 @@ export function BotaoChrome({
     <button
       type="button"
       className={cn(
-        "flex h-[34px] items-center gap-[7px] rounded-[9px] px-[13px] whitespace-nowrap",
+        "flex h-[34px] items-center gap-[7px] rounded-[6px] px-[13px] whitespace-nowrap",
         "border border-linha-controle bg-superficie-cartao text-[var(--ink-600)] dark:text-[var(--fg)]",
-        "font-[family-name:var(--font-display)] text-[12.5px] font-semibold",
+        "font-[family-name:var(--font-display)] text-[13px] font-semibold",
         "transition-colors hover:border-[var(--purple-300)] hover:bg-[var(--bg-subtle)]",
         "disabled:cursor-not-allowed disabled:opacity-45",
         className,
@@ -69,7 +69,7 @@ export function Quadro({ children, className }: { children: ReactNode; className
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[14px] border border-linha-chrome bg-superficie-cartao",
+        "overflow-hidden rounded-[12px] border border-linha-chrome bg-superficie-cartao",
         "shadow-[var(--sombra-cartao)]",
         className,
       )}

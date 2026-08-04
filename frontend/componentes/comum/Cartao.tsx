@@ -24,7 +24,7 @@ export function Cartao({
   return (
     <div
       className={cn(
-        "rounded-[14px]",
+        "rounded-[12px]",
         padding === "normal" && "p-5",
         padding === "compacto" && "p-4",
         destaque

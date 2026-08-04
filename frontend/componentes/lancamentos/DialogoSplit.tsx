@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
@@ -115,7 +115,7 @@ export function DialogoSplit({
           {partes.map((p, i) => (
             <div key={i} className="grid grid-cols-[1fr_150px_130px_32px] items-end gap-2">
               <div className="flex flex-col gap-1.5">
-                {i === 0 ? <Label className="text-[11.5px]">Descrição</Label> : null}
+                {i === 0 ? <Label className="text-[12px]">Descrição</Label> : null}
                 <Input
                   value={p.descricao}
                   placeholder={lancamento.descricao}
@@ -123,11 +123,11 @@ export function DialogoSplit({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                {i === 0 ? <Label className="text-[11.5px]">Categoria</Label> : null}
+                {i === 0 ? <Label className="text-[12px]">Categoria</Label> : null}
                 <select
                   value={p.categoria_id}
                   onChange={(e) => atualizar(i, "categoria_id", e.target.value)}
-                  className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
                 >
                   {(categorias?.itens ?? []).map((c) => (
                     <option key={c.id} value={c.id}>
@@ -137,7 +137,7 @@ export function DialogoSplit({
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                {i === 0 ? <Label className="text-[11.5px]">Valor</Label> : null}
+                {i === 0 ? <Label className="text-[12px]">Valor</Label> : null}
                 <Input
                   inputMode="decimal"
                   value={p.valor}
@@ -179,7 +179,7 @@ export function DialogoSplit({
         </div>
 
         <div
-          className="flex items-center justify-between rounded-[10px] px-3 py-2.5 text-[12.5px]"
+          className="flex items-center justify-between rounded-[8px] px-3 py-2.5 text-[13px]"
           style={{
             background: fecha ? "var(--receita-bg)" : "var(--st-pendente-bg)",
             color: fecha ? "var(--receita-fg)" : "var(--st-pendente-fg)",
@@ -201,7 +201,7 @@ export function DialogoSplit({
         {erroDoServidor ? (
           <p
             role="alert"
-            className="rounded-[10px] px-3 py-2 text-[12.5px]"
+            className="rounded-[8px] px-3 py-2 text-[13px]"
             style={{ background: "var(--st-atrasado-bg)", color: "var(--st-atrasado-fg)" }}
           >
             {erroDoServidor.message}

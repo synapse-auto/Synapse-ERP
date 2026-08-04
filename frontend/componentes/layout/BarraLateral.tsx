@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -64,8 +64,8 @@ function ItemDeMenu({ aba, ativa }: { aba: Aba; ativa: boolean }) {
       href={aba.rota}
       aria-current={ativa ? "page" : undefined}
       className={cn(
-        "flex w-full items-center gap-[10px] rounded-[9px] px-[11px] py-[9px] text-left",
-        "font-[family-name:var(--font-display)] text-[13.5px] tracking-[-0.01em]",
+        "flex w-full items-center gap-[10px] rounded-[6px] px-[11px] py-[9px] text-left",
+        "font-[family-name:var(--font-display)] text-[14px] tracking-[-0.01em]",
         "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
         ativa
           ? "bg-lateral-ativo font-bold text-lateral-ativo-fg"
@@ -106,12 +106,12 @@ export function BarraLateral({ className }: { className?: string }) {
       )}
     >
       <div className="flex h-[var(--cabecalho-altura)] flex-none items-center gap-[10px] border-b border-linha-suave px-[18px]">
-        <MarcaSynapse tamanho={31} idGradiente="marca-lateral" className="block flex-none rounded-[7px]" />
+        <MarcaSynapse tamanho={31} idGradiente="marca-lateral" className="block flex-none rounded-[6px]" />
         <div className="flex min-w-0 flex-col leading-[1.15]">
-          <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold tracking-[-0.02em] text-forte">
+          <span className="font-[family-name:var(--font-display)] text-[15px] font-bold tracking-[-0.02em] text-forte">
             Synapse ERP
           </span>
-          <span className="text-[10.5px] tracking-[0.03em] text-sutil">Financeiro</span>
+          <span className="text-[11px] tracking-[0.03em] text-sutil">Financeiro</span>
         </div>
       </div>
 
@@ -141,19 +141,19 @@ export function BarraLateral({ className }: { className?: string }) {
         <MenuPerfil>
           <button
             type="button"
-            className="mt-[2px] flex w-full items-center gap-[10px] rounded-[9px] px-[9px] py-2 text-left transition-colors hover:bg-lateral-hover"
+            className="mt-[2px] flex w-full items-center gap-[10px] rounded-[6px] px-[9px] py-2 text-left transition-colors hover:bg-lateral-hover"
           >
             <span
-              className="flex size-7 flex-none items-center justify-center rounded-[8px] font-[family-name:var(--font-display)] text-[11.5px] font-extrabold text-[#2E1A66]"
+              className="flex size-7 flex-none items-center justify-center rounded-[6px] font-[family-name:var(--font-display)] text-[12px] font-extrabold text-[#2E1A66]"
               style={{ background: "linear-gradient(135deg,#DCCFFB,#A78BFA)" }}
             >
               {iniciais(sessao?.usuario.nome)}
             </span>
             <span className="flex min-w-0 flex-col leading-[1.25]">
-              <span className="truncate font-[family-name:var(--font-display)] text-[12.5px] font-semibold text-[var(--fg)]">
+              <span className="truncate font-[family-name:var(--font-display)] text-[13px] font-semibold text-[var(--fg)]">
                 {sessao?.usuario.nome ?? "Carregando…"}
               </span>
-              <span className="text-[10.5px] text-sutil">
+              <span className="text-[11px] text-sutil">
                 {sessao?.usuario.papel === "gestor"
                   ? "Gestor"
                   : sessao?.usuario.papel === "operador"

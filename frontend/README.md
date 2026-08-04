@@ -49,7 +49,7 @@ lib/
 ├── atalhos.ts              teclado (FR-110)
 └── tipos.ts                a fronteira com a API, espelhando contracts/
 estilos/
-├── tokens.css              cópia literal do design system
+├── tokens.css              design system + as duas divergências do Boss 4
 └── tema-escuro.css         escala derivada (research.md D-12)
 ```
 
@@ -86,6 +86,96 @@ prefixo `use`, e sem esse reconhecimento ela deixa de acusar chamada condicional
 **em qualquer arquivo** — não só nestes. A troca do prefixo mantém o vocabulário do domínio
 em português e devolve a checagem.
 
+## Boss 4 — polimento (2026-08-03)
+
+### Tipografia: Geist
+
+A interface usa **Geist** e **Geist Mono** (as famílias da Vercel), no lugar de Plus Jakarta
+Sans + Inter. Decisão do dono do projeto; é a primeira divergência declarada do design
+system. Uma família só para título e corpo — a hierarquia vem de peso e tamanho, não da
+troca de família.
+
+Carregadas por `next/font/google` (auto-hospedadas, sem requisição ao Google em tempo de
+renderização). Os nomes das variáveis não mudaram — `--fonte-display`, `--fonte-body`,
+`--fonte-mono` —, então os ~60 `font-[family-name:var(--font-display)]` espalhados pelas
+telas continuam valendo sem edição.
+
+### Densidade
+
+Segunda divergência declarada. A escada de raios do Synapse (4/6/10/14/20/28) virou a da
+Geist: **4** para marca de seleção, **6** para controle, **8** para botão e item de menu,
+**10** para painel interno, **12** para cartão, **16** para destaque. Os 160
+`rounded-[Npx]` cravados nas telas foram remapeados na mesma entrega — não existem dois
+vocabulários de raio no projeto.
+
+Junto, os 234 tamanhos de fonte quebrados (`text-[12.5px]`, `text-[13.5px]`…) viraram
+inteiros. Geist tem altura-x menor que a Inter: arredondar para cima manteve a leitura no
+mesmo lugar e tirou o meio-pixel, que borra em tela não-retina.
+
+**Cor, sombra e espaçamento 4pt continuam sendo os do design system, letra por letra.**
+
+### A busca deixou de ser uma janela
+
+Era um `CommandDialog`: clicar no campo escurecia a tela e abria um painel no meio dela.
+Agora é um campo comum no cabeçalho que mostra o resultado num dropdown embaixo enquanto se
+digita (`componentes/layout/BuscaGlobal.tsx`).
+
+- Padrão `combobox` + `listbox`: o foco **nunca sai do campo**, `↑`/`↓` movem por
+  `aria-activedescendant`, `Enter` abre, `Esc` limpa e depois desfoca.
+- Cada opção é um `<Link>` de verdade — `⌘`/`Ctrl`+clique abre em outra aba e o endereço
+  aparece na barra de status antes do clique.
+- `⌘K` e `/` **focam** o campo em vez de abrir alguma coisa. `useEstadoUi.buscaAberta` virou
+  `pedidoDeFocoNaBusca`, um contador (apertar `⌘K` duas vezes precisa focar duas vezes).
+- **Funcionário entrou na busca** (T212): `GET /api/busca` devolve `funcionarios`, casando
+  por nome **e por função**. Clicar leva para `/funcionarios/{id}`. Cliente vai para
+  `/clientes/{id}`, lançamento para `/lancamentos?selecionado={id}` e categoria para a lista
+  já filtrada.
+- `componentes/ui/command.tsx` ficou sem uso e continua no lugar, como o resto dos
+  primitivos do shadcn que ainda não foram chamados.
+
+### Estado de tela na URL, nos dois sentidos
+
+Até o Boss 3 a tela só **lia** o endereço na primeira montagem. Duas consequências: copiar o
+link depois de filtrar mandava a lista crua, e chegar em `/lancamentos` **já estando lá** não
+fazia nada — era o que aconteceria ao clicar num resultado da busca com a tela aberta. Agora
+filtro, ordenação, página e o lançamento aberto vão para a URL (`paraUrl`) e voltam dela
+(`daUrl`). O mundo da lista viaja como `mundo_lista` para não brigar com o `mundo` global do
+cabeçalho.
+
+Mesma ideia nas outras duas telas com abas: `?aba=` em Relatórios e `?secao=` em
+Configurações. "Olha o DRE" e "olha a auditoria" viraram link. O valor padrão não vai para a
+URL — endereço que a pessoa copia não carrega ruído.
+
+### "O mouse avisa que dá para clicar"
+
+Uma regra em `app/globals.css` — não `cursor-pointer` repetido em duzentos lugares. Vale
+para `button`, `a[href]`, `select`, `summary`, `label` que aponta ou embrulha o controle, e
+os papéis ARIA que o Radix põe em `div` (`option`, `menuitem`, `tab`, `switch`, `checkbox`,
+`radio`, `combobox`). `button` do HTML nasce com `cursor: default` — era isso que fazia o
+ponteiro não mudar em metade dos botões. Desabilitado ganha `not-allowed`.
+
+### Varredura contra o Web Interface Guidelines
+
+Rodada com a skill `/web-design-guidelines` (regras da Vercel). O que foi corrigido:
+
+| Área | Correção |
+|---|---|
+| Foco | linha da tabela ganhou anel interno (o anel roxo padrão contornava a tela toda) |
+| Teclado | `Espaço` abre a linha da tabela, além de `Enter` |
+| Movimento | `useMovimentoReduzido()` desliga a animação **em JavaScript** do Recharts — a regra CSS de `prefers-reduced-motion` não alcança SVG redesenhado quadro a quadro |
+| Movimento | `transition-all` saiu de sete primitivos do shadcn; a lista de propriedades é explícita |
+| Formulários | `name`, `autocomplete`, `inputmode`, `type` correto e `spellcheck` nos campos de cliente, funcionário e login; placeholders com exemplo |
+| Formulários | fechar o formulário de lançamento com campo preenchido pergunta antes de descartar |
+| Formulários | botão de envio vira "Salvando…"/"Entrando…" durante a requisição, com `aria-busy` |
+| Tema escuro | `select` nativo recebe cor e fundo explícitos — no Windows ele desenhava texto preto em fundo preto |
+| Celular | tabela de lançamentos rola **dentro de si** (`min-w` + `overflow-x-auto`), não arrasta a página |
+| Celular | padding das telas caiu de 30px para 16px abaixo de `sm`; painéis de 360–400px passaram a `min(…, 100vw − 24px)` |
+| Acessibilidade | "Pular para o conteúdo" como primeiro foco tabulável; `<main id="conteudo-principal">` |
+| Acessibilidade | `aria-live` na contagem de resultados da busca; `role="radiogroup"`/`radio` nos segmentados de mundo, período, extrato e cadastro |
+| Hover | linhas de pendência, de top clientes, de funcionários e os "Ver todos" do Dashboard ganharam estado de hover — eram clicáveis mudos |
+| Toque | `touch-action: manipulation` e `-webkit-tap-highlight-color` na raiz; `overscroll-behavior: contain` em diálogo, gaveta e popover |
+| Conteúdo | rótulos de botão em caixa de frase ("Limpar tudo", "Cancelar seleção", "Tirar") e alvos de clique de 18–20px onde eram de 13 |
+
 ## Tema escuro
 
 Não existe no design system. A escala é derivada pelas cinco regras de research.md D-12 e
@@ -106,16 +196,23 @@ ao mesmo tempo, porque o Tailwind espera o primeiro e D-12 escreve o segundo.
 | 7 | **`FuncionarioPerfil.pagamentos` estava tipado como `PaginaDe<Lancamento>`.** A API devolve lista simples, com `lancamento_id` — igual ao campo irmão `proximos_pagamentos` —, e `f.pagamentos.itens` derrubava a tela de detalhe do funcionário. O tipo virou `PagamentoDoFuncionario[]`. O perfil do **cliente** é o oposto: ali o contrato promete envelope paginado, e era o backend que não mandava o campo | resolvida em 2026-08-02 |
 | 8 | **`RNF-10` pede os atalhos `1`–`7`** para navegar entre as abas e só existiam as sequências `G`+letra. Os números entraram junto, sem tirar as sequências; a folha de atalhos (`?`) mostra os dois | resolvida em 2026-08-03 |
 | 9 | **"Exportar" da barra de ações em massa ignorava a seleção** e baixava a lista filtrada inteira (`FR-040`). `GET /api/lancamentos/exportacao` ganhou o parâmetro repetível `id` e a tela passa os marcados | resolvida em 2026-08-03 |
+| 10 | **Tipografia e raios divergem do design system de propósito** (Boss 4): Geist no lugar de Plus Jakarta + Inter, e a escada de raios da Geist no lugar da do Synapse. Decisão do dono do projeto, marcada em `estilos/tokens.css` nos dois blocos. Cor, sombra e espaçamento continuam idênticos | divergência declarada |
+| 11 | **`cmdk` continua no `package.json` sem uso**, junto com 16 outros primitivos do shadcn que ainda não foram chamados. Não foi removido para não mexer no lockfile numa entrega de polimento | sem ação |
 
 ## Testes
 
-`npm run teste` — 37 testes cobrindo o que quebra em silêncio: formatação brasileira
+`npm run teste` — 48 testes cobrindo o que quebra em silêncio: formatação brasileira
 (inclusive o erro de fuso que faria `2026-07-31` virar dia 30), tradução de filtros e
-drill-down, envelope de erro da API e os componentes comuns.
+drill-down, a ida e a volta dos filtros pela URL, envelope de erro da API, os componentes
+comuns e os seis casos da busca global (é campo e não janela; funcionário aparece; clicar
+leva para a tela dele; os quatro grupos no mesmo dropdown; seta + `Enter`; `Esc` limpa).
 
-O que **não** está coberto por teste automatizado e depende de dados reais: a conferência
-visual dos dois temas tela a tela (T202), o comportamento com 5.000 lançamentos (T204) e a
-verificação de aceitação de quickstart.md §8 (T206).
+O que **não** está coberto por teste automatizado e depende de olhar a tela ou de dados
+reais: a conferência visual dos dois temas tela a tela (T202), o comportamento com 5.000
+lançamentos (T204) e a verificação de aceitação de quickstart.md §8 (T206). **O Boss 4 não
+fecha nenhum desses três** — a varredura foi de código, com build, tipos, lint e testes
+verdes, e uma checagem de que a página servida carrega Geist auto-hospedada
+(`font-family: 'Geist'` no CSS gerado).
 
 **Passagem manual de 2026-08-02**, com login real (Supabase Auth) contra o backend
 implantado e o banco de produção: as nove rotas de tela abrem sem erro de cliente, nos dois

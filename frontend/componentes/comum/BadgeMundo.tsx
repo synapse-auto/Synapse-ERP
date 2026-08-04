@@ -33,7 +33,7 @@ export function BadgeMundo({
     <span
       className={cn(
         "inline-flex items-center gap-[5px] rounded-[6px] px-[6px] py-[1.5px]",
-        "font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[-0.01em] whitespace-nowrap",
+        "font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[-0.01em] whitespace-nowrap",
         className,
       )}
       style={{

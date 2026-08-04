@@ -69,7 +69,7 @@ export function DialogoSerie({
           ).map((o) => (
             <label
               key={o.valor}
-              className={`flex cursor-pointer gap-3 rounded-[12px] border px-4 py-3 transition-colors ${
+              className={`flex cursor-pointer gap-3 rounded-[10px] border px-4 py-3 transition-colors ${
                 escolhido === o.valor
                   ? "border-[var(--brand)] bg-[var(--brand-tint)]"
                   : "border-linha-suave hover:bg-[var(--bg-subtle)]"
@@ -84,7 +84,7 @@ export function DialogoSerie({
               />
               <span className="flex flex-col gap-0.5">
                 <span className="text-[13px] font-semibold text-[var(--fg)]">{o.titulo}</span>
-                <span className="text-[11.5px] leading-[1.5] text-suave">{o.texto}</span>
+                <span className="text-[12px] leading-[1.5] text-suave">{o.texto}</span>
               </span>
             </label>
           ))}
@@ -122,7 +122,7 @@ export function DialogoAlteracaoHistorica({
           <AlertDialogTitle>Isto altera um mês já fechado</AlertDialogTitle>
           <AlertDialogDescription>{mensagem}</AlertDialogDescription>
         </AlertDialogHeader>
-        <p className="text-[11.5px] text-sutil">
+        <p className="text-[12px] text-sutil">
           A mudança fica marcada como alteração histórica na linha do tempo, com seu nome e a
           data.
         </p>

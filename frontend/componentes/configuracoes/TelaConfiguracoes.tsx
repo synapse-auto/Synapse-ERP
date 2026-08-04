@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { CabecalhoTela } from "@/componentes/comum/CabecalhoTela";
 import { EstadoVazio } from "@/componentes/comum/EstadoVazio";
@@ -44,15 +45,42 @@ const SECOES: { valor: Secao; rotulo: string; soGestor?: boolean }[] = [
   { valor: "auditoria", rotulo: "Auditoria" },
 ];
 
+const SECOES_VALIDAS = new Set<string>(SECOES.map((s) => s.valor));
+
 export function TelaConfiguracoes() {
   const { data: sessao } = useSessao();
-  const [secao, setSecao] = useState<Secao>("parametros");
+  const params = useSearchParams();
+  const router = useRouter();
+  const caminho = usePathname();
+  const paramsTexto = params.toString();
+
+  // A seção mora na URL (T214) — "olha a auditoria" vira um link.
+  const daUrl = params.get("secao");
+  const [secao, setSecao] = useState<Secao>(
+    daUrl && SECOES_VALIDAS.has(daUrl) ? (daUrl as Secao) : "parametros",
+  );
+
+  useEffect(() => {
+    const p = new URLSearchParams(paramsTexto);
+    const naUrl = p.get("secao");
+    if (naUrl && SECOES_VALIDAS.has(naUrl) && naUrl !== secao) setSecao(naUrl as Secao);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramsTexto]);
+
+  useEffect(() => {
+    const atual = new URLSearchParams(paramsTexto);
+    const alvo = new URLSearchParams(paramsTexto);
+    if (secao === "parametros") alvo.delete("secao");
+    else alvo.set("secao", secao);
+    if (alvo.toString() === atual.toString()) return;
+    router.replace(`${caminho}?${alvo.toString()}`, { scroll: false });
+  }, [secao, paramsTexto, caminho, router]);
 
   const ehGestor = sessao?.usuario.papel === "gestor";
   const visiveis = SECOES.filter((s) => !s.soGestor || ehGestor);
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Sistema"
         titulo="Configurações"
@@ -63,14 +91,19 @@ export function TelaConfiguracoes() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-[2px] self-start rounded-[9px] border border-linha-suave bg-segmento p-[3px]">
+      <div
+        role="group"
+        aria-label="Seção de configurações"
+        className="flex flex-wrap items-center gap-[2px] self-start rounded-[6px] border border-linha-suave bg-segmento p-[3px]"
+      >
         {visiveis.map((s) => (
           <button
             key={s.valor}
             type="button"
+            aria-pressed={secao === s.valor}
             onClick={() => setSecao(s.valor)}
             className={cn(
-              "rounded-[7px] px-[13px] py-[7px] font-[family-name:var(--font-display)] text-[12.5px] font-semibold transition-colors",
+              "rounded-[6px] px-[13px] py-[7px] font-[family-name:var(--font-display)] text-[13px] font-semibold transition-colors",
               secao === s.valor
                 ? "bg-superficie-cartao text-[var(--ink-700)] shadow-[0_1px_2px_rgba(30,22,51,0.08)] dark:text-[var(--fg-strong)]"
                 : "text-suave hover:text-[var(--fg)]",

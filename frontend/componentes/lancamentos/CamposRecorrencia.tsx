@@ -68,14 +68,14 @@ export function CamposRecorrencia({ form }: { form: UseFormReturn<ValoresLancame
   }, [frequencia, dia, inicio, fim, valor, intervaloDias]);
 
   return (
-    <div className="flex flex-col gap-4 rounded-[12px] border border-linha-suave bg-[var(--bg-subtle)] p-4">
+    <div className="flex flex-col gap-4 rounded-[10px] border border-linha-suave bg-[var(--bg-subtle)] p-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="frequencia">Frequência</Label>
           <select
             id="frequencia"
             {...register("frequencia")}
-            className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+            className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
           >
             <option value="mensal">Mensal</option>
             <option value="semanal">Semanal</option>
@@ -89,7 +89,7 @@ export function CamposRecorrencia({ form }: { form: UseFormReturn<ValoresLancame
             <Label htmlFor="dia_vencimento">Dia do mês</Label>
             <Input id="dia_vencimento" type="number" min={1} max={31} {...register("dia_vencimento")} />
             {Number(dia) > 28 ? (
-              <p className="text-[11.5px] text-sutil">
+              <p className="text-[12px] text-sutil">
                 Em meses mais curtos, cai no último dia do mês.
               </p>
             ) : null}
@@ -110,7 +110,7 @@ export function CamposRecorrencia({ form }: { form: UseFormReturn<ValoresLancame
       </div>
 
       {previa ? (
-        <div className="flex flex-col gap-1 rounded-[10px] bg-superficie-cartao px-3 py-2.5 text-[12px]">
+        <div className="flex flex-col gap-1 rounded-[8px] bg-superficie-cartao px-3 py-2.5 text-[12px]">
           <span className="text-[var(--fg)]">
             Serão criadas{" "}
             <strong className="numerico">{previa.previa.total_ocorrencias}</strong> ocorrências
@@ -132,7 +132,7 @@ export function CamposRecorrencia({ form }: { form: UseFormReturn<ValoresLancame
           </span>
         </div>
       ) : buscando ? (
-        <div className="h-[52px] animate-pulse rounded-[10px] bg-superficie-cartao" />
+        <div className="h-[52px] animate-pulse rounded-[8px] bg-superficie-cartao" />
       ) : null}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { dinheiro, dinheiroCurto, mesCurto } from "@/lib/formato";
 
@@ -44,13 +44,13 @@ export function CaixaDeDica({
   rodape?: ReactNode;
 }) {
   return (
-    <div className="min-w-[168px] rounded-[10px] border border-linha-chrome bg-superficie-cartao px-3 py-2 shadow-[var(--shadow-md)]">
-      <p className="mb-1.5 font-[family-name:var(--font-display)] text-[11.5px] font-bold text-forte">
+    <div className="min-w-[168px] rounded-[8px] border border-linha-chrome bg-superficie-cartao px-3 py-2 shadow-[var(--shadow-md)]">
+      <p className="mb-1.5 font-[family-name:var(--font-display)] text-[12px] font-bold text-forte">
         {titulo}
       </p>
       <ul className="flex flex-col gap-1">
         {linhas.map((l) => (
-          <li key={l.rotulo} className="flex items-center justify-between gap-4 text-[11.5px]">
+          <li key={l.rotulo} className="flex items-center justify-between gap-4 text-[12px]">
             <span className="flex items-center gap-1.5 text-suave">
               {l.cor ? (
                 <span
@@ -65,7 +65,7 @@ export function CaixaDeDica({
           </li>
         ))}
       </ul>
-      {rodape ? <p className="mt-1.5 text-[10.5px] text-sutil">{rodape}</p> : null}
+      {rodape ? <p className="mt-1.5 text-[11px] text-sutil">{rodape}</p> : null}
     </div>
   );
 }
@@ -81,7 +81,7 @@ export function Legenda({
   return (
     <div className={cn("flex flex-wrap items-center gap-4", className)}>
       {itens.map((i) => (
-        <span key={i.rotulo} className="flex items-center gap-1.5 text-[11.5px] text-suave">
+        <span key={i.rotulo} className="flex items-center gap-1.5 text-[12px] text-suave">
           {i.tracejado ? (
             <span
               aria-hidden
@@ -100,4 +100,28 @@ export function Legenda({
 
 export function formatarMoedaDica(v: unknown): string {
   return dinheiro(typeof v === "number" ? v : String(v ?? ""));
+}
+
+/**
+ * `true` quando o sistema pede menos movimento (T215).
+ *
+ * A regra de `prefers-reduced-motion` do `globals.css` desliga transição e
+ * animação **de CSS**. O Recharts anima em JavaScript, redesenhando o SVG
+ * quadro a quadro — CSS nenhum alcança isso. Por isso o hook: cada série
+ * recebe `isAnimationActive={!semMovimento}` e o gráfico nasce pronto para
+ * quem marcou "reduzir movimento" no sistema.
+ */
+export function useMovimentoReduzido(): boolean {
+  const [reduzido, setReduzido] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const consulta = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const aplicar = () => setReduzido(consulta.matches);
+    aplicar();
+    consulta.addEventListener("change", aplicar);
+    return () => consulta.removeEventListener("change", aplicar);
+  }, []);
+
+  return reduzido;
 }

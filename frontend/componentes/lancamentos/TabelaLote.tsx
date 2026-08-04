@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
@@ -138,7 +138,7 @@ export function TabelaLote({ aberta, aoFechar }: { aberta: boolean; aoFechar: ()
             {["Data", "Descrição", "Tipo", "Valor", "Categoria", ""].map((c) => (
               <span
                 key={c}
-                className="font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase"
+                className="font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase"
               >
                 {c}
               </span>
@@ -151,7 +151,7 @@ export function TabelaLote({ aberta, aoFechar }: { aberta: boolean; aoFechar: ()
               <div key={i} className="flex flex-col gap-1">
                 <div
                   className={cn(
-                    "grid grid-cols-[130px_1fr_110px_120px_180px_36px] items-center gap-2 rounded-[10px] p-1",
+                    "grid grid-cols-[130px_1fr_110px_120px_180px_36px] items-center gap-2 rounded-[8px] p-1",
                     erro && "bg-[var(--st-atrasado-bg)]",
                   )}
                 >
@@ -164,7 +164,7 @@ export function TabelaLote({ aberta, aoFechar }: { aberta: boolean; aoFechar: ()
                   <select
                     value={l.tipo}
                     onChange={(e) => atualizar(i, "tipo", e.target.value)}
-                    className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                    className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
                   >
                     <option value="despesa">Despesa</option>
                     <option value="receita">Receita</option>
@@ -179,7 +179,7 @@ export function TabelaLote({ aberta, aoFechar }: { aberta: boolean; aoFechar: ()
                   <select
                     value={l.categoria_id}
                     onChange={(e) => atualizar(i, "categoria_id", e.target.value)}
-                    className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                    className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
                   >
                     <option value="">Categoria…</option>
                     {(categorias?.itens ?? [])
@@ -202,7 +202,7 @@ export function TabelaLote({ aberta, aoFechar }: { aberta: boolean; aoFechar: ()
                   </Button>
                 </div>
                 {erro ? (
-                  <p className="px-2 text-[11.5px] text-[var(--danger-500)]">
+                  <p className="px-2 text-[12px] text-[var(--danger-500)]">
                     {erro.mensagem}
                     {erro.requisito ? ` (${erro.requisito})` : ""}
                   </p>
@@ -225,7 +225,7 @@ export function TabelaLote({ aberta, aoFechar }: { aberta: boolean; aoFechar: ()
         </Button>
 
         <DialogFooter>
-          <span className="mr-auto text-[11.5px] text-sutil">
+          <span className="mr-auto text-[12px] text-sutil">
             {preenchidas.length} de {TETO} linhas preenchidas
           </span>
           <Button variant="outline" onClick={aoFechar}>

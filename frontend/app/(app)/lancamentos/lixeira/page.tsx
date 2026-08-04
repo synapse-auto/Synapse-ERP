@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { ArrowLeft, RotateCcw } from "lucide-react";
@@ -29,7 +29,7 @@ export default function PaginaLixeira() {
   const restaurar = useRestaurar();
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Lançamentos"
         titulo="Lixeira"
@@ -48,7 +48,7 @@ export default function PaginaLixeira() {
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-12 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
+              <div key={i} className="h-12 animate-pulse rounded-[8px] bg-[var(--bg-subtle)]" />
             ))}
           </div>
         ) : (data?.itens.length ?? 0) === 0 ? (
@@ -63,7 +63,7 @@ export default function PaginaLixeira() {
               {["Data", "Descrição", "Categoria", "Status", "Prazo", ""].map((c) => (
                 <span
                   key={c}
-                  className="font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase"
+                  className="font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase"
                 >
                   {c}
                 </span>
@@ -80,7 +80,7 @@ export default function PaginaLixeira() {
                   <span className="truncate text-[13px] text-[var(--fg)]">{l.descricao}</span>
                   <BadgeMundo mundo={l.mundo} />
                 </span>
-                <span className="truncate pr-3 text-[12.5px] text-suave">{l.categoria.nome}</span>
+                <span className="truncate pr-3 text-[13px] text-suave">{l.categoria.nome}</span>
                 <span>
                   <BadgeStatus status={l.status} compacto />
                 </span>
@@ -100,7 +100,7 @@ export default function PaginaLixeira() {
                   )}
                 </span>
                 <span className="flex items-center justify-end gap-3">
-                  <span className="numerico text-[12.5px] font-semibold text-suave">
+                  <span className="numerico text-[13px] font-semibold text-suave">
                     {dinheiro(l.valor)}
                   </span>
                   <Button

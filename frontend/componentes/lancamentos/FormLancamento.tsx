@@ -14,6 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/componentes/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/componentes/ui/alert-dialog";
 import { Button } from "@/componentes/ui/button";
 import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
@@ -129,6 +139,7 @@ export function FormLancamento({
   const [perguntandoEscopo, setPerguntandoEscopo] = useState(false);
   const [escopoSerie, setEscopoSerie] = useState<EscopoSerie | null>(null);
   const [avisoHistorico, setAvisoHistorico] = useState<string | null>(null);
+  const [confirmandoDescarte, setConfirmandoDescarte] = useState(false);
 
   const efetivacaoPadrao = Boolean(
     (configuracoes?.efetivacao_automatica_padrao?.valor as boolean | undefined) ?? true,
@@ -333,6 +344,19 @@ export function FormLancamento({
     }
   }
 
+  /**
+   * Fechar com campo preenchido pergunta antes (T216, Web Interface
+   * Guidelines § Forms). O jeito mais fácil de perder dez campos digitados
+   * era um clique fora do diálogo — ele fechava calado.
+   */
+  function tentarFechar() {
+    if (formState.isDirty && !enviando) {
+      setConfirmandoDescarte(true);
+      return;
+    }
+    aoFechar();
+  }
+
   const titulo = idParaEditar
     ? "Editar lançamento"
     : modo === "recorrente"
@@ -343,7 +367,7 @@ export function FormLancamento({
 
   return (
     <>
-      <Dialog open={aberto} onOpenChange={(v) => (!v ? aoFechar() : undefined)}>
+      <Dialog open={aberto} onOpenChange={(v) => (!v ? tentarFechar() : undefined)}>
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-[720px]">
           <DialogHeader>
             <DialogTitle>{titulo}</DialogTitle>
@@ -405,7 +429,7 @@ export function FormLancamento({
                         type="button"
                         disabled={Boolean(idParaEditar)}
                         onClick={() => field.onChange(m)}
-                        className="flex h-9 items-center gap-2 rounded-[10px] border px-3 font-[family-name:var(--font-display)] text-[12.5px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                        className="flex h-9 items-center gap-2 rounded-[8px] border px-3 font-[family-name:var(--font-display)] text-[13px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                         style={
                           field.value === m
                             ? {
@@ -423,7 +447,7 @@ export function FormLancamento({
                   </div>
                 )}
               />
-              <p className="text-[11.5px] text-sutil">
+              <p className="text-[12px] text-sutil">
                 {idParaEditar
                   ? "O mundo é imutável depois de criado (RN-15)."
                   : mundoGlobal === "ambos"
@@ -462,7 +486,7 @@ export function FormLancamento({
                 <select
                   id="moeda"
                   {...register("moeda")}
-                  className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
                 >
                   <option value="BRL">BRL</option>
                   <option value="USD">USD</option>
@@ -482,7 +506,7 @@ export function FormLancamento({
             </div>
 
             {moeda === "USD" ? (
-              <p className="rounded-[10px] bg-[var(--st-programado-bg)] px-3 py-2 text-[12px] text-[var(--st-programado-fg)]">
+              <p className="rounded-[8px] bg-[var(--st-programado-bg)] px-3 py-2 text-[12px] text-[var(--st-programado-fg)]">
                 O servidor busca a cotação da <strong>data do lançamento</strong> e grava o valor
                 em reais, o valor original e a cotação usada. Se as duas fontes falharem, ele pede
                 a cotação manual.
@@ -496,7 +520,7 @@ export function FormLancamento({
                 <select
                   id="categoria_id"
                   {...register("categoria_id")}
-                  className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
                 >
                   <option value="">Escolha…</option>
                   {categoriasDoTipo.map((c) => (
@@ -518,7 +542,7 @@ export function FormLancamento({
                   id="subcategoria_id"
                   {...register("subcategoria_id")}
                   disabled={!categoria}
-                  className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none disabled:opacity-50"
+                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none disabled:opacity-50"
                 >
                   <option value="">{exigeSubcategoria ? "Escolha…" : "Nenhuma"}</option>
                   {(categoria?.subcategorias ?? []).map((s) => (
@@ -528,7 +552,7 @@ export function FormLancamento({
                   ))}
                 </select>
                 {exigeSubcategoria ? (
-                  <p className="text-[11.5px] text-sutil">
+                  <p className="text-[12px] text-sutil">
                     {categoria?.nome} é categoria especial: a subcategoria diz de qual{" "}
                     {categoria?.vinculo === "cliente" ? "cliente" : "funcionário"} é o lançamento.
                   </p>
@@ -540,7 +564,7 @@ export function FormLancamento({
                 <select
                   id="servico_id"
                   {...register("servico_id")}
-                  className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
                 >
                   <option value="">Nenhum</option>
                   {(servicos?.itens ?? []).map((s) => (
@@ -556,7 +580,7 @@ export function FormLancamento({
                 <select
                   id="centro_custo_id"
                   {...register("centro_custo_id")}
-                  className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                  className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
                 >
                   <option value="">Geral</option>
                   {(centros?.itens ?? []).map((c) => (
@@ -565,7 +589,7 @@ export function FormLancamento({
                     </option>
                   ))}
                 </select>
-                <p className="text-[11.5px] text-sutil">
+                <p className="text-[12px] text-sutil">
                   Sem centro significa “geral” — não existe um centro chamado Geral.
                 </p>
               </div>
@@ -585,7 +609,7 @@ export function FormLancamento({
                     max={360}
                     {...register("total_parcelas")}
                   />
-                  <p className="text-[11.5px] text-sutil">
+                  <p className="text-[12px] text-sutil">
                     A última parcela absorve a diferença de arredondamento — a soma fecha exata.
                   </p>
                 </div>
@@ -594,7 +618,7 @@ export function FormLancamento({
                   <select
                     id="intervalo"
                     {...register("intervalo")}
-                    className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                    className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
                   >
                     <option value="mensal">Mensal</option>
                     <option value="quinzenal">Quinzenal</option>
@@ -622,12 +646,12 @@ export function FormLancamento({
             </div>
 
             {/* Efetivação */}
-            <label className="flex items-start justify-between gap-4 rounded-[12px] border border-linha-suave bg-[var(--bg-subtle)] px-4 py-3">
+            <label className="flex items-start justify-between gap-4 rounded-[10px] border border-linha-suave bg-[var(--bg-subtle)] px-4 py-3">
               <span className="flex flex-col gap-0.5">
                 <span className="text-[13px] font-semibold text-[var(--fg)]">
                   Efetivar automaticamente na data
                 </span>
-                <span className="text-[11.5px] text-suave">
+                <span className="text-[12px] text-suave">
                   Ligado, o lançamento se efetiva sozinho e nunca vence. Desligado, ele fica
                   pendente até alguém confirmar — e só assim pode virar atrasado e gerar alerta.
                 </span>
@@ -642,7 +666,7 @@ export function FormLancamento({
             </label>
 
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={aoFechar}>
+              <Button type="button" variant="outline" onClick={tentarFechar}>
                 Cancelar
               </Button>
               {!idParaEditar ? (
@@ -655,9 +679,9 @@ export function FormLancamento({
                   Salvar e criar outro
                 </Button>
               ) : null}
-              <Button type="submit" disabled={enviando}>
-                {enviando ? <Loader2 className="animate-spin" size={16} /> : null}
-                {idParaEditar ? "Salvar" : "Criar"}
+              <Button type="submit" disabled={enviando} aria-busy={enviando}>
+                {enviando ? <Loader2 className="animate-spin" size={16} aria-hidden="true" /> : null}
+                {enviando ? "Salvando…" : idParaEditar ? "Salvar" : "Criar"}
               </Button>
             </DialogFooter>
           </form>
@@ -692,13 +716,36 @@ export function FormLancamento({
           void handleSubmit((v) => enviar(v, false, false, escopoSerie, true))();
         }}
       />
+
+      <AlertDialog open={confirmandoDescarte} onOpenChange={setConfirmandoDescarte}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar o que você preencheu?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este lançamento tem campo preenchido e ainda não foi salvo. Fechar agora perde o
+              que está aqui.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar preenchendo</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmandoDescarte(false);
+                aoFechar();
+              }}
+            >
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
 
 function Erro({ children }: { children?: React.ReactNode }) {
   return (
-    <p role="alert" className="text-[11.5px] text-[var(--danger-500)]">
+    <p role="alert" className="text-[12px] text-[var(--danger-500)]">
       {children}
     </p>
   );

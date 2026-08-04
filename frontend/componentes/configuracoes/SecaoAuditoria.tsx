@@ -48,7 +48,7 @@ export function SecaoAuditoria({ ehGestor }: { ehGestor: boolean }) {
       {isLoading ? (
         <div className="flex flex-col gap-2 p-4">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-14 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
+            <div key={i} className="h-14 animate-pulse rounded-[8px] bg-[var(--bg-subtle)]" />
           ))}
         </div>
       ) : (data?.itens.length ?? 0) === 0 ? (

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -98,13 +98,13 @@ export function DialogoArquivarCategoria({
         ) : (
           <div className="flex flex-col gap-4">
             <p
-              className="rounded-[10px] px-3 py-2.5 text-[12.5px]"
+              className="rounded-[8px] px-3 py-2.5 text-[13px]"
               style={{ background: "var(--st-pendente-bg)", color: "var(--st-pendente-fg)" }}
             >
               {previa.mensagem}
             </p>
 
-            <dl className="grid grid-cols-2 gap-3 rounded-[12px] bg-[var(--bg-subtle)] p-4 text-[12.5px]">
+            <dl className="grid grid-cols-2 gap-3 rounded-[10px] bg-[var(--bg-subtle)] p-4 text-[13px]">
               <div>
                 <dt className="text-sutil">Lançamentos</dt>
                 <dd className="numerico font-[family-name:var(--font-display)] text-[16px] font-bold text-forte">
@@ -128,7 +128,7 @@ export function DialogoArquivarCategoria({
                   setDestino(e.target.value);
                   if (e.target.value) setSomenteLeitura(false);
                 }}
-                className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
               >
                 <option value="">Escolha a categoria de destino…</option>
                 {outras.map((c) => (
@@ -139,7 +139,7 @@ export function DialogoArquivarCategoria({
               </select>
             </div>
 
-            <label className="flex cursor-pointer items-start gap-2 text-[12.5px]">
+            <label className="flex cursor-pointer items-start gap-2 text-[13px]">
               <input
                 type="radio"
                 checked={somenteLeitura}

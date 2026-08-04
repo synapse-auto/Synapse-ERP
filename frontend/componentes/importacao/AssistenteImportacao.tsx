@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
@@ -157,7 +157,7 @@ export function AssistenteImportacao({
           </DialogDescription>
         </DialogHeader>
 
-        <ol className="flex items-center gap-2 text-[11.5px]">
+        <ol className="flex items-center gap-2 text-[12px]">
           {(
             [
               ["enviar", "1 · Enviar"],
@@ -196,7 +196,7 @@ export function AssistenteImportacao({
               e.preventDefault();
               if (e.dataTransfer.files[0]) void enviarArquivo(e.dataTransfer.files[0]);
             }}
-            className="flex flex-col items-center gap-3 rounded-[14px] border border-dashed border-linha-controle bg-[var(--bg-subtle)] px-6 py-12 text-center"
+            className="flex flex-col items-center gap-3 rounded-[12px] border border-dashed border-linha-controle bg-[var(--bg-subtle)] px-6 py-12 text-center"
           >
             <Upload size={22} className="text-suave" />
             <p className="text-[13px] text-suave">
@@ -209,7 +209,7 @@ export function AssistenteImportacao({
                 escolha o arquivo
               </button>
             </p>
-            <p className="max-w-[52ch] text-[11.5px] text-sutil">
+            <p className="max-w-[52ch] text-[12px] text-sutil">
               CSV e OFX. A leitura de OFX é feita sem biblioteca externa por causa do tamanho da
               função — um arquivo malformado pode ser recusado, e nesse caso o CSV resolve.
             </p>
@@ -229,13 +229,13 @@ export function AssistenteImportacao({
 
         {etapa === "mapear" && importacao ? (
           <div className="flex flex-col gap-5">
-            <p className="text-[12.5px] text-suave">
+            <p className="text-[13px] text-suave">
               <strong className="text-[var(--fg)]">{importacao.nome_arquivo}</strong> ·{" "}
               {importacao.total_linhas} linhas
             </p>
 
             {/* Mundo — obrigatório */}
-            <div className="flex flex-col gap-2 rounded-[12px] border border-linha-suave bg-[var(--bg-subtle)] p-4">
+            <div className="flex flex-col gap-2 rounded-[10px] border border-linha-suave bg-[var(--bg-subtle)] p-4">
               <Label>Mundo destes lançamentos</Label>
               <div className="flex gap-2">
                 {(["digital", "infra"] as Mundo[]).map((m) => (
@@ -243,7 +243,7 @@ export function AssistenteImportacao({
                     key={m}
                     type="button"
                     onClick={() => setMundo(m)}
-                    className="flex h-9 items-center gap-2 rounded-[10px] border px-3 font-[family-name:var(--font-display)] text-[12.5px] font-bold"
+                    className="flex h-9 items-center gap-2 rounded-[8px] border px-3 font-[family-name:var(--font-display)] text-[13px] font-bold"
                     style={
                       mundo === m
                         ? {
@@ -259,7 +259,7 @@ export function AssistenteImportacao({
                   </button>
                 ))}
               </div>
-              <p className="text-[11.5px] text-sutil">
+              <p className="text-[12px] text-sutil">
                 Obrigatório: o arquivo não traz mundo, e lançamento sem mundo não existe.
               </p>
             </div>
@@ -269,14 +269,14 @@ export function AssistenteImportacao({
               <span className="rotulo-seccao">Colunas do arquivo</span>
               <div className="grid gap-2 sm:grid-cols-2">
                 {importacao.colunas_detectadas.map((c) => (
-                  <label key={c} className="flex items-center gap-2 text-[12.5px]">
-                    <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-suave">
+                  <label key={c} className="flex items-center gap-2 text-[13px]">
+                    <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-suave">
                       {c}
                     </span>
                     <select
                       value={mapa[c] ?? ""}
                       onChange={(e) => setMapa((m) => ({ ...m, [c]: e.target.value }))}
-                      className="h-8 w-[140px] rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
+                      className="h-8 w-[140px] rounded-[6px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
                     >
                       <option value="">ignorar</option>
                       <option value="data">Data</option>
@@ -303,7 +303,7 @@ export function AssistenteImportacao({
 
             {previa ? (
               <>
-                <div className="flex gap-4 rounded-[12px] bg-[var(--bg-subtle)] p-4 text-[12.5px]">
+                <div className="flex gap-4 rounded-[10px] bg-[var(--bg-subtle)] p-4 text-[13px]">
                   <span>
                     <strong className="numerico text-[16px] text-[var(--receita-fg)]">
                       {previa.resumo.validas}
@@ -321,13 +321,13 @@ export function AssistenteImportacao({
                 {naoReconhecidas.length > 0 ? (
                   <div className="flex flex-col gap-2">
                     <span className="rotulo-seccao">Categorias não reconhecidas</span>
-                    <p className="text-[11.5px] text-sutil">
+                    <p className="text-[12px] text-sutil">
                       A sugestão é só sugestão — nada é aplicado sozinho. Escolha o destino de
                       cada uma; categorias novas não são criadas pela importação.
                     </p>
                     {naoReconhecidas.map((c) => (
                       <div key={c.texto} className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-suave">
+                        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-suave">
                           {c.texto}
                         </span>
                         <select
@@ -335,7 +335,7 @@ export function AssistenteImportacao({
                           onChange={(e) =>
                             setDePara((d) => ({ ...d, [c.texto]: e.target.value }))
                           }
-                          className="h-8 w-[220px] rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
+                          className="h-8 w-[220px] rounded-[6px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
                         >
                           <option value="">escolha a categoria…</option>
                           {(categorias?.itens ?? []).map((cat) => (
@@ -350,14 +350,14 @@ export function AssistenteImportacao({
                   </div>
                 ) : null}
 
-                <div className="overflow-x-auto rounded-[12px] border border-linha-suave">
+                <div className="overflow-x-auto rounded-[10px] border border-linha-suave">
                   <table className="w-full text-[12px]">
                     <thead className="bg-[var(--superficie-lateral)]">
                       <tr>
                         {["#", "Data", "Descrição", "Valor", "Categoria", "Problemas"].map((h) => (
                           <th
                             key={h}
-                            className="px-3 py-2 text-left font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase"
+                            className="px-3 py-2 text-left font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase"
                           >
                             {h}
                           </th>
@@ -421,7 +421,7 @@ export function AssistenteImportacao({
             <p className="font-[family-name:var(--font-display)] text-[16px] font-bold text-forte">
               {progresso?.gravadas ?? 0} lançamentos importados
             </p>
-            <p className="max-w-[46ch] text-[12.5px] text-suave">
+            <p className="max-w-[46ch] text-[13px] text-suave">
               Cada um registrou auditoria com a origem “importação” e o nome do arquivo — a linha
               do tempo não vai dizer que alguém digitou tudo isso à mão.
             </p>

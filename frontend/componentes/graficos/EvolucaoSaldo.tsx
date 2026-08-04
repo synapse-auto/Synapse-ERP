@@ -1,7 +1,7 @@
 "use client";
 
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { CaixaDeDica, COR, eixoDinheiro, eixoMes } from "./base";
+import { CaixaDeDica, COR, eixoDinheiro, eixoMes, useMovimentoReduzido } from "./base";
 import { dinheiro, mesCurto } from "@/lib/formato";
 import type { PontoSaldo } from "@/lib/tipos";
 
@@ -10,6 +10,7 @@ import type { PontoSaldo } from "@/lib/tipos";
  * O trecho projetado sai tracejado — mesma regra do fluxo de caixa.
  */
 export function EvolucaoSaldo({ dados }: { dados: PontoSaldo[] }) {
+  const semMovimento = useMovimentoReduzido();
   const pontos = dados.map((d) => ({
     mes: d.mes,
     saldo: Number(d.saldo_final),
@@ -61,6 +62,7 @@ export function EvolucaoSaldo({ dados }: { dados: PontoSaldo[] }) {
           fill="url(#areaSaldo)"
           dot={{ r: 2.6, fill: "var(--superficie-cartao)", stroke: COR.saldo, strokeWidth: 1.6 }}
           activeDot={{ r: 4.5 }}
+          isAnimationActive={!semMovimento}
         />
       </AreaChart>
     </ResponsiveContainer>

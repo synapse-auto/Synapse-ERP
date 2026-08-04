@@ -62,8 +62,8 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
 
   if (isLoading || !c) {
     return (
-      <div className="mx-auto max-w-[var(--conteudo-largura-max)] px-[30px] pt-[26px]">
-        <div className="h-40 animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
+      <div className="mx-auto max-w-[var(--conteudo-largura-max)] px-4 pt-5 sm:px-[30px] sm:pt-[26px]">
+        <div className="h-40 animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
       </div>
     );
   }
@@ -71,7 +71,7 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
   const podeEditar = sessao?.permissoes.cadastros ?? false;
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Clientes"
         titulo={c.nome}
@@ -126,7 +126,7 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
         <Cartao className="flex flex-col gap-2">
           <RotuloCartao>Por mundo</RotuloCartao>
           {Object.entries(c.quebra_por_mundo).map(([m, v]) => (
-            <span key={m} className="flex items-center gap-2 text-[12.5px]">
+            <span key={m} className="flex items-center gap-2 text-[13px]">
               <span
                 aria-hidden
                 className="size-[7px] rounded-[2.5px]"
@@ -141,7 +141,7 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
           <RotuloCartao>Situação</RotuloCartao>
           <SituacaoCliente cliente={c} />
           {c.recorrencia ? (
-            <p className="text-[11.5px] text-sutil">
+            <p className="text-[12px] text-sutil">
               {c.recorrencia.rotulo} ·{" "}
               {c.recorrencia.efetivar_automaticamente
                 ? "efetivação automática"
@@ -154,7 +154,7 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
 
       {c.recorrencia?.aviso_inadimplencia ? (
         <p
-          className="rounded-[12px] px-4 py-3 text-[12.5px]"
+          className="rounded-[10px] px-4 py-3 text-[13px]"
           style={{ background: "var(--st-pendente-bg)", color: "var(--st-pendente-fg)" }}
         >
           {c.recorrencia.aviso_inadimplencia}
@@ -163,7 +163,7 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <Cartao className="flex flex-col gap-2">
-          <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+          <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
             Receita mês a mês
           </span>
           {c.receita_mensal.length === 0 ? (
@@ -216,7 +216,7 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
         </Cartao>
 
         <Cartao className="flex flex-col gap-3">
-          <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+          <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
             Próximos recebimentos
           </span>
           {c.proximos_recebimentos.length === 0 ? (
@@ -230,7 +230,7 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
                 >
                   <DataBR valor={p.data} formato="curta" className="text-[12px] text-suave" />
                   <BadgeStatus status={p.status} compacto />
-                  <span className="numerico flex-1 text-right text-[12.5px] font-semibold">
+                  <span className="numerico flex-1 text-right text-[13px] font-semibold">
                     {dinheiro(p.valor)}
                   </span>
                 </li>

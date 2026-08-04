@@ -35,14 +35,14 @@ export function AlertaAtrasados({
     <button
       type="button"
       onClick={aoAbrir}
-      className="flex w-full items-center gap-[14px] rounded-[13px] border border-[#F3CFCF] px-[18px] py-[14px] text-left shadow-[0_1px_3px_rgba(214,69,69,0.07)] transition-colors hover:border-[#E9AFAF] dark:border-[var(--st-atrasado-dot)]/40"
+      className="flex w-full items-center gap-[14px] rounded-[10px] border border-[#F3CFCF] px-[18px] py-[14px] text-left shadow-[0_1px_3px_rgba(214,69,69,0.07)] transition-colors hover:border-[#E9AFAF] dark:border-[var(--st-atrasado-dot)]/40"
       style={{
         background:
           "linear-gradient(90deg, var(--st-atrasado-bg) 0%, var(--st-atrasado-bg) 60%, var(--superficie-cartao) 100%)",
       }}
     >
       <span
-        className="flex size-[34px] flex-none items-center justify-center rounded-[10px]"
+        className="flex size-[34px] flex-none items-center justify-center rounded-[8px]"
         style={{ background: "var(--st-atrasado-bg)", color: "var(--st-atrasado-fg)" }}
       >
         <IconeAlerta />
@@ -56,12 +56,12 @@ export function AlertaAtrasados({
           {alerta.quantidade === 1 ? "lançamento vencido" : "lançamentos vencidos"} ·{" "}
           {dinheiro(alerta.valor_total)} parados
         </span>
-        <span className="text-[12.5px] text-suave">
+        <span className="text-[13px] text-suave">
           Contas que passaram da data e ainda esperam confirmação.
         </span>
       </span>
       <span
-        className="flex items-center gap-1.5 font-[family-name:var(--font-display)] text-[12.5px] font-bold whitespace-nowrap"
+        className="flex items-center gap-1.5 font-[family-name:var(--font-display)] text-[13px] font-bold whitespace-nowrap"
         style={{ color: "var(--danger-500)" }}
       >
         Ver atrasados <IconeSetaDireita />
@@ -112,7 +112,7 @@ export function CartaoSaudeCaixa({
         {titulo}
       </span>
       {/* `explicacao` é texto de negócio, gerado no servidor (`FR-069`) */}
-      <p className="mt-2 text-[12.5px] leading-[1.5] text-suave">{saude.explicacao}</p>
+      <p className="mt-2 text-[13px] leading-[1.5] text-suave">{saude.explicacao}</p>
       {saude.cobertura === null ? (
         <p className="mt-1 text-[11px] text-sutil">
           Sem despesa fixa nos próximos {saude.horizonte_dias} dias — não dá para calcular
@@ -148,19 +148,19 @@ export function BlocoClientes({
     <Cartao className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-[10px] bg-[var(--brand-tint-2)] text-[var(--lateral-ativo-fg)]">
+          <span className="flex size-8 items-center justify-center rounded-[8px] bg-[var(--brand-tint-2)] text-[var(--lateral-ativo-fg)]">
             <IconeClientes tamanho={16} />
           </span>
           <div className="flex flex-col">
-            <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
               {rotulo}
             </span>
-            <span className="rotulo-seccao text-[9.5px]">Categoria especial</span>
+            <span className="rotulo-seccao text-[10px]">Categoria especial</span>
           </div>
         </div>
         <Link
           href="/clientes"
-          className="flex items-center gap-1 font-[family-name:var(--font-display)] text-[12px] font-semibold"
+          className="flex items-center gap-1 rounded-[6px] px-1.5 py-1 font-[family-name:var(--font-display)] text-[12px] font-semibold text-[var(--brand-hover)] no-underline transition-colors duration-[var(--dur-fast)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-press)]"
         >
           Ver todos <IconeSetaDireita tamanho={13} />
         </Link>
@@ -168,7 +168,7 @@ export function BlocoClientes({
 
       <div className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-[11.5px] text-sutil">Recebido no período</span>
+          <span className="text-[12px] text-sutil">Recebido no período</span>
           <span className="flex items-center gap-2">
             <span className="numerico font-[family-name:var(--font-display)] text-[24px] font-extrabold tracking-[-0.03em] text-forte">
               {dinheiro(bloco.total_recebido)}
@@ -177,7 +177,7 @@ export function BlocoClientes({
           </span>
         </div>
         <div className="flex flex-col items-end">
-          <span className="text-[11.5px] text-sutil">Clientes ativos</span>
+          <span className="text-[12px] text-sutil">Clientes ativos</span>
           <span className="numerico font-[family-name:var(--font-display)] text-[20px] font-extrabold text-forte">
             {bloco.clientes_ativos}
           </span>
@@ -185,9 +185,9 @@ export function BlocoClientes({
       </div>
 
       {bloco.inadimplentes.length > 0 ? (
-        <div className="flex flex-col gap-1.5 rounded-[10px] border border-[var(--st-atrasado-dot)]/30 bg-[var(--st-atrasado-bg)] px-3 py-2.5">
+        <div className="flex flex-col gap-1.5 rounded-[8px] border border-[var(--st-atrasado-dot)]/30 bg-[var(--st-atrasado-bg)] px-3 py-2.5">
           <span
-            className="font-[family-name:var(--font-display)] text-[11.5px] font-bold"
+            className="font-[family-name:var(--font-display)] text-[12px] font-bold"
             style={{ color: "var(--st-atrasado-fg)" }}
           >
             {bloco.inadimplentes.length}{" "}
@@ -197,7 +197,7 @@ export function BlocoClientes({
             <Link
               key={c.cliente_id}
               href={`/clientes/${c.cliente_id}`}
-              className="flex items-center justify-between gap-3 text-[12px] no-underline"
+              className="-mx-1.5 flex items-center justify-between gap-3 rounded-[4px] px-1.5 py-0.5 text-[12px] no-underline transition-colors duration-[var(--dur-fast)] hover:bg-[var(--st-atrasado-dot)]/15"
             >
               <span className="min-w-0 flex-1 truncate text-[var(--fg)]">{c.nome}</span>
               <span className="numerico" style={{ color: "var(--st-atrasado-fg)" }}>
@@ -217,15 +217,15 @@ export function BlocoClientes({
             <li key={c.cliente_id}>
               <Link
                 href={`/clientes/${c.cliente_id}`}
-                className="flex items-center gap-2.5 border-b border-linha-suave py-2 no-underline last:border-b-0"
+                className="-mx-2 flex items-center gap-2.5 rounded-[6px] border-b border-linha-suave px-2 py-2 no-underline transition-colors duration-[var(--dur-fast)] last:border-b-0 hover:bg-[var(--bg-subtle)]"
               >
-                <span className="flex size-6 flex-none items-center justify-center rounded-[7px] bg-[var(--brand-tint-2)] font-[family-name:var(--font-display)] text-[9.5px] font-extrabold text-[var(--lateral-ativo-fg)]">
+                <span className="flex size-6 flex-none items-center justify-center rounded-[6px] bg-[var(--brand-tint-2)] font-[family-name:var(--font-display)] text-[10px] font-extrabold text-[var(--lateral-ativo-fg)]">
                   {iniciais(c.nome)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--fg)]">
+                <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--fg)]">
                   {c.nome}
                 </span>
-                <span className="numerico text-[12.5px] font-semibold text-[var(--receita-fg)]">
+                <span className="numerico text-[13px] font-semibold text-[var(--receita-fg)]">
                   {dinheiro(c.valor)}
                 </span>
               </Link>
@@ -250,19 +250,19 @@ export function BlocoFuncionarios({
     <Cartao className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-[10px] bg-[var(--st-programado-bg)] text-[var(--st-programado-fg)]">
+          <span className="flex size-8 items-center justify-center rounded-[8px] bg-[var(--st-programado-bg)] text-[var(--st-programado-fg)]">
             <IconeFuncionarios tamanho={16} />
           </span>
           <div className="flex flex-col">
-            <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
               {rotulo}
             </span>
-            <span className="rotulo-seccao text-[9.5px]">Categoria especial</span>
+            <span className="rotulo-seccao text-[10px]">Categoria especial</span>
           </div>
         </div>
         <Link
           href="/funcionarios"
-          className="flex items-center gap-1 font-[family-name:var(--font-display)] text-[12px] font-semibold"
+          className="flex items-center gap-1 rounded-[6px] px-1.5 py-1 font-[family-name:var(--font-display)] text-[12px] font-semibold text-[var(--brand-hover)] no-underline transition-colors duration-[var(--dur-fast)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-press)]"
         >
           Ver todos <IconeSetaDireita tamanho={13} />
         </Link>
@@ -270,7 +270,7 @@ export function BlocoFuncionarios({
 
       <div className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-[11.5px] text-sutil">Folha do período</span>
+          <span className="text-[12px] text-sutil">Folha do período</span>
           <span className="flex items-center gap-2">
             <span className="numerico font-[family-name:var(--font-display)] text-[24px] font-extrabold tracking-[-0.03em] text-forte">
               {dinheiro(bloco.custo_total)}
@@ -279,7 +279,7 @@ export function BlocoFuncionarios({
           </span>
         </div>
         <div className="flex flex-col items-end">
-          <span className="text-[11.5px] text-sutil">Da despesa total</span>
+          <span className="text-[12px] text-sutil">Da despesa total</span>
           <span className="numerico font-[family-name:var(--font-display)] text-[20px] font-extrabold text-forte">
             {percentual(bloco.percentual_sobre_despesas)}
           </span>
@@ -294,15 +294,15 @@ export function BlocoFuncionarios({
             <li key={f.funcionario_id}>
               <Link
                 href={`/funcionarios/${f.funcionario_id}`}
-                className="flex items-center gap-2.5 border-b border-linha-suave py-2 no-underline last:border-b-0"
+                className="-mx-2 flex items-center gap-2.5 rounded-[6px] border-b border-linha-suave px-2 py-2 no-underline transition-colors duration-[var(--dur-fast)] last:border-b-0 hover:bg-[var(--bg-subtle)]"
               >
-                <span className="flex size-6 flex-none items-center justify-center rounded-[7px] bg-[var(--st-programado-bg)] font-[family-name:var(--font-display)] text-[9.5px] font-extrabold text-[var(--st-programado-fg)]">
+                <span className="flex size-6 flex-none items-center justify-center rounded-[6px] bg-[var(--st-programado-bg)] font-[family-name:var(--font-display)] text-[10px] font-extrabold text-[var(--st-programado-fg)]">
                   {iniciais(f.nome)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--fg)]">
+                <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--fg)]">
                   {f.nome}
                 </span>
-                <span className="numerico text-[12.5px] font-semibold text-[var(--despesa-fg)]">
+                <span className="numerico text-[13px] font-semibold text-[var(--despesa-fg)]">
                   {dinheiro(f.valor)}
                 </span>
               </Link>
@@ -312,7 +312,7 @@ export function BlocoFuncionarios({
       )}
 
       {bloco.proximos_pagamentos.length > 0 ? (
-        <p className="rounded-[10px] bg-[var(--st-efetivado-bg)] px-3 py-2 text-[11.5px] text-[var(--st-efetivado-fg)]">
+        <p className="rounded-[8px] bg-[var(--st-efetivado-bg)] px-3 py-2 text-[12px] text-[var(--st-efetivado-fg)]">
           Próxima folha: {dataCurta(bloco.proximos_pagamentos[0].data)} ·{" "}
           {dinheiro(
             bloco.proximos_pagamentos.reduce((a, p) => a + Number(p.valor), 0).toFixed(2),
@@ -338,7 +338,7 @@ export function TopDespesas({
   return (
     <Cartao className="flex flex-col gap-3">
       <div className="flex flex-col">
-        <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+        <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
           {rotulo}
         </span>
         <span className="text-[12px] text-sutil">Clique para abrir o lançamento</span>
@@ -354,14 +354,14 @@ export function TopDespesas({
                 onClick={() => aoAbrir(d.lancamento_id)}
                 className="flex w-full items-center gap-3 border-b border-linha-suave py-2.5 text-left last:border-b-0"
               >
-                <span className="flex size-[22px] flex-none items-center justify-center rounded-[7px] bg-[var(--bg-subtle)] font-mono text-[10.5px] text-suave">
+                <span className="flex size-[22px] flex-none items-center justify-center rounded-[6px] bg-[var(--bg-subtle)] font-mono text-[11px] text-suave">
                   {i + 1}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[12.5px] text-[var(--fg)]">{d.descricao}</span>
-                  <span className="text-[10.5px] text-sutil">{dataCurta(d.data)}</span>
+                  <span className="truncate text-[13px] text-[var(--fg)]">{d.descricao}</span>
+                  <span className="text-[11px] text-sutil">{dataCurta(d.data)}</span>
                 </span>
-                <span className="numerico text-[12.5px] font-semibold text-[var(--despesa-fg)]">
+                <span className="numerico text-[13px] font-semibold text-[var(--despesa-fg)]">
                   − {dinheiro(d.valor)}
                 </span>
               </button>
@@ -386,7 +386,7 @@ export function ReceitaPorServico({
   return (
     <Cartao className="flex flex-col gap-3">
       <div className="flex flex-col">
-        <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+        <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
           {rotulo}
         </span>
         <span className="text-[12px] text-sutil">
@@ -405,7 +405,7 @@ export function ReceitaPorServico({
                   <span className="numerico text-[13px] font-semibold text-forte">
                     {dinheiro(s.valor)}
                   </span>
-                  <span className="numerico text-[11.5px] text-sutil">
+                  <span className="numerico text-[12px] text-sutil">
                     {percentual(s.percentual)}
                   </span>
                 </span>
@@ -449,7 +449,7 @@ export function LinhaTempo7Dias({
     <Cartao className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col">
-          <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+          <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
             {rotulo}
           </span>
           <span className="text-[12px] text-sutil">O que precisa de atenção esta semana</span>
@@ -482,15 +482,15 @@ export function LinhaTempo7Dias({
             <div
               key={d.data}
               className={cn(
-                "flex min-h-[104px] flex-col gap-2 rounded-[12px] border border-linha-suave p-2.5",
+                "flex min-h-[104px] flex-col gap-2 rounded-[10px] border border-linha-suave p-2.5",
                 itens.length === 0 ? "bg-[var(--bg-subtle)]" : "bg-superficie-cartao",
               )}
             >
               <span className="flex items-baseline justify-between">
-                <span className="numerico font-[family-name:var(--font-display)] text-[12.5px] font-bold text-forte">
+                <span className="numerico font-[family-name:var(--font-display)] text-[13px] font-bold text-forte">
                   {String(dia).padStart(2, "0")}/{String(mes).padStart(2, "0")}
                 </span>
-                <span className="text-[9.5px] tracking-[0.06em] text-sutil">{semana}</span>
+                <span className="text-[10px] tracking-[0.06em] text-sutil">{semana}</span>
               </span>
               {itens.length === 0 ? (
                 <span className="mt-2 text-[11px] text-sutil">Nada previsto</span>
@@ -505,7 +505,7 @@ export function LinhaTempo7Dias({
                     <span className="line-clamp-2 text-[11px] text-suave">{l.descricao}</span>
                     <span className="flex items-center gap-1.5">
                       <span
-                        className="numerico text-[11.5px] font-semibold"
+                        className="numerico text-[12px] font-semibold"
                         style={{
                           color: l.receita ? "var(--receita-fg)" : "var(--despesa-fg)",
                         }}

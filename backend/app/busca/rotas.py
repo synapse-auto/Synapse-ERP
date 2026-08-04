@@ -9,9 +9,10 @@ cada tecla digitada — e esta busca é chamada enquanto o usuário digita.
 **Mínimo de 2 caracteres.** Abaixo disso devolve listas vazias em vez de varrer a base:
 uma letra casa com quase tudo, e o resultado seria inútil e caro ao mesmo tempo.
 
-Lançamentos respeitam o mundo ativo; clientes e categorias não têm mundo (`RF-101`, D-04).
+Lançamentos e funcionários respeitam o mundo ativo; clientes e categorias não têm mundo
+(`RF-101`, D-04).
 
-Tarefa: T132
+Tarefas: T132, T212 (funcionários entram na busca — Boss 4)
 """
 
 from decimal import Decimal
@@ -37,12 +38,12 @@ LIMITE_PADRAO = 5
 
 @roteador.get(
     "",
-    summary="Busca global em lançamentos, clientes e categorias",
+    summary="Busca global em lançamentos, clientes, funcionários e categorias",
     description=(
         "Papel: gestor, operador. `FR-046`. Mínimo de 2 caracteres — abaixo disso devolve "
-        "listas vazias em vez de varrer a tabela. Lançamentos respeitam o mundo ativo; "
-        "clientes e categorias não têm mundo. Usa `pg_trgm`, então acha por semelhança e "
-        "aguenta erro de digitação."
+        "listas vazias em vez de varrer a tabela. Lançamentos e funcionários respeitam o "
+        "mundo ativo; clientes e categorias não têm mundo. Usa `pg_trgm`, então acha por "
+        "semelhança e aguenta erro de digitação."
     ),
 )
 async def buscar(
@@ -58,6 +59,7 @@ async def buscar(
             "termo": termo,
             "lancamentos": [],
             "clientes": [],
+            "funcionarios": [],
             "categorias": [],
             "minimo_de_caracteres": MINIMO_DE_CARACTERES,
         }
@@ -102,6 +104,28 @@ async def buscar(
         .all()
     )
 
+    # Funcionário tem mundo (`RN-15`), então segue o mundo ativo como o lançamento.
+    # Busca por nome **e por função**: quem procura "designer" quer a pessoa, não
+    # precisa lembrar o nome dela.
+    funcionarios = (
+        (
+            await conexao.execute(
+                text("""
+                    select id, nome, funcao, mundo
+                    from funcionarios
+                    where arquivado_em is null
+                      and mundo = any(cast(:mundos as mundo[]))
+                      and (nome % :termo or funcao % :termo)
+                    order by greatest(similarity(nome, :termo), similarity(funcao, :termo)) desc
+                    limit :limite
+                    """),
+                {"mundos": mundos, "termo": termo, "limite": limite},
+            )
+        )
+        .mappings()
+        .all()
+    )
+
     categorias = (
         (
             await conexao.execute(
@@ -137,6 +161,15 @@ async def buscar(
         "clientes": [
             {"id": str(linha["id"]), "nome": linha["nome"], "empresa": linha["empresa"]}
             for linha in clientes
+        ],
+        "funcionarios": [
+            {
+                "id": str(linha["id"]),
+                "nome": linha["nome"],
+                "funcao": linha["funcao"],
+                "mundo": linha["mundo"],
+            }
+            for linha in funcionarios
         ],
         "categorias": [
             {

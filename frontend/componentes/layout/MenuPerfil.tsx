@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -42,12 +42,12 @@ export function MenuPerfil({ children }: { children: ReactNode }) {
             <span className="text-[13px] font-semibold text-[var(--fg-strong)]">
               {sessao?.usuario.nome}
             </span>
-            <span className="text-[11.5px] font-normal text-sutil">{sessao?.usuario.email}</span>
+            <span className="text-[12px] font-normal text-sutil">{sessao?.usuario.email}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
 
           <div className="flex items-center justify-between px-2 py-1.5">
-            <span className="text-[12.5px] text-suave">Tema</span>
+            <span className="text-[13px] text-suave">Tema</span>
             <AlternadorTema />
           </div>
 

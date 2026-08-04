@@ -32,7 +32,7 @@ export function Paginacao({
   }
 
   const base =
-    "h-[30px] min-w-[30px] rounded-[8px] border border-linha-controle bg-superficie-cartao px-[9px] text-[12.5px] transition-colors";
+    "h-[30px] min-w-[30px] rounded-[6px] border border-linha-controle bg-superficie-cartao px-[9px] text-[13px] transition-colors duration-[var(--dur-fast)] disabled:pointer-events-none";
 
   return (
     <div
@@ -41,7 +41,7 @@ export function Paginacao({
         className,
       )}
     >
-      <span className="text-[12.5px] text-sutil">
+      <span className="text-[13px] text-sutil">
         Mostrando <strong className="font-semibold text-[var(--ink-700)] dark:text-[var(--fg)]">{inteiro(mostrando)}</strong>{" "}
         de {inteiro(total)} {substantivo}
       </span>
@@ -52,7 +52,7 @@ export function Paginacao({
             type="button"
             disabled={pagina <= 1}
             onClick={() => aoIr(pagina - 1)}
-            className={cn(base, "text-suave disabled:opacity-45")}
+            className={cn(base, "text-suave hover:bg-[var(--bg-subtle)] disabled:opacity-45")}
           >
             Anterior
           </button>
@@ -65,6 +65,7 @@ export function Paginacao({
               <button
                 key={n}
                 type="button"
+                aria-label={`Página ${n}`}
                 aria-current={n === pagina ? "page" : undefined}
                 onClick={() => aoIr(n)}
                 className={cn(
@@ -82,7 +83,10 @@ export function Paginacao({
             type="button"
             disabled={pagina >= paginas}
             onClick={() => aoIr(pagina + 1)}
-            className={cn(base, "text-[var(--ink-600)] disabled:opacity-45 dark:text-[var(--fg)]")}
+            className={cn(
+              base,
+              "text-[var(--ink-600)] hover:bg-[var(--bg-subtle)] disabled:opacity-45 dark:text-[var(--fg)]",
+            )}
           >
             Próxima
           </button>

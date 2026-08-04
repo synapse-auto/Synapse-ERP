@@ -761,8 +761,19 @@ export interface Saldo {
 }
 
 export interface ResultadoBusca {
-  lancamentos: { id: string; descricao: string; valor: string; data: string; mundo: Mundo }[];
+  lancamentos: {
+    id: string;
+    descricao: string;
+    valor: string;
+    data: string;
+    mundo: Mundo;
+    tipo?: TipoLancamento;
+    status?: StatusLancamento;
+    categoria?: string | null;
+  }[];
   clientes: { id: string; nome: string; empresa: string | null }[];
+  /** T212 — funcionário entrou na busca global no Boss 4. Tem mundo (`RN-15`). */
+  funcionarios: { id: string; nome: string; funcao: string; mundo: Mundo }[];
   categorias: { id: string; nome: string; cor: string | null }[];
 }
 

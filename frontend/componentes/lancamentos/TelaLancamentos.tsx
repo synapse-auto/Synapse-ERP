@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 import { CabecalhoTela, BotaoChrome, Quadro } from "@/componentes/comum/CabecalhoTela";
@@ -18,7 +18,7 @@ import { AssistenteImportacao } from "@/componentes/importacao/AssistenteImporta
 import { useEscopo, useLancamentos } from "@/lib/consultas";
 import { dinheiro } from "@/lib/formato";
 import { useAtalhos } from "@/lib/atalhos";
-import { FILTROS_VAZIOS, daUrl, paraConsulta, type FiltrosLancamento } from "./filtros";
+import { FILTROS_VAZIOS, daUrl, paraConsulta, paraUrl, type FiltrosLancamento } from "./filtros";
 import { montarUrlExportacao } from "./acoes";
 
 /**
@@ -30,10 +30,20 @@ import { montarUrlExportacao } from "./acoes";
  * A tela aceita filtros pela URL — é assim que o drill-down do Dashboard
  * chega aqui (`FR-058`): o card manda o `filtro_drilldown` que o servidor
  * montou, a tela só lê.
+ *
+ * **T214 — a URL agora é de mão dupla.** Até o Boss 3 a tela só lia o endereço
+ * na primeira montagem. Duas consequências ruins: copiar o link depois de
+ * filtrar mandava a lista crua, e chegar aqui **já estando aqui** não fazia
+ * nada — clicar num resultado da busca global com a tela de Lançamentos aberta
+ * trocava o endereço e a tela ficava parada. Agora filtro, ordenação, página e
+ * o lançamento aberto vão para a URL e voltam dela.
  */
 export function TelaLancamentos() {
   const params = useSearchParams();
+  const router = useRouter();
+  const caminho = usePathname();
   const escopo = useEscopo();
+  const paramsTexto = params.toString();
 
   const [filtros, setFiltros] = useState<FiltrosLancamento>(() => ({
     ...FILTROS_VAZIOS,
@@ -53,6 +63,26 @@ export function TelaLancamentos() {
     setFiltros((f) => ({ ...f, pagina: 1 }));
     setMarcados({});
   }, [escopo.mundo, escopo.periodo, escopo.dataInicio, escopo.dataFim]);
+
+  // URL → tela. Cobre o botão voltar do navegador, o link colado e a chegada
+  // pela busca global estando já nesta tela.
+  useEffect(() => {
+    const p = new URLSearchParams(paramsTexto);
+    const alvo: FiltrosLancamento = { ...FILTROS_VAZIOS, ...daUrl(p) };
+    setFiltros((f) => (JSON.stringify(f) === JSON.stringify(alvo) ? f : alvo));
+    setSelecionadoId(p.get("selecionado"));
+  }, [paramsTexto]);
+
+  // Tela → URL. `replace` e não `push`: mexer no filtro seis vezes não deve
+  // exigir seis cliques no botão voltar para sair da tela.
+  useEffect(() => {
+    const atual = new URLSearchParams(paramsTexto);
+    const alvo = paraUrl(filtros, atual);
+    if (selecionadoId) alvo.set("selecionado", selecionadoId);
+    else alvo.delete("selecionado");
+    if (alvo.toString() === atual.toString()) return;
+    router.replace(`${caminho}?${alvo.toString()}`, { scroll: false });
+  }, [filtros, selecionadoId, paramsTexto, caminho, router]);
 
   const consulta = useMemo(() => paraConsulta(filtros), [filtros]);
   const { data, isFetching } = useLancamentos(consulta);
@@ -106,7 +136,7 @@ export function TelaLancamentos() {
   ]);
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Gestão · núcleo operacional"
         titulo="Lançamentos"
@@ -166,7 +196,7 @@ export function TelaLancamentos() {
       </Quadro>
 
       {data?.quebra_por_mundo ? (
-        <p className="px-1 text-[11.5px] text-sutil">
+        <p className="px-1 text-[12px] text-sutil">
           Resultado por mundo neste recorte:{" "}
           {Object.entries(data.quebra_por_mundo).map(([m, v], i) => (
             <span key={m}>

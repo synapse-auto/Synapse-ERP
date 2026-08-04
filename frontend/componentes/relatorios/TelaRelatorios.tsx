@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { CabecalhoTela, BotaoChrome, Quadro } from "@/componentes/comum/CabecalhoTela";
@@ -45,9 +46,39 @@ const ABAS: { valor: Aba; rotulo: string; pdf: boolean; rota: string }[] = [
   { valor: "matriz", rotulo: "Matriz mensal", pdf: false, rota: "matriz-mensal" },
 ];
 
+const ABAS_VALIDAS = new Set<string>(ABAS.map((a) => a.valor));
+
 export function TelaRelatorios() {
-  const [aba, setAba] = useState<Aba>("dre");
+  const params = useSearchParams();
+  const router = useRouter();
+  const caminho = usePathname();
+  const paramsTexto = params.toString();
+
+  // A aba mora na URL (T214): mandar "o DRE de julho" é mandar um link, não
+  // "abre Relatórios e clica na primeira aba".
+  const daUrl = params.get("aba");
+  const [aba, setAba] = useState<Aba>(
+    daUrl && ABAS_VALIDAS.has(daUrl) ? (daUrl as Aba) : "dre",
+  );
   const escopo = useEscopo();
+
+  useEffect(() => {
+    const p = new URLSearchParams(paramsTexto);
+    const naUrl = p.get("aba");
+    if (naUrl && ABAS_VALIDAS.has(naUrl) && naUrl !== aba) setAba(naUrl as Aba);
+    // `aba` de propósito fora das dependências: este efeito é só o sentido
+    // URL → tela; o contrário mora no efeito abaixo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramsTexto]);
+
+  useEffect(() => {
+    const atual = new URLSearchParams(paramsTexto);
+    const alvo = new URLSearchParams(paramsTexto);
+    if (aba === "dre") alvo.delete("aba");
+    else alvo.set("aba", aba);
+    if (alvo.toString() === atual.toString()) return;
+    router.replace(`${caminho}?${alvo.toString()}`, { scroll: false });
+  }, [aba, paramsTexto, caminho, router]);
 
   const dre = useDre(aba === "dre");
   const clientes = useRelatorioClientes(aba === "clientes");
@@ -68,7 +99,7 @@ export function TelaRelatorios() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Fechamento"
         titulo="Relatórios"
@@ -89,14 +120,19 @@ export function TelaRelatorios() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-[2px] self-start rounded-[9px] border border-linha-suave bg-segmento p-[3px]">
+      <div
+        role="group"
+        aria-label="Relatório"
+        className="flex flex-wrap items-center gap-[2px] self-start rounded-[6px] border border-linha-suave bg-segmento p-[3px]"
+      >
         {ABAS.map((a) => (
           <button
             key={a.valor}
             type="button"
+            aria-pressed={aba === a.valor}
             onClick={() => setAba(a.valor)}
             className={cn(
-              "rounded-[7px] px-[13px] py-[7px] font-[family-name:var(--font-display)] text-[12.5px] font-semibold transition-colors",
+              "rounded-[6px] px-[13px] py-[7px] font-[family-name:var(--font-display)] text-[13px] font-semibold transition-colors",
               aba === a.valor
                 ? "bg-superficie-cartao text-[var(--ink-700)] shadow-[0_1px_2px_rgba(30,22,51,0.08)] dark:text-[var(--fg-strong)]"
                 : "text-suave hover:text-[var(--fg)]",
@@ -108,7 +144,7 @@ export function TelaRelatorios() {
       </div>
 
       {!abaAtual.pdf ? (
-        <p className="px-1 text-[11.5px] text-sutil">
+        <p className="px-1 text-[12px] text-sutil">
           Este relatório sai só em CSV: numa folha A4 a matriz fica ilegível, e o servidor recusa
           o PDF em vez de entregar um arquivo que ninguém consegue ler.
         </p>
@@ -180,7 +216,7 @@ export function TelaRelatorios() {
               {["#", "Cliente", "Recebido", "% do total", "Situação", "Por mundo"].map((h) => (
                 <span
                   key={h}
-                  className="font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase"
+                  className="font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase"
                 >
                   {h}
                 </span>
@@ -196,11 +232,11 @@ export function TelaRelatorios() {
                 <span className="numerico text-[13px] font-semibold text-[var(--receita-fg)]">
                   {dinheiro(c.total_recebido)}
                 </span>
-                <span className="numerico text-[12.5px] text-suave">
+                <span className="numerico text-[13px] text-suave">
                   {percentual(c.percentual_faturamento)}
                 </span>
                 <span
-                  className="w-fit rounded-full px-2 py-[2px] text-[10.5px] font-bold"
+                  className="w-fit rounded-full px-2 py-[2px] text-[11px] font-bold"
                   style={{
                     background:
                       c.situacao === "atrasado" ? "var(--st-atrasado-bg)" : "var(--st-efetivado-bg)",
@@ -210,7 +246,7 @@ export function TelaRelatorios() {
                 >
                   {c.situacao === "atrasado" ? "Atrasado" : "Em dia"}
                 </span>
-                <span className="flex flex-wrap gap-3 text-[11.5px] text-suave">
+                <span className="flex flex-wrap gap-3 text-[12px] text-suave">
                   {Object.entries(c.quebra_por_mundo).map(([m, v]) => (
                     <span key={m} className="flex items-center gap-1.5">
                       <span
@@ -225,7 +261,7 @@ export function TelaRelatorios() {
               </div>
             ))}
             <div className="flex items-center justify-between bg-[var(--superficie-lateral)] px-4 py-3">
-              <span className="text-[12.5px] text-sutil">Faturamento do período</span>
+              <span className="text-[13px] text-sutil">Faturamento do período</span>
               <span className="numerico font-[family-name:var(--font-display)] text-[14px] font-extrabold text-forte">
                 {dinheiro(clientes.data.faturamento_total)}
               </span>
@@ -247,16 +283,16 @@ export function TelaRelatorios() {
               — o critério vem da configuração, não do código.
             </p>
             <div className="overflow-x-auto">
-              <table className="w-full text-[12.5px]">
+              <table className="w-full text-[13px]">
                 <thead className="bg-[var(--superficie-lateral)]">
                   <tr>
-                    <th className="px-4 py-2.5 text-left font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase">
+                    <th className="px-4 py-2.5 text-left font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase">
                       Categoria
                     </th>
                     {variacao.data.meses.map((m) => (
                       <th
                         key={m}
-                        className="px-3 py-2.5 text-right font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase"
+                        className="px-3 py-2.5 text-right font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase"
                       >
                         {mesCurto(m)}
                       </th>
@@ -273,7 +309,7 @@ export function TelaRelatorios() {
                           {v.variacao_percentual !== null ? (
                             <span
                               className={cn(
-                                "numerico block text-[10.5px]",
+                                "numerico block text-[11px]",
                                 v.destacar ? "font-bold" : "text-sutil",
                               )}
                               style={
@@ -307,21 +343,21 @@ export function TelaRelatorios() {
         ) : (
           <Quadro>
             <div className="overflow-x-auto">
-              <table className="w-full text-[12.5px]">
+              <table className="w-full text-[13px]">
                 <thead className="bg-[var(--superficie-lateral)]">
                   <tr>
-                    <th className="px-4 py-2.5 text-left font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase">
+                    <th className="px-4 py-2.5 text-left font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase">
                       Categoria
                     </th>
                     {matriz.data.meses.map((m) => (
                       <th
                         key={m}
-                        className="px-3 py-2.5 text-right font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase"
+                        className="px-3 py-2.5 text-right font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase"
                       >
                         {mesCurto(m)}
                       </th>
                     ))}
-                    <th className="px-4 py-2.5 text-right font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase">
+                    <th className="px-4 py-2.5 text-right font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase">
                       Total
                     </th>
                   </tr>
@@ -449,10 +485,10 @@ function Esqueleto() {
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-[104px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
+          <div key={i} className="h-[104px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
         ))}
       </div>
-      <div className="h-[320px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
+      <div className="h-[320px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
     </div>
   );
 }

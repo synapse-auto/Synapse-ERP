@@ -77,8 +77,16 @@ constituição exige.
 O visual vem do projeto Claude Design **Synapse ERP Financeiro**
 (`f5d2a73f-43fc-4d92-b46a-b3ef8d637164`) e do **Synapse Design System** dentro dele.
 
-- Tokens (`colors_and_type.css`) são **copiados**, não reinterpretados. Roxo `#8B6CF0`, tinta
-  `#14102B` (nunca `#000`), sombras com tom roxo, raios 10/14–20/28/999px, grade de 4pt.
+- Tokens (`colors_and_type.css`) são **copiados**, não reinterpretados: roxo `#8B6CF0`, tinta
+  `#14102B` (nunca `#000`), sombras com tom roxo, grade de 4pt.
+- **Duas divergências declaradas, decididas pelo dono do projeto no Boss 4** e marcadas em
+  `frontend/estilos/tokens.css`:
+  1. **A fonte é Geist** (Geist + Geist Mono, as da Vercel), não Plus Jakarta Sans + Inter.
+     Uma família só para título e corpo.
+  2. **Os raios são os da Geist** — 4 seleção · 6 controle · 8 botão/menu · 10 painel ·
+     12 cartão · 16 destaque —, não a escada 10/14/20/28 do Synapse. Tamanho de fonte
+     sempre inteiro (sem `12.5px`).
+- Nada mais foi reinterpretado. Cor, sombra e espaçamento continuam letra por letra.
 - Medidas do mockup: sidebar 246px, header 64px, fundo `#F7F5FB`, item de menu ativo
   `#EDE6FD`/`#4F3299`.
 - Ícones de navegação: SVGs próprios extraídos do mockup. Resto: Lucide.
@@ -93,6 +101,13 @@ O visual vem do projeto Claude Design **Synapse ERP Financeiro**
 - **Hooks se chamam `useAlgo`, não `usarAlgo`** — o `react-hooks/rules-of-hooks` só
   reconhece hook pelo prefixo `use`, e sem isso a checagem cai no projeto inteiro. O
   substantivo continua em português.
+- **Fase Polimento entregue em 2026-08-03** (Boss 4): Geist, densidade da Vercel, busca
+  global virou campo com dropdown (não abre mais janela), filtros de Lançamentos na URL nos
+  dois sentidos e uma varredura contra o Web Interface Guidelines. Detalhe item a item em
+  [`frontend/README.md`](frontend/README.md) §Boss 4.
+- **Cursor e estado de hover não se escrevem componente a componente.** A regra de
+  `cursor: pointer` para tudo que é acionável mora em `app/globals.css`; botão novo que não
+  reage ao mouse é bug, não estilo faltando.
 
 ## Ao terminar qualquer task
 

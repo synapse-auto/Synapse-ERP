@@ -12,7 +12,7 @@ import { DESTINOS_DE_ATALHO, ehMac } from "@/lib/atalhos";
 /** Uma tecla desenhada como tecla — o mesmo `kbd` do mockup. */
 export function Tecla({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex min-w-[20px] items-center justify-center rounded-[5px] border border-linha-controle bg-superficie-cartao px-[5px] py-[1px] font-mono text-[10px] text-[var(--fg-muted)]">
+    <kbd className="inline-flex min-w-[20px] items-center justify-center rounded-[4px] border border-linha-controle bg-superficie-cartao px-[5px] py-[1px] font-mono text-[10px] text-[var(--fg-muted)]">
       {children}
     </kbd>
   );
@@ -51,7 +51,7 @@ export function FolhaDeAtalhos({ aberta, aoFechar }: { aberta: boolean; aoFechar
             <ul className="flex flex-col gap-1.5">
               {acoes.map((a) => (
                 <li key={a.descricao} className="flex items-center justify-between gap-3">
-                  <span className="text-[12.5px] text-suave">{a.descricao}</span>
+                  <span className="text-[13px] text-suave">{a.descricao}</span>
                   <span className="flex gap-1">
                     {a.teclas.map((t) => (
                       <Tecla key={t}>{t}</Tecla>
@@ -67,7 +67,7 @@ export function FolhaDeAtalhos({ aberta, aoFechar }: { aberta: boolean; aoFechar
             <ul className="flex flex-col gap-1.5">
               {DESTINOS_DE_ATALHO.map((d) => (
                 <li key={d.rota} className="flex items-center justify-between gap-3">
-                  <span className="text-[12.5px] text-suave">{d.rotulo}</span>
+                  <span className="text-[13px] text-suave">{d.rotulo}</span>
                   <span className="flex items-center gap-1">
                     <Tecla>{d.numero}</Tecla>
                     <span className="text-[10px] text-sutil">ou</span>

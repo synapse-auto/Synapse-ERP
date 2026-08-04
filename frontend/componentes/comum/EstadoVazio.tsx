@@ -34,7 +34,7 @@ export function EstadoVazio({
     >
       {icone ? (
         <span
-          className="mb-1 flex size-10 items-center justify-center rounded-[12px] text-suave"
+          className="mb-1 flex size-10 items-center justify-center rounded-[10px] text-suave"
           style={{ background: "var(--bg-subtle)" }}
         >
           {icone}
@@ -43,13 +43,13 @@ export function EstadoVazio({
       <p
         className={cn(
           "font-[family-name:var(--font-display)] font-bold tracking-[-0.01em] text-[var(--fg-muted)]",
-          compacto ? "text-[12.5px]" : "text-[14px]",
+          compacto ? "text-[13px]" : "text-[14px]",
         )}
       >
         {titulo}
       </p>
       {descricao ? (
-        <p className={cn("max-w-[46ch] text-sutil", compacto ? "text-[11.5px]" : "text-[12.5px]")}>
+        <p className={cn("max-w-[46ch] text-sutil", compacto ? "text-[12px]" : "text-[13px]")}>
           {descricao}
         </p>
       ) : null}

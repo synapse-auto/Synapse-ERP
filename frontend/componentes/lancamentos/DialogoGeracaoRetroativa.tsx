@@ -39,7 +39,7 @@ export function DialogoGeracaoRetroativa({
         </AlertDialogHeader>
 
         {dados ? (
-          <dl className="grid grid-cols-2 gap-3 rounded-[12px] bg-[var(--bg-subtle)] p-4 text-[12.5px]">
+          <dl className="grid grid-cols-2 gap-3 rounded-[10px] bg-[var(--bg-subtle)] p-4 text-[13px]">
             <div>
               <dt className="text-sutil">Ocorrências</dt>
               <dd className="numerico font-[family-name:var(--font-display)] text-[16px] font-bold text-forte">
@@ -69,7 +69,7 @@ export function DialogoGeracaoRetroativa({
           </dl>
         ) : null}
 
-        <p className="text-[11.5px] text-sutil">
+        <p className="text-[12px] text-sutil">
           As ocorrências entre o início e hoje nascem efetivadas e entram no saldo na hora.
         </p>
 

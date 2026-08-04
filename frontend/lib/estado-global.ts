@@ -112,26 +112,32 @@ export const useEstadoGlobal = create<EstadoGlobal>()(
  * Estado de interface que atravessa telas: o formulário de novo lançamento
  * (aberto pelo cabeçalho, pelo atalho `N` e por vários botões espalhados) e a
  * busca global. Não persiste — é estado de momento, não escolha do usuário.
+ *
+ * T213 (Boss 4): a busca deixou de ser uma janela que abre. Agora é um campo
+ * que já está no cabeçalho, então não existe mais `buscaAberta` — existe um
+ * **pedido de foco**. `⌘K` e `/` incrementam o contador; o campo escuta a
+ * mudança e se foca. Contador, e não booleano, porque apertar `⌘K` duas vezes
+ * seguidas precisa focar duas vezes.
  */
 export interface EstadoUi {
   novoLancamentoAberto: boolean;
   /** Preenche o formulário quando ele abre a partir de um contexto. */
   rascunhoNovoLancamento: Record<string, unknown> | null;
-  buscaAberta: boolean;
+  pedidoDeFocoNaBusca: number;
   abrirNovoLancamento: (rascunho?: Record<string, unknown> | null) => void;
   fecharNovoLancamento: () => void;
-  definirBuscaAberta: (v: boolean) => void;
+  focarBusca: () => void;
 }
 
 export const useEstadoUi = create<EstadoUi>()((set) => ({
   novoLancamentoAberto: false,
   rascunhoNovoLancamento: null,
-  buscaAberta: false,
+  pedidoDeFocoNaBusca: 0,
   abrirNovoLancamento: (rascunho = null) =>
     set({ novoLancamentoAberto: true, rascunhoNovoLancamento: rascunho }),
   fecharNovoLancamento: () =>
     set({ novoLancamentoAberto: false, rascunhoNovoLancamento: null }),
-  definirBuscaAberta: (v) => set({ buscaAberta: v }),
+  focarBusca: () => set((e) => ({ pedidoDeFocoNaBusca: e.pedidoDeFocoNaBusca + 1 })),
 }));
 
 /** Parâmetros de mundo e período prontos para qualquer chamada de leitura. */

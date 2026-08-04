@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
@@ -10,7 +10,7 @@ import { EstadoVazio } from "@/componentes/comum/EstadoVazio";
 import { BadgeMundo } from "@/componentes/comum/BadgeMundo";
 import { BadgeStatus } from "@/componentes/comum/BadgeStatus";
 import { PainelDetalhe } from "@/componentes/lancamentos/PainelDetalhe";
-import { CaixaDeDica, COR } from "@/componentes/graficos/base";
+import { CaixaDeDica, COR, useMovimentoReduzido } from "@/componentes/graficos/base";
 import { useEscopo, useExtrato } from "@/lib/consultas";
 import { dataCurta, dinheiro } from "@/lib/formato";
 import type { Agrupamento, Extrato, Pendencia } from "@/lib/tipos";
@@ -43,22 +43,29 @@ export function TelaExtrato() {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const { data, isLoading } = useExtrato(agrupamento);
   const escopo = useEscopo();
+  const semMovimento = useMovimentoReduzido();
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha="Leitura rápida"
         titulo="Extrato"
         apoio="O que entrou e o que saiu, com saldo acumulado — como um extrato bancário."
         acoes={
-          <div className="flex items-center gap-[2px] rounded-[9px] border border-linha-suave bg-segmento p-[3px]">
+          <div
+            role="radiogroup"
+            aria-label="Agrupar o extrato por"
+            className="flex items-center gap-[2px] rounded-[6px] border border-linha-suave bg-segmento p-[3px]"
+          >
             {AGRUPAMENTOS.map((a) => (
               <button
                 key={a.valor}
                 type="button"
+                role="radio"
+                aria-checked={agrupamento === a.valor}
                 onClick={() => setAgrupamento(a.valor)}
                 className={cn(
-                  "rounded-[7px] px-[11px] py-[6px] font-[family-name:var(--font-display)] text-[12.5px] font-semibold transition-colors",
+                  "rounded-[6px] px-[11px] py-[6px] font-[family-name:var(--font-display)] text-[13px] font-semibold transition-colors",
                   agrupamento === a.valor
                     ? "bg-superficie-cartao text-[var(--ink-700)] shadow-[0_1px_2px_rgba(30,22,51,0.08)] dark:text-[var(--fg-strong)]"
                     : "text-suave hover:text-[var(--fg)]",
@@ -73,8 +80,8 @@ export function TelaExtrato() {
 
       {isLoading || !data ? (
         <div className="flex flex-col gap-4">
-          <div className="h-[104px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
-          <div className="h-[420px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
+          <div className="h-[104px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
+          <div className="h-[420px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
         </div>
       ) : (
         <>
@@ -115,8 +122,20 @@ export function TelaExtrato() {
                       ) : null
                     }
                   />
-                  <Bar dataKey="receitas" fill={COR.receita} radius={[3, 3, 0, 0]} maxBarSize={14} />
-                  <Bar dataKey="despesas" fill={COR.despesa} radius={[3, 3, 0, 0]} maxBarSize={14} />
+                  <Bar
+                    dataKey="receitas"
+                    fill={COR.receita}
+                    radius={[3, 3, 0, 0]}
+                    maxBarSize={14}
+                    isAnimationActive={!semMovimento}
+                  />
+                  <Bar
+                    dataKey="despesas"
+                    fill={COR.despesa}
+                    radius={[3, 3, 0, 0]}
+                    maxBarSize={14}
+                    isAnimationActive={!semMovimento}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </Cartao>
@@ -243,7 +262,7 @@ function CabecalhoResumo({ resumo }: { resumo: Extrato["resumo"] }) {
   ];
 
   return (
-    <div className="grid overflow-hidden rounded-[14px] border border-linha-chrome bg-superficie-cartao shadow-[var(--sombra-cartao)] sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid overflow-hidden rounded-[12px] border border-linha-chrome bg-superficie-cartao shadow-[var(--sombra-cartao)] sm:grid-cols-2 xl:grid-cols-4">
       {colunas.map((c, i) => (
         <div
           key={c.chave}
@@ -298,7 +317,7 @@ function SecaoPendencias({
         return (
           <Cartao key={l.tipo} className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between gap-3">
-              <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+              <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
                 {l.titulo}
               </span>
               <span
@@ -311,7 +330,7 @@ function SecaoPendencias({
 
             {vencidos.length > 0 ? (
               <p
-                className="rounded-[10px] px-3 py-2 text-[11.5px]"
+                className="rounded-[8px] px-3 py-2 text-[12px]"
                 style={{ background: "var(--st-atrasado-bg)", color: "var(--st-atrasado-fg)" }}
               >
                 {vencidos.length} {vencidos.length === 1 ? "vencido" : "vencidos"} ·{" "}
@@ -328,21 +347,27 @@ function SecaoPendencias({
                     <button
                       type="button"
                       onClick={() => aoAbrir(p.lancamento_id)}
-                      className="flex w-full items-center gap-3 border-b border-linha-suave py-2 text-left last:border-b-0"
+                      aria-label={`Abrir ${p.descricao}`}
+                      className={cn(
+                        "flex w-full items-center gap-3 border-b border-linha-suave py-2 text-left last:border-b-0",
+                        // Sem hover a linha não avisava que abre o lançamento.
+                        "-mx-2 rounded-[6px] px-2 transition-colors duration-[var(--dur-fast)]",
+                        "hover:bg-[var(--linha-hover)]",
+                      )}
                     >
-                      <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--fg)]">
+                      <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--fg)]">
                         {p.descricao}
                       </span>
                       <span
                         className={cn(
-                          "text-[11.5px]",
+                          "text-[12px]",
                           p.vencido ? "font-semibold text-[var(--despesa-fg)]" : "text-sutil",
                         )}
                       >
                         {dataCurta(p.data)}
                       </span>
                       <BadgeStatus status={p.status} compacto />
-                      <span className="numerico w-[110px] text-right text-[12.5px] font-semibold">
+                      <span className="numerico w-[110px] text-right text-[13px] font-semibold">
                         {dinheiro(p.valor)}
                       </span>
                     </button>
@@ -355,13 +380,13 @@ function SecaoPendencias({
               <button
                 type="button"
                 onClick={() => aoVerTodos(l.tipo)}
-                className="self-start text-[12px] font-semibold text-[var(--brand-hover)]"
+                className="self-start rounded-[4px] text-[12px] font-semibold text-[var(--brand-hover)] underline-offset-2 transition-colors hover:text-[var(--brand-press)] hover:underline"
               >
                 Ver os {l.itens.length} na lista →
               </button>
             ) : null}
 
-            <p className="text-[10.5px] text-sutil">
+            <p className="text-[11px] text-sutil">
               Esta seção ignora o filtro de período — pendência não é histórico.
             </p>
           </Cartao>

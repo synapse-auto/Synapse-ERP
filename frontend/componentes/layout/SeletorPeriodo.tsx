@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { ptBR } from "date-fns/locale";
@@ -62,8 +62,8 @@ export function SeletorPeriodo({ className }: { className?: string }) {
 
   const classeBotao = (ativo: boolean) =>
     cn(
-      "rounded-[7px] px-[11px] py-[6px] whitespace-nowrap",
-      "font-[family-name:var(--font-display)] text-[12.5px] font-semibold tracking-[-0.01em]",
+      "rounded-[6px] px-[11px] py-[6px] whitespace-nowrap",
+      "font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[-0.01em]",
       "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
       ativo
         ? "bg-superficie-cartao text-[var(--ink-700)] shadow-[0_1px_2px_rgba(30,22,51,0.08)] dark:text-[var(--fg-strong)]"
@@ -78,7 +78,7 @@ export function SeletorPeriodo({ className }: { className?: string }) {
       <div
         role="radiogroup"
         aria-label="Período"
-        className="flex items-center gap-[2px] rounded-[9px] border border-linha-suave bg-segmento p-[3px]"
+        className="flex items-center gap-[2px] rounded-[6px] border border-linha-suave bg-segmento p-[3px]"
       >
         {NO_TRILHO.map((p) => (
           <button
@@ -99,6 +99,7 @@ export function SeletorPeriodo({ className }: { className?: string }) {
               type="button"
               role="radio"
               aria-checked={painelAtivo}
+              aria-label={`Período personalizado — ${rotuloPersonalizado}`}
               className={classeBotao(painelAtivo)}
             >
               {rotuloPersonalizado}
@@ -115,7 +116,7 @@ export function SeletorPeriodo({ className }: { className?: string }) {
                     setAberto(false);
                   }}
                   className={cn(
-                    "rounded-[8px] px-2.5 py-1.5 text-left text-[12.5px] transition-colors",
+                    "rounded-[6px] px-2.5 py-1.5 text-left text-[13px] transition-colors",
                     periodo === p.valor
                       ? "bg-[var(--brand-tint-2)] font-semibold text-[var(--lateral-ativo-fg)]"
                       : "text-suave hover:bg-[var(--bg-subtle)]",
@@ -143,7 +144,7 @@ export function SeletorPeriodo({ className }: { className?: string }) {
             />
 
             <div className="flex items-center justify-between gap-2 border-t border-linha-suave p-2">
-              <span className="pl-1 text-[11.5px] text-sutil">
+              <span className="pl-1 text-[12px] text-sutil">
                 {dataInicio && dataFim ? intervalo(dataInicio, dataFim) : "Escolha o intervalo"}
               </span>
               <Button

@@ -155,8 +155,28 @@ async def test_busca_por_texto_usa_o_operador_de_trigram(api):
     Afirma a forma da resposta, não o conteúdo — o acervo do banco muda.
     """
     corpo = (await api.get("/api/busca", params={"q": "pagamento"})).json()
-    assert set(corpo) >= {"termo", "lancamentos", "clientes", "categorias"}
+    assert set(corpo) >= {"termo", "lancamentos", "clientes", "funcionarios", "categorias"}
     assert isinstance(corpo["lancamentos"], list)
+
+
+async def test_busca_traz_funcionarios_com_mundo_e_funcao(api):
+    """T212 — o dropdown do cabeçalho desenha nome, função e badge de mundo.
+
+    Sem `funcionarios` na resposta, digitar o nome de alguém da equipe não achava nada:
+    era o caso que o dono do projeto apontou no Boss 4. Afirma a forma, não o conteúdo.
+    """
+    corpo = (await api.get("/api/busca", params={"q": "an"})).json()
+    assert isinstance(corpo["funcionarios"], list)
+    for funcionario in corpo["funcionarios"]:
+        assert set(funcionario) == {"id", "nome", "funcao", "mundo"}
+        assert funcionario["mundo"] in {"digital", "infra"}
+
+
+async def test_busca_curta_devolve_a_lista_de_funcionarios_vazia(api):
+    """Abaixo de 2 caracteres nenhuma tabela é varrida — nem a de funcionários."""
+    corpo = (await api.get("/api/busca", params={"q": "a"})).json()
+    assert corpo["funcionarios"] == []
+    assert corpo["minimo_de_caracteres"] == 2
 
 
 # ── Os dois perfis: o campo que a tela lê tem que existir ───────────────────

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -109,7 +109,7 @@ export function SecaoUsuarios() {
         {isLoading ? (
           <div className="flex flex-col gap-2 p-4">
             {[0, 1].map((i) => (
-              <div key={i} className="h-12 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
+              <div key={i} className="h-12 animate-pulse rounded-[8px] bg-[var(--bg-subtle)]" />
             ))}
           </div>
         ) : itens.length === 0 ? (
@@ -121,7 +121,7 @@ export function SecaoUsuarios() {
                 key={u.id}
                 className="flex flex-wrap items-center gap-3 border-b border-[var(--linha-suave)] px-4 py-3 last:border-b-0"
               >
-                <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-[var(--brand-tint-2)] font-[family-name:var(--font-display)] text-[11px] font-extrabold text-[var(--lateral-ativo-fg)]">
+                <span className="flex size-8 flex-none items-center justify-center rounded-[6px] bg-[var(--brand-tint-2)] font-[family-name:var(--font-display)] text-[11px] font-extrabold text-[var(--lateral-ativo-fg)]">
                   {iniciais(u.nome)}
                 </span>
                 <span className="flex min-w-[200px] flex-1 flex-col">
@@ -131,7 +131,7 @@ export function SecaoUsuarios() {
                       <span className="ml-2 text-[11px] font-normal text-sutil">você</span>
                     ) : null}
                   </span>
-                  <span className="text-[11.5px] text-sutil">{u.email}</span>
+                  <span className="text-[12px] text-sutil">{u.email}</span>
                 </span>
 
                 <select
@@ -140,7 +140,7 @@ export function SecaoUsuarios() {
                   onChange={(e) =>
                     mudarPapel.mutate({ id: u.id, u, novo: e.target.value as PapelUsuario })
                   }
-                  className="h-8 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
+                  className="h-8 rounded-[6px] border border-linha-controle bg-superficie-cartao px-2 text-[12px] outline-none"
                 >
                   <option value="gestor">Gestor</option>
                   <option value="operador">Operador</option>
@@ -159,7 +159,7 @@ export function SecaoUsuarios() {
         )}
       </Quadro>
 
-      <p className="px-1 text-[11.5px] text-sutil">
+      <p className="px-1 text-[12px] text-sutil">
         Esconder o menu de Configurações do operador é conveniência. A autorização é o `403` que
         o backend devolve em cada endpoint — e há teste cobrindo isso.
       </p>
@@ -192,7 +192,7 @@ export function SecaoUsuarios() {
                 id="papel-usr"
                 value={papel}
                 onChange={(e) => setPapel(e.target.value as PapelUsuario)}
-                className="h-9 rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
+                className="h-9 rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 text-[13px] outline-none"
               >
                 <option value="operador">Operador</option>
                 <option value="gestor">Gestor</option>
@@ -201,7 +201,7 @@ export function SecaoUsuarios() {
             {erro ? (
               <p
                 role="alert"
-                className="rounded-[10px] px-3 py-2 text-[12.5px]"
+                className="rounded-[8px] px-3 py-2 text-[13px]"
                 style={{ background: "var(--st-atrasado-bg)", color: "var(--st-atrasado-fg)" }}
               >
                 {erro}

@@ -61,7 +61,7 @@ export function PainelAnexos({ lancamento }: { lancamento: LancamentoDetalhe }) 
 
   if (ehParteDeSplit) {
     return (
-      <p className="rounded-[10px] bg-[var(--bg-subtle)] px-3 py-2.5 text-[12px] text-suave">
+      <p className="rounded-[8px] bg-[var(--bg-subtle)] px-3 py-2.5 text-[12px] text-suave">
         Parte de split não recebe anexo próprio: o comprovante mora no lançamento original e vale
         para todas as partes.
         {lancamento.anexos.length > 0 ? " Os arquivos abaixo são os do original." : ""}
@@ -83,14 +83,14 @@ export function PainelAnexos({ lancamento }: { lancamento: LancamentoDetalhe }) 
           {lancamento.anexos.map((a) => (
             <li
               key={a.id}
-              className="flex items-center gap-3 rounded-[10px] border border-linha-suave px-3 py-2"
+              className="flex items-center gap-3 rounded-[8px] border border-linha-suave px-3 py-2"
             >
               <FileText size={16} className="flex-none text-suave" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12.5px] text-[var(--fg)]">
+                <span className="block truncate text-[13px] text-[var(--fg)]">
                   {a.nome_arquivo}
                 </span>
-                <span className="text-[10.5px] text-sutil">
+                <span className="text-[11px] text-sutil">
                   {(a.tamanho_bytes / 1024).toFixed(0)} KB
                 </span>
               </span>
@@ -99,7 +99,7 @@ export function PainelAnexos({ lancamento }: { lancamento: LancamentoDetalhe }) 
                 target="_blank"
                 rel="noreferrer"
                 aria-label={`Baixar ${a.nome_arquivo}`}
-                className="rounded-[7px] p-1.5 text-suave transition-colors hover:bg-[var(--bg-subtle)]"
+                className="rounded-[6px] p-1.5 text-suave transition-colors hover:bg-[var(--bg-subtle)]"
               >
                 <Download size={15} />
               </a>
@@ -107,7 +107,7 @@ export function PainelAnexos({ lancamento }: { lancamento: LancamentoDetalhe }) 
                 type="button"
                 aria-label={`Remover ${a.nome_arquivo}`}
                 onClick={() => remover.mutate(a.id)}
-                className="rounded-[7px] p-1.5 text-suave transition-colors hover:bg-[var(--st-atrasado-bg)] hover:text-[var(--st-atrasado-fg)]"
+                className="rounded-[6px] p-1.5 text-suave transition-colors hover:bg-[var(--st-atrasado-bg)] hover:text-[var(--st-atrasado-fg)]"
               >
                 <Trash2 size={15} />
               </button>
@@ -127,7 +127,7 @@ export function PainelAnexos({ lancamento }: { lancamento: LancamentoDetalhe }) 
           setArrastando(false);
           if (e.dataTransfer.files.length) enviar.mutate(e.dataTransfer.files);
         }}
-        className={`flex flex-col items-center gap-2 rounded-[12px] border border-dashed px-4 py-5 text-center transition-colors ${
+        className={`flex flex-col items-center gap-2 rounded-[10px] border border-dashed px-4 py-5 text-center transition-colors ${
           arrastando
             ? "border-[var(--brand)] bg-[var(--brand-tint)]"
             : "border-linha-controle bg-[var(--bg-subtle)]"
@@ -145,10 +145,10 @@ export function PainelAnexos({ lancamento }: { lancamento: LancamentoDetalhe }) 
           </button>
         </p>
         {limiteMb ? (
-          <p className="text-[10.5px] text-sutil">Limite de {limiteMb} MB por arquivo.</p>
+          <p className="text-[11px] text-sutil">Limite de {limiteMb} MB por arquivo.</p>
         ) : null}
         {enviar.isPending ? (
-          <span className="flex items-center gap-2 text-[11.5px] text-suave">
+          <span className="flex items-center gap-2 text-[12px] text-suave">
             <Loader2 size={13} className="animate-spin" />
             Enviando…
           </span>

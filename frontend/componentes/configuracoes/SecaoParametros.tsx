@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -46,7 +46,7 @@ export function SecaoParametros({ podeEscrever }: { podeEscrever: boolean }) {
   });
 
   if (isLoading) {
-    return <div className="h-[420px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />;
+    return <div className="h-[420px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />;
   }
   if (!data || Object.keys(data).length === 0) {
     return (
@@ -81,7 +81,7 @@ export function SecaoParametros({ podeEscrever }: { podeEscrever: boolean }) {
               <div className="flex min-w-[260px] flex-1 flex-col gap-1">
                 <span className="text-[13px] font-semibold text-[var(--fg)]">{rotulo}</span>
                 {/* `descricao` vem do banco — é o texto de ajuda de `FR-106` */}
-                <span className="max-w-[70ch] text-[11.5px] leading-[1.5] text-suave">
+                <span className="max-w-[70ch] text-[12px] leading-[1.5] text-suave">
                   {cfg.descricao}
                 </span>
                 <code className="font-mono text-[10px] text-sutil">{chave}</code>
@@ -124,7 +124,7 @@ export function SecaoParametros({ podeEscrever }: { podeEscrever: boolean }) {
                       }
                     }}
                     rows={2}
-                    className="w-full rounded-[10px] border border-linha-controle bg-superficie-cartao px-2 py-1.5 font-mono text-[11px] outline-none disabled:opacity-60"
+                    className="w-full rounded-[8px] border border-linha-controle bg-superficie-cartao px-2 py-1.5 font-mono text-[11px] outline-none disabled:opacity-60"
                   />
                 )}
               </div>
@@ -134,7 +134,7 @@ export function SecaoParametros({ podeEscrever }: { podeEscrever: boolean }) {
       </Quadro>
 
       {podeEscrever ? (
-        <div className="sticky bottom-4 flex items-center justify-end gap-3 rounded-[12px] border border-linha-chrome bg-superficie-cartao px-4 py-3 shadow-[var(--shadow-md)]">
+        <div className="sticky bottom-4 flex items-center justify-end gap-3 rounded-[10px] border border-linha-chrome bg-superficie-cartao px-4 py-3 shadow-[var(--shadow-md)]">
           <span className="mr-auto text-[12px] text-sutil">
             {alterado
               ? `${Object.keys(rascunho).length} ${Object.keys(rascunho).length === 1 ? "alteração pendente" : "alterações pendentes"}`
@@ -148,7 +148,7 @@ export function SecaoParametros({ podeEscrever }: { podeEscrever: boolean }) {
           </Button>
         </div>
       ) : (
-        <p className="px-1 text-[11.5px] text-sutil">
+        <p className="px-1 text-[12px] text-sutil">
           Somente leitura: alterar parâmetros é do gestor. O servidor recusa a escrita mesmo que
           este formulário fosse habilitado.
         </p>

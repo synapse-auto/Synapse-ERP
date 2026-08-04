@@ -47,7 +47,7 @@ export function BarraAcoesEmMassa({
   if (ids.length === 0) return null;
 
   const botao = cn(
-    "flex h-[29px] items-center gap-1.5 rounded-[8px] border border-[var(--purple-200)] bg-superficie-cartao px-[11px]",
+    "flex h-[29px] items-center gap-1.5 rounded-[6px] border border-[var(--purple-200)] bg-superficie-cartao px-[11px]",
     "font-[family-name:var(--font-display)] text-[12px] font-semibold text-[var(--lateral-ativo-fg)]",
     "transition-colors hover:bg-[var(--brand-tint)]",
   );
@@ -66,7 +66,7 @@ export function BarraAcoesEmMassa({
   return (
     <>
       <div className="flex flex-wrap items-center gap-2.5 border-b border-[var(--purple-200)] bg-[var(--linha-selecionada)] px-4 py-[10px]">
-        <span className="font-[family-name:var(--font-display)] text-[12.5px] font-bold text-[var(--lateral-ativo-fg)]">
+        <span className="font-[family-name:var(--font-display)] text-[13px] font-bold text-[var(--lateral-ativo-fg)]">
           {ids.length} selecionados
         </span>
         <span aria-hidden className="h-[18px] w-px bg-[var(--purple-200)]" />
@@ -80,7 +80,7 @@ export function BarraAcoesEmMassa({
                   key={c.id}
                   type="button"
                   onClick={() => executar("mudar_categoria", { categoria_id: c.id })}
-                  className="flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-[12.5px] hover:bg-[var(--bg-subtle)]"
+                  className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[13px] hover:bg-[var(--bg-subtle)]"
                 >
                   <span
                     aria-hidden
@@ -106,7 +106,7 @@ export function BarraAcoesEmMassa({
                   key={s}
                   type="button"
                   onClick={() => executar("mudar_status", { status: s })}
-                  className="rounded-[8px] px-2 py-1.5 text-left text-[12.5px] hover:bg-[var(--bg-subtle)]"
+                  className="rounded-[6px] px-2 py-1.5 text-left text-[13px] hover:bg-[var(--bg-subtle)]"
                 >
                   {rotuloDoStatus(s)}
                 </button>
@@ -128,7 +128,7 @@ export function BarraAcoesEmMassa({
                   <button
                     type="button"
                     onClick={() => executar("adicionar_tags", { tag_ids: [t.id] })}
-                    className="flex-1 rounded-[8px] px-2 py-1.5 text-left text-[12.5px] hover:bg-[var(--bg-subtle)]"
+                    className="flex-1 rounded-[6px] px-2 py-1.5 text-left text-[13px] hover:bg-[var(--bg-subtle)]"
                   >
                     {t.nome}
                   </button>
@@ -136,9 +136,10 @@ export function BarraAcoesEmMassa({
                     type="button"
                     title="Remover esta tag dos selecionados"
                     onClick={() => executar("remover_tags", { tag_ids: [t.id] })}
-                    className="rounded-[7px] px-2 py-1 text-[11px] text-sutil hover:bg-[var(--bg-subtle)]"
+                    aria-label={`Remover a tag ${t.nome} dos selecionados`}
+                    className="rounded-[6px] px-2 py-1 text-[11px] text-sutil transition-colors hover:bg-[var(--despesa-bg)] hover:text-[var(--despesa-fg)]"
                   >
-                    tirar
+                    Tirar
                   </button>
                 </div>
               ))}
@@ -159,8 +160,12 @@ export function BarraAcoesEmMassa({
         </button>
 
         <div className="flex-1" />
-        <button type="button" onClick={aoLimpar} className="text-[12px] text-suave hover:text-[var(--fg)]">
-          cancelar seleção
+        <button
+          type="button"
+          onClick={aoLimpar}
+          className="rounded-[4px] px-1 text-[12px] text-suave underline-offset-2 transition-colors hover:text-[var(--fg)] hover:underline"
+        >
+          Cancelar seleção
         </button>
       </div>
 

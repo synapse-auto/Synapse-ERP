@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
@@ -104,7 +104,7 @@ export function ConfigurarCards({
                     {NOME_DO_GRUPO[c.grupo] ?? c.grupo}
                   </span>
                 ) : null}
-                <div className="flex items-center gap-2 rounded-[10px] border border-linha-suave px-3 py-2">
+                <div className="flex items-center gap-2 rounded-[8px] border border-linha-suave px-3 py-2">
                   <span
                     className={`min-w-0 flex-1 truncate text-[13px] ${
                       visivel ? "text-[var(--fg)]" : "text-sutil line-through"
@@ -116,7 +116,7 @@ export function ConfigurarCards({
                     type="button"
                     aria-label={visivel ? `Ocultar ${c.rotulo}` : `Mostrar ${c.rotulo}`}
                     onClick={() => alternar(c.id)}
-                    className="rounded-[7px] p-1.5 text-suave transition-colors hover:bg-[var(--bg-subtle)]"
+                    className="rounded-[6px] p-1.5 text-suave transition-colors hover:bg-[var(--bg-subtle)]"
                   >
                     {visivel ? <Eye size={15} /> : <EyeOff size={15} />}
                   </button>
@@ -125,7 +125,7 @@ export function ConfigurarCards({
                     aria-label={`Subir ${c.rotulo}`}
                     disabled={i === 0}
                     onClick={() => mover(i, -1)}
-                    className="rounded-[7px] p-1.5 text-suave transition-colors hover:bg-[var(--bg-subtle)] disabled:opacity-30"
+                    className="rounded-[6px] p-1.5 text-suave transition-colors hover:bg-[var(--bg-subtle)] disabled:opacity-30"
                   >
                     <ChevronUp size={15} />
                   </button>
@@ -134,7 +134,7 @@ export function ConfigurarCards({
                     aria-label={`Descer ${c.rotulo}`}
                     disabled={i === lista.length - 1}
                     onClick={() => mover(i, 1)}
-                    className="rounded-[7px] p-1.5 text-suave transition-colors hover:bg-[var(--bg-subtle)] disabled:opacity-30"
+                    className="rounded-[6px] p-1.5 text-suave transition-colors hover:bg-[var(--bg-subtle)] disabled:opacity-30"
                   >
                     <ChevronDown size={15} />
                   </button>

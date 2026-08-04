@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -76,7 +76,15 @@ export function CascaApp({ children }: { children: ReactNode }) {
           </div>
         </Suspense>
 
-        <main className="flex-1 overflow-y-auto bg-superficie-app">{children}</main>
+        {/* Alvo do "Pular para o conteúdo" (app/layout.tsx). `tabIndex={-1}`
+            para o foco poder pousar aqui sem entrar na ordem de tabulação. */}
+        <main
+          id="conteudo-principal"
+          tabIndex={-1}
+          className="flex-1 overflow-y-auto bg-superficie-app focus-visible:shadow-none"
+        >
+          {children}
+        </main>
       </div>
 
       <FormLancamento aberto={novoAberto} aoFechar={fecharNovo} rascunho={rascunho} />
@@ -88,8 +96,8 @@ function TelaDeEspera() {
   return (
     <div className="flex h-dvh items-center justify-center bg-superficie-app">
       <div className="flex flex-col items-center gap-3">
-        <MarcaSynapse tamanho={40} idGradiente="marca-espera" className="animate-pulse rounded-[9px]" />
-        <span className="text-[12.5px] text-sutil">Carregando…</span>
+        <MarcaSynapse tamanho={40} idGradiente="marca-espera" className="animate-pulse rounded-[6px]" />
+        <span className="text-[13px] text-sutil">Carregando…</span>
       </div>
     </div>
   );

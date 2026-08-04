@@ -7,12 +7,15 @@
    do projeto Claude Design "Synapse ERP Financeiro"
    (f5d2a73f-43fc-4d92-b46a-b3ef8d637164).
 
-   Nenhum valor foi reinterpretado (CLAUDE.md §Design, T142).
-   Única mudança: o `@import` do Google Fonts saiu daqui — as três famílias
-   são carregadas por `next/font/google` em `app/layout.tsx` (T145), o que
-   evita requisição de terceiro em tempo de renderização. Os nomes das
-   famílias em `--font-display` / `--font-body` / `--font-mono` continuam
-   exatamente os mesmos.
+   Nenhuma **cor**, sombra ou espaçamento foi reinterpretado
+   (CLAUDE.md §Design, T142). Duas divergências, ambas decididas pelo dono do
+   projeto e registradas em `frontend/README.md`:
+
+   1. O `@import` do Google Fonts saiu daqui — as famílias são carregadas por
+      `next/font/google` em `app/layout.tsx` (T145), o que evita requisição de
+      terceiro em tempo de renderização.
+   2. **Boss 4 (T211): a tipografia é Geist**, não Plus Jakarta Sans + Inter.
+      Ver o bloco "Type" lá embaixo e o bloco de densidade no fim do arquivo.
    ============================================================ */
 
 :root {
@@ -116,10 +119,14 @@
   --ring-brand: 0 0 0 4px rgba(139, 108, 240, 0.18);
   --ring-focus: 0 0 0 3px rgba(139, 108, 240, 0.35);
 
-  /* ---------- Type ---------- */
-  --font-display: "Plus Jakarta Sans", "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
-  --font-body: "Inter", system-ui, -apple-system, Segoe UI, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* ---------- Type ----------
+     T211: Geist substitui Plus Jakarta Sans + Inter. Uma família só para
+     título e corpo — hierarquia por peso e tamanho, como a Vercel faz.
+     Os nomes das três variáveis não mudaram, então nenhum componente
+     precisou ser tocado. */
+  --font-display: "Geist", system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-body: "Geist", system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Scale — major-second-ish, tuned for product UIs */
   --fs-12: 12px;
@@ -242,4 +249,29 @@
   --linha-selecionada: #f6f3fe;
   --linha-marcada: #fbfafe;
   --linha-hover: #fbfafe;
+}
+
+/* ============================================================
+   Densidade Geist — Boss 4, T211.
+
+   Segunda divergência declarada do design system. O dono do projeto pediu
+   "densidade da Vercel": a escada de raios do Synapse (4/6/10/14/20/28) tem
+   dois degraus a mais do que a Geist usa e arredonda mais. A Vercel trabalha
+   com quatro valores — 4 para marca de seleção, 6 para controle, 8 para
+   agrupamento e 12 para cartão — e nada acima disso fora de avatar/pílula.
+
+   Só os **raios** mudam. Cor, sombra, espaçamento 4pt e escala de tamanho
+   continuam os do design system, letra por letra.
+
+   Os ~180 `rounded-[Npx]` cravados nas telas foram remapeados para esta
+   mesma escada na mesma entrega — não há dois vocabulários de raio no
+   projeto.
+   ============================================================ */
+:root {
+  --r-xs: 4px; /* era 4px  — marca de checkbox, ponto de cor */
+  --r-sm: 6px; /* era 6px  — badge, tecla de atalho */
+  --r-md: 8px; /* era 10px — botão, campo, item de menu */
+  --r-lg: 10px; /* era 14px — agrupamento interno, painel pequeno */
+  --r-xl: 12px; /* era 20px — cartão, diálogo */
+  --r-2xl: 16px; /* era 28px — cartão de destaque */
 }

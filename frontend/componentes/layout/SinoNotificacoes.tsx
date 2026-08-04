@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -89,7 +89,7 @@ export function SinoNotificacoes({ className }: { className?: string }) {
             naoLidas > 0 ? `Notificações — ${naoLidas} não lidas` : "Notificações — nenhuma nova"
           }
           className={cn(
-            "relative flex size-9 flex-none items-center justify-center rounded-[10px]",
+            "relative flex size-9 flex-none items-center justify-center rounded-[8px]",
             "border border-linha-controle bg-superficie-cartao text-[var(--fg-muted)]",
             "transition-colors hover:bg-[var(--bg-subtle)] hover:text-[var(--ink-600)]",
             className,
@@ -101,7 +101,7 @@ export function SinoNotificacoes({ className }: { className?: string }) {
               className={cn(
                 "absolute -top-[3px] -right-[3px] flex h-4 min-w-4 items-center justify-center rounded-full px-1",
                 "border-2 border-superficie-cartao bg-[var(--danger-500)] text-white",
-                "font-[family-name:var(--font-display)] text-[9.5px] font-extrabold",
+                "font-[family-name:var(--font-display)] text-[10px] font-extrabold",
               )}
             >
               {naoLidas > 99 ? "99+" : naoLidas}
@@ -110,13 +110,18 @@ export function SinoNotificacoes({ className }: { className?: string }) {
         </button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-[400px] p-0">
+      {/* No celular o painel não pode ser mais largo que a tela. */}
+      <PopoverContent
+        align="end"
+        collisionPadding={12}
+        className="w-[min(400px,calc(100vw-24px))] p-0"
+      >
         <header className="flex items-center justify-between gap-2 border-b border-linha-suave px-4 py-3">
           <div className="flex flex-col">
-            <span className="font-[family-name:var(--font-display)] text-[13.5px] font-bold text-forte">
+            <span className="font-[family-name:var(--font-display)] text-[14px] font-bold text-forte">
               Notificações
             </span>
-            <span className="text-[11.5px] text-sutil">
+            <span className="text-[12px] text-sutil">
               {naoLidas > 0 ? `${naoLidas} não lidas` : "Tudo lido"}
             </span>
           </div>
@@ -136,7 +141,7 @@ export function SinoNotificacoes({ className }: { className?: string }) {
           {isLoading ? (
             <div className="flex flex-col gap-3 p-4">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="h-12 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
+                <div key={i} className="h-12 animate-pulse rounded-[8px] bg-[var(--bg-subtle)]" />
               ))}
             </div>
           ) : (data?.itens.length ?? 0) === 0 ? (
@@ -161,24 +166,25 @@ export function SinoNotificacoes({ className }: { className?: string }) {
                       )}
                     >
                       <span
-                        className="mt-[2px] flex size-8 flex-none items-center justify-center rounded-[10px]"
+                        className="mt-[2px] flex size-8 flex-none items-center justify-center rounded-[8px]"
                         style={{ background: FUNDO[n.tipo], color: COR[n.tipo] }}
                       >
                         <Icone size={16} strokeWidth={2} />
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
                         <span className="flex items-center gap-2">
-                          <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-display)] text-[12.5px] font-bold text-[var(--fg)]">
+                          <span className="min-w-0 flex-1 truncate font-[family-name:var(--font-display)] text-[13px] font-bold text-[var(--fg)]">
                             {n.titulo}
                           </span>
                           {n.mundo ? <BadgeMundo mundo={n.mundo} /> : null}
                         </span>
                         <span className="text-[12px] text-suave">{n.corpo}</span>
-                        <span className="text-[10.5px] text-sutil">{instante(n.criado_em)}</span>
+                        <span className="text-[11px] text-sutil">{instante(n.criado_em)}</span>
                       </span>
                       {!n.lida_em ? (
                         <span
-                          aria-label="não lida"
+                          role="img"
+                          aria-label="Não lida"
                           className="mt-2 size-[7px] flex-none rounded-full bg-[var(--brand)]"
                         />
                       ) : null}

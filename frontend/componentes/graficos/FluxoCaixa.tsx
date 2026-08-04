@@ -13,7 +13,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CaixaDeDica, COR, eixoDinheiro, eixoMes, Legenda, OPACIDADE_PROJETADA } from "./base";
+import {
+  CaixaDeDica,
+  COR,
+  eixoDinheiro,
+  eixoMes,
+  Legenda,
+  OPACIDADE_PROJETADA,
+  useMovimentoReduzido,
+} from "./base";
 import { dinheiro, mesCurto } from "@/lib/formato";
 import type { PontoFluxo } from "@/lib/tipos";
 
@@ -26,6 +34,7 @@ import type { PontoFluxo } from "@/lib/tipos";
  * na tela: previsto não pode passar por realizado.
  */
 export function FluxoCaixa({ dados }: { dados: PontoFluxo[] }) {
+  const semMovimento = useMovimentoReduzido();
   const pontos = dados.map((d) => ({
     mes: d.mes,
     receitas: Number(d.receitas),
@@ -100,7 +109,12 @@ export function FluxoCaixa({ dados }: { dados: PontoFluxo[] }) {
             }}
           />
 
-          <Bar dataKey="receitas" radius={[3, 3, 0, 0]} maxBarSize={18}>
+          <Bar
+            dataKey="receitas"
+            radius={[3, 3, 0, 0]}
+            maxBarSize={18}
+            isAnimationActive={!semMovimento}
+          >
             {pontos.map((p, i) => (
               <Cell
                 key={i}
@@ -109,7 +123,12 @@ export function FluxoCaixa({ dados }: { dados: PontoFluxo[] }) {
               />
             ))}
           </Bar>
-          <Bar dataKey="despesas" radius={[3, 3, 0, 0]} maxBarSize={18}>
+          <Bar
+            dataKey="despesas"
+            radius={[3, 3, 0, 0]}
+            maxBarSize={18}
+            isAnimationActive={!semMovimento}
+          >
             {pontos.map((p, i) => (
               <Cell
                 key={i}
@@ -126,6 +145,7 @@ export function FluxoCaixa({ dados }: { dados: PontoFluxo[] }) {
             strokeDasharray="4 4"
             dot={{ r: 2.4, fill: COR.marca, strokeWidth: 0 }}
             activeDot={{ r: 4 }}
+            isAnimationActive={!semMovimento}
           />
         </ComposedChart>
       </ResponsiveContainer>
@@ -141,6 +161,7 @@ export function ComparativoMensal({
   atual: Record<string, string>;
   anterior: Record<string, string>;
 }) {
+  const semMovimento = useMovimentoReduzido();
   const chaves = Array.from(new Set([...Object.keys(atual), ...Object.keys(anterior)]));
   const dados = chaves.map((k) => ({
     rotulo: k.replace(/_/g, " "),
@@ -175,8 +196,20 @@ export function ComparativoMensal({
             ) : null
           }
         />
-        <Bar dataKey="anterior" fill="var(--ink-200)" radius={[3, 3, 0, 0]} maxBarSize={26} />
-        <Bar dataKey="atual" fill={COR.marca} radius={[3, 3, 0, 0]} maxBarSize={26} />
+        <Bar
+          dataKey="anterior"
+          fill="var(--ink-200)"
+          radius={[3, 3, 0, 0]}
+          maxBarSize={26}
+          isAnimationActive={!semMovimento}
+        />
+        <Bar
+          dataKey="atual"
+          fill={COR.marca}
+          radius={[3, 3, 0, 0]}
+          maxBarSize={26}
+          isAnimationActive={!semMovimento}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

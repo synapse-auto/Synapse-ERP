@@ -69,7 +69,7 @@ export function TelaDashboard() {
 
   if (isError || !data) {
     return (
-      <div className="mx-auto max-w-[var(--conteudo-largura-max)] px-[30px] pt-[26px]">
+      <div className="mx-auto max-w-[var(--conteudo-largura-max)] px-4 pt-5 sm:px-[30px] sm:pt-[26px]">
         <Cartao>
           <EstadoVazio
             titulo="Não foi possível carregar o painel"
@@ -112,7 +112,7 @@ export function TelaDashboard() {
       case "fluxo_caixa_12m":
         return (
           <Cartao key={c.id} className="flex flex-col gap-1">
-            <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
               {c.rotulo}
             </span>
             <span className="mb-2 text-[12px] text-sutil">
@@ -125,7 +125,7 @@ export function TelaDashboard() {
       case "evolucao_saldo":
         return (
           <Cartao key={c.id} className="flex flex-col gap-1">
-            <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
               {c.rotulo}
             </span>
             <span className="mb-2 text-[12px] text-sutil">Saldo em caixa ao fim de cada mês</span>
@@ -136,7 +136,7 @@ export function TelaDashboard() {
       case "comparativo_mensal":
         return data!.comparativo_mes ? (
           <Cartao key={c.id} className="flex flex-col gap-1">
-            <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
               {c.rotulo}
             </span>
             <span className="mb-2 text-[12px] text-sutil">Período atual contra o anterior</span>
@@ -150,7 +150,7 @@ export function TelaDashboard() {
       case "despesas_categoria":
         return (
           <Cartao key={c.id} className="flex flex-col gap-1">
-            <span className="font-[family-name:var(--font-display)] text-[14.5px] font-bold text-forte">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
               {c.rotulo}
             </span>
             <span className="mb-3 text-[12px] text-sutil">Clique para filtrar a lista</span>
@@ -261,7 +261,7 @@ export function TelaDashboard() {
   despejarNumericos();
 
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-[30px] pt-[26px] pb-11">
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
       <CabecalhoTela
         sobrancelha={`${mesPorExtenso(data.periodo.inicio)} · ${intervalo(data.periodo.inicio, data.periodo.fim)}`}
         titulo={nome ? `${saudacao()}, ${nome}` : saudacao()}
@@ -315,17 +315,17 @@ function saudacao(): string {
 
 function EsqueletoDashboard() {
   return (
-    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] flex-col gap-4 px-[30px] pt-[26px] pb-11">
-      <div className="h-16 w-1/3 animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
+    <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
+      <div className="h-16 w-1/3 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-[168px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
+          <div key={i} className="h-[168px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
         ))}
       </div>
-      <div className="h-[320px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
+      <div className="h-[320px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="h-[280px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
-        <div className="h-[280px] animate-pulse rounded-[14px] bg-[var(--bg-subtle)]" />
+        <div className="h-[280px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
+        <div className="h-[280px] animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
       </div>
     </div>
   );

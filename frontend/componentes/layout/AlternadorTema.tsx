@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
@@ -60,7 +60,7 @@ export function AlternadorTema({ className }: { className?: string }) {
       role="radiogroup"
       aria-label="Tema da interface"
       className={cn(
-        "flex items-center gap-[2px] rounded-[9px] border border-linha-suave bg-segmento p-[3px]",
+        "flex items-center gap-[2px] rounded-[6px] border border-linha-suave bg-segmento p-[3px]",
         className,
       )}
     >
@@ -76,7 +76,7 @@ export function AlternadorTema({ className }: { className?: string }) {
             title={rotulo}
             onClick={() => escolher(valor)}
             className={cn(
-              "flex size-7 items-center justify-center rounded-[7px] transition-colors",
+              "flex size-7 items-center justify-center rounded-[6px] transition-colors",
               ativo
                 ? "bg-superficie-cartao text-[var(--brand-hover)] shadow-[var(--sombra-cartao)]"
                 : "text-suave hover:text-[var(--fg)]",

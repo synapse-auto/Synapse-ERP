@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -73,7 +73,7 @@ export function PainelDetalhe({
           <div className="flex flex-col gap-4 p-6">
             <div className="h-6 w-2/3 animate-pulse rounded bg-[var(--bg-subtle)]" />
             <div className="h-10 w-1/2 animate-pulse rounded bg-[var(--bg-subtle)]" />
-            <div className="h-40 animate-pulse rounded-[12px] bg-[var(--bg-subtle)]" />
+            <div className="h-40 animate-pulse rounded-[10px] bg-[var(--bg-subtle)]" />
           </div>
         ) : (
           <>
@@ -106,12 +106,12 @@ export function PainelDetalhe({
                     {l.tipo === "receita" ? "+ " : "− "}
                     {dinheiro(l.valor)}
                   </span>
-                  <DataBR valor={l.data} className="text-[12.5px] text-suave" />
+                  <DataBR valor={l.data} className="text-[13px] text-suave" />
                 </div>
               </SheetDescription>
 
               {l.moeda_origem !== "BRL" ? (
-                <p className="rounded-[10px] bg-[var(--receita-bg)] px-3 py-2 text-[11.5px] text-[var(--receita-fg)]">
+                <p className="rounded-[8px] bg-[var(--receita-bg)] px-3 py-2 text-[12px] text-[var(--receita-fg)]">
                   Original {l.moeda_origem} {l.valor_origem} · cotação {l.cotacao}
                   {l.cotacao_manual ? " (informada à mão)" : ""} na data do lançamento.
                 </p>
@@ -165,7 +165,7 @@ export function PainelDetalhe({
                 </Button>
               ) : null}
               {acoes.length === 0 ? (
-                <p className="text-[11.5px] text-sutil">
+                <p className="text-[12px] text-sutil">
                   Nenhuma ação disponível para este lançamento no seu papel.
                 </p>
               ) : null}
@@ -195,7 +195,7 @@ export function PainelDetalhe({
                       {l.tags.map((t) => (
                         <span
                           key={t.id}
-                          className="rounded-full bg-segmento px-2 py-[2px] text-[10.5px] font-semibold"
+                          className="rounded-full bg-segmento px-2 py-[2px] text-[11px] font-semibold"
                           style={{ color: t.cor ?? "var(--fg-muted)" }}
                         >
                           {t.nome}
@@ -218,9 +218,9 @@ export function PainelDetalhe({
                     {l.origem.tipo === "parcelamento" && l.origem.id ? (
                       <Link
                         href={`/lancamentos?parcelamento=${l.origem.id}`}
-                        className="ml-2 inline-flex items-center gap-1 text-[11.5px]"
+                        className="ml-2 inline-flex items-center gap-1 rounded-[4px] px-1 text-[12px] font-medium text-[var(--brand-hover)] underline-offset-2 transition-colors hover:bg-[var(--brand-tint)] hover:underline"
                       >
-                        ver a série <ExternalLink size={11} />
+                        ver a série <ExternalLink size={11} aria-hidden="true" />
                       </Link>
                     ) : null}
                   </Linha>
@@ -234,7 +234,7 @@ export function PainelDetalhe({
 
               {l.partes_split.length > 0 ? (
                 <Secao titulo="Partes">
-                  <p className="mb-2 text-[11.5px] text-sutil">
+                  <p className="mb-2 text-[12px] text-sutil">
                     Este lançamento foi dividido: ele saiu dos totais e só as partes contam.
                   </p>
                   {l.partes_split.map((p) => (
@@ -242,9 +242,9 @@ export function PainelDetalhe({
                       key={p.id}
                       className="flex items-center justify-between gap-3 border-b border-linha-suave py-2 last:border-b-0"
                     >
-                      <span className="min-w-0 flex-1 truncate text-[12.5px]">{p.descricao}</span>
-                      <span className="text-[11.5px] text-suave">{p.categoria.nome}</span>
-                      <span className="numerico text-[12.5px] font-semibold">
+                      <span className="min-w-0 flex-1 truncate text-[13px]">{p.descricao}</span>
+                      <span className="text-[12px] text-suave">{p.categoria.nome}</span>
+                      <span className="numerico text-[13px] font-semibold">
                         {dinheiro(p.valor)}
                       </span>
                     </div>
@@ -254,7 +254,7 @@ export function PainelDetalhe({
 
               {l.lancamento_pai ? (
                 <Secao titulo="Parte de um split">
-                  <p className="text-[12.5px] text-suave">
+                  <p className="text-[13px] text-suave">
                     Esta linha é parte de{" "}
                     <strong className="text-[var(--fg)]">{l.lancamento_pai.descricao}</strong> (
                     {dinheiro(l.lancamento_pai.valor)}). O comprovante mora no lançamento original.
@@ -268,7 +268,7 @@ export function PainelDetalhe({
 
               {l.observacoes ? (
                 <Secao titulo="Observações">
-                  <p className="text-[12.5px] leading-[1.6] text-suave">{l.observacoes}</p>
+                  <p className="text-[13px] leading-[1.6] text-suave">{l.observacoes}</p>
                 </Secao>
               ) : null}
 
@@ -306,7 +306,7 @@ function Linha({ rotulo, children }: { rotulo: string; children: React.ReactNode
   return (
     <div className="flex items-start justify-between gap-4 border-b border-linha-suave py-2 last:border-b-0">
       <span className="flex-none text-[12px] text-sutil">{rotulo}</span>
-      <span className="text-right text-[12.5px] text-[var(--fg)]">{children}</span>
+      <span className="text-right text-[13px] text-[var(--fg)]">{children}</span>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
 import {
@@ -35,7 +35,13 @@ import type { FiltrosLancamento } from "./filtros";
  * ordenados parecem certos e não são.
  */
 
-const GRADE = "grid grid-cols-[38px_92px_minmax(220px,1fr)_190px_160px_128px_118px_128px_40px]";
+/**
+ * As nove faixas somam 1114px no mínimo. O `min-w` é o que faz a rolagem
+ * horizontal acontecer **dentro** da tabela, e não na página inteira — sem ele
+ * o celular arrasta a tela toda de lado (`SC-012`, `FR-111`).
+ */
+const GRADE =
+  "grid min-w-[1114px] grid-cols-[38px_92px_minmax(220px,1fr)_190px_160px_128px_118px_128px_40px]";
 
 type Coluna = FiltrosLancamento["ordenar"];
 
@@ -100,7 +106,7 @@ export function TabelaLancamentos({
   const algunsMarcados = linhas.some((l) => l.getIsSelected()) && !todosMarcados;
 
   return (
-    <div className={className}>
+    <div className={cn("overflow-x-auto [overscroll-behavior-x:contain]", className)}>
       {/* Cabeçalho da grade — 38px, fundo #FBFAFE */}
       <div
         className={cn(
@@ -134,7 +140,7 @@ export function TabelaLancamentos({
                   type="button"
                   onClick={() => aoOrdenar(c.chave as Coluna)}
                   className={cn(
-                    "inline-flex items-center gap-1 font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] uppercase transition-colors",
+                    "inline-flex items-center gap-1 font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] uppercase transition-colors",
                     ativa ? "text-[var(--brand-hover)]" : "text-sutil hover:text-[var(--fg-muted)]",
                   )}
                 >
@@ -142,7 +148,7 @@ export function TabelaLancamentos({
                   {Seta ? <Seta size={11} strokeWidth={2.4} className={ativa ? "" : "opacity-50"} /> : null}
                 </button>
               ) : (
-                <span className="font-[family-name:var(--font-display)] text-[10.5px] font-bold tracking-[0.07em] text-sutil uppercase">
+                <span className="font-[family-name:var(--font-display)] text-[11px] font-bold tracking-[0.07em] text-sutil uppercase">
                   {c.rotulo}
                 </span>
               )}
@@ -186,14 +192,22 @@ export function TabelaLancamentos({
                 tabIndex={0}
                 onClick={() => aoAbrir(l.id)}
                 onDoubleClick={() => aoEditar(l.id)}
+                aria-label={`Abrir ${l.descricao}`}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") aoAbrir(l.id);
+                  // `Espaço` também abre: é o que se espera de uma linha
+                  // focável, e sem isso a página rola em vez de abrir.
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    aoAbrir(l.id);
+                  }
                 }}
                 className={cn(
                   GRADE,
                   "min-h-[54px] cursor-pointer items-center border-b border-[var(--linha-suave)] px-4",
-                  "transition-colors hover:bg-[var(--linha-hover)]",
-                  "focus-visible:outline-none",
+                  "transition-colors duration-[var(--dur-fast)] hover:bg-[var(--linha-hover)]",
+                  // A linha é larga: o anel roxo padrão contornaria a tela toda.
+                  // Aqui o foco é uma borda interna, que cabe na linha.
+                  "focus-visible:bg-[var(--linha-selecionada)] focus-visible:shadow-[inset_0_0_0_2px_var(--brand)] focus-visible:outline-none",
                   selecionado
                     ? "bg-[var(--linha-selecionada)]"
                     : marcado
@@ -215,7 +229,7 @@ export function TabelaLancamentos({
                 <span className="flex min-w-0 items-center gap-2 pr-[18px]">
                   <span
                     className={cn(
-                      "truncate text-[13.5px] font-medium text-[var(--fg)]",
+                      "truncate text-[14px] font-medium text-[var(--fg)]",
                       l.status === "cancelado" && "line-through",
                     )}
                   >
@@ -233,19 +247,19 @@ export function TabelaLancamentos({
                   {l.parcela_numero && l.parcela_total ? (
                     <span
                       title={l.origem.rotulo ?? "Parcelado"}
-                      className="flex-none rounded-[4px] bg-[var(--st-pendente-bg)] px-[5px] py-[1px] font-[family-name:var(--font-display)] text-[9.5px] font-extrabold text-[var(--st-pendente-fg)]"
+                      className="flex-none rounded-[4px] bg-[var(--st-pendente-bg)] px-[5px] py-[1px] font-[family-name:var(--font-display)] text-[10px] font-extrabold text-[var(--st-pendente-fg)]"
                     >
                       {l.parcela_numero}/{l.parcela_total}
                     </span>
                   ) : null}
                   {l.tem_anexos ? (
-                    <span className="flex flex-none items-center gap-[2px] text-[10.5px] text-[var(--ink-300)]">
+                    <span className="flex flex-none items-center gap-[2px] text-[11px] text-[var(--ink-300)]">
                       <Paperclip size={12} strokeWidth={2.2} />
                       {l.quantidade_anexos}
                     </span>
                   ) : null}
                   {l.moeda_origem !== "BRL" ? (
-                    <span className="flex-none rounded-[4px] bg-[var(--receita-bg)] px-[5px] py-[1px] font-[family-name:var(--font-display)] text-[9.5px] font-extrabold tracking-[0.03em] text-[var(--receita-fg)]">
+                    <span className="flex-none rounded-[4px] bg-[var(--receita-bg)] px-[5px] py-[1px] font-[family-name:var(--font-display)] text-[10px] font-extrabold tracking-[0.03em] text-[var(--receita-fg)]">
                       {l.moeda_origem}
                     </span>
                   ) : null}
@@ -257,7 +271,7 @@ export function TabelaLancamentos({
                     className="size-[7px] flex-none rounded-[2.5px]"
                     style={{ background: l.categoria.cor ?? "var(--fg-subtle)" }}
                   />
-                  <span className="truncate text-[12.5px] text-[var(--ink-700)] dark:text-[var(--fg)]">
+                  <span className="truncate text-[13px] text-[var(--ink-700)] dark:text-[var(--fg)]">
                     {l.categoria.nome}
                     {l.subcategoria ? (
                       <span className="text-sutil"> · {l.subcategoria.nome}</span>
@@ -286,7 +300,7 @@ export function TabelaLancamentos({
                 </span>
 
                 <span
-                  className="numerico text-right font-[family-name:var(--font-display)] text-[13.5px] font-bold whitespace-nowrap"
+                  className="numerico text-right font-[family-name:var(--font-display)] text-[14px] font-bold whitespace-nowrap"
                   style={{
                     color:
                       l.status === "efetivado"
@@ -305,7 +319,7 @@ export function TabelaLancamentos({
                     <button
                       type="button"
                       aria-label="Ações do lançamento"
-                      className="flex size-[26px] items-center justify-center rounded-[7px] text-[var(--ink-300)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--ink-600)]"
+                      className="flex size-[26px] items-center justify-center rounded-[6px] text-[var(--ink-300)] transition-colors hover:bg-[var(--bg-muted)] hover:text-[var(--ink-600)]"
                     >
                       <MoreHorizontal size={15} />
                     </button>
