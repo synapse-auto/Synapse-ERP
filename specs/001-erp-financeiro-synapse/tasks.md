@@ -736,6 +736,7 @@ em vez de funcionar como pesquisa.
 | # | Assunto | Onde |
 |---|---|---|
 | 1 | **Geist** substitui Plus Jakarta Sans + Inter; Geist Mono substitui JetBrains Mono. Auto-hospedadas por `next/font/google`. As três variáveis (`--fonte-display/body/mono`) não mudaram de nome, então nenhum dos ~60 usos precisou ser tocado | `app/layout.tsx`, `estilos/tokens.css`, `app/globals.css` |
+| 1b | **Bug de fonte, anterior ao Boss 4, achado pelo dono do projeto**: a troca "não mudou nada" porque **nenhuma fonte estava valendo desde a Fase C**. As classes do `next/font` ficavam no `<body>` e o alias `--font-body: var(--fonte-body), …` no `:root`; o `var()` não resolvia, a declaração inteira morria e o navegador caía em serif. Classes movidas para o `<html>` e o alias passou à forma com fallback `var(--fonte-body, "Geist")` | `app/layout.tsx`, `app/globals.css` |
 | 2 | **Densidade**: 160 `rounded-[Npx]` remapeados para a escada da Geist e 234 tamanhos quebrados (`12.5px`) virados inteiros. Cor, sombra e grade de 4pt intactas | 53 e 54 arquivos, por script |
 | 3 | **A busca virou campo.** `combobox` + `listbox`, foco preso no campo, `↑↓` por `aria-activedescendant`, opção é `<Link>` (aceita `⌘`+clique), `⌘K` e `/` focam em vez de abrir. `buscaAberta` virou `pedidoDeFocoNaBusca` | `layout/BuscaGlobal.tsx`, `layout/CabecalhoGlobal.tsx`, `lib/estado-global.ts` |
 | 4 | **Funcionário entrou na busca**, por nome e por função, respeitando o mundo (`RN-15`). Clicar leva para `/funcionarios/{id}` | `app/busca/rotas.py`, `lib/tipos.ts`, contracts/consultas.md §4 |
@@ -749,7 +750,10 @@ em vez de funcionar como pesquisa.
 frontend: npx tsc --noEmit ; npx next lint     → sem erros
 frontend: npx vitest run                       → 48 passed  (eram 37)
 frontend: npx next build                       → compilou · 13 rotas
-frontend: página servida em dev                → CSS gerado traz `font-family: 'Geist'`
+frontend: Chrome headless na página servida    → `getComputedStyle(html).fontFamily`
+                                                 começa em `Geist`; `document.fonts
+                                                 .check("700 24px Geist")` → true;
+                                                 captura de `/entrar` sem serifa
 backend:  pytest tests/unidade tests/contrato  → 429 passed
 backend:  pytest -k busca (integração)         → 9 passed  (eram 7)
 backend:  ruff check . ; black --check .       → limpos

@@ -15,10 +15,17 @@
    (T145, trocada em T211). Uma família para título e corpo; Geist Mono para
    número cru, id e tecla de atalho.
    ============================================================ */
+/* A vírgula **dentro** do `var()` não é decorativa: `var(--x, "Geist")` cai em
+   "Geist" quando `--x` não existe. Escrito como `var(--x), "Geist"`, um `--x`
+   ausente invalida a declaração inteira e o navegador usa a família inicial —
+   serif. Foi assim que a interface rodou serifada da Fase C até 2026-08-03,
+   porque as variáveis do `next/font` estavam no `<body>` e estas linhas moram
+   no `:root`. As classes foram para o `<html>`; este fallback é o cinto. */
 :root {
-  --font-display: var(--fonte-display), "Geist", system-ui, -apple-system, Segoe UI, sans-serif;
-  --font-body: var(--fonte-body), "Geist", system-ui, -apple-system, Segoe UI, sans-serif;
-  --font-mono: var(--fonte-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--fonte-display, "Geist"), system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-body: var(--fonte-body, "Geist"), system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-mono:
+    var(--fonte-mono, "Geist Mono"), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* ============================================================
@@ -131,7 +138,8 @@
   /* --- tipografia --- */
   --font-sans: var(--font-body);
   --font-titulo: var(--font-display);
-  --font-mono: var(--fonte-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono:
+    var(--fonte-mono, "Geist Mono"), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* --- sombras --- */
   --shadow-cartao: var(--sombra-cartao);

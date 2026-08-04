@@ -100,6 +100,20 @@ renderização). Os nomes das variáveis não mudaram — `--fonte-display`, `--
 `--fonte-mono` —, então os ~60 `font-[family-name:var(--font-display)]` espalhados pelas
 telas continuam valendo sem edição.
 
+> **As classes do `next/font` vão no `<html>`, nunca no `<body>`.** Elas são o que declara
+> `--fonte-*`, e `globals.css` consome essas variáveis em `:root`. Com as classes no
+> `<body>`, o `:root` não as enxergava — e em CSS um `var()` não resolvido **invalida a
+> declaração inteira**, então `html { font-family: var(--font-body) }` caía no valor inicial
+> do navegador: **serif**. A interface rodou serifada da Fase C até 2026-08-03, com Plus
+> Jakarta e Inter baixadas e nenhuma das duas aplicada — trocar a fonte não mudava nada,
+> porque nenhuma fonte estava valendo. O alias também passou a usar a forma com fallback
+> (`var(--fonte-body, "Geist")`), que degrada para a família literal em vez de invalidar.
+>
+> Como conferir depois de mexer em fonte: `getComputedStyle(document.documentElement)
+> .fontFamily` tem de começar com `Geist`, e `document.fonts.check("700 24px Geist")` tem de
+> ser `true`. Olhar só o CSS gerado **não** pega este bug — o `@font-face` estava lá o tempo
+> todo.
+
 ### Densidade
 
 Segunda divergência declarada. A escada de raios do Synapse (4/6/10/14/20/28) virou a da
@@ -198,6 +212,7 @@ ao mesmo tempo, porque o Tailwind espera o primeiro e D-12 escreve o segundo.
 | 9 | **"Exportar" da barra de ações em massa ignorava a seleção** e baixava a lista filtrada inteira (`FR-040`). `GET /api/lancamentos/exportacao` ganhou o parâmetro repetível `id` e a tela passa os marcados | resolvida em 2026-08-03 |
 | 10 | **Tipografia e raios divergem do design system de propósito** (Boss 4): Geist no lugar de Plus Jakarta + Inter, e a escada de raios da Geist no lugar da do Synapse. Decisão do dono do projeto, marcada em `estilos/tokens.css` nos dois blocos. Cor, sombra e espaçamento continuam idênticos | divergência declarada |
 | 11 | **`cmdk` continua no `package.json` sem uso**, junto com 16 outros primitivos do shadcn que ainda não foram chamados. Não foi removido para não mexer no lockfile numa entrega de polimento | sem ação |
+| 12 | **A interface inteira renderizava em serif desde a Fase C.** As classes do `next/font` estavam no `<body>` e o alias `--font-body: var(--fonte-body), …` no `:root`; o `var()` não resolvia, a declaração morria e o navegador usava a família inicial. Nem Plus Jakarta nem Inter chegaram a aparecer na tela. Achado pelo dono do projeto ao ver que a troca para Geist "não mudou nada" | resolvida em 2026-08-03 |
 
 ## Testes
 
@@ -211,8 +226,14 @@ O que **não** está coberto por teste automatizado e depende de olhar a tela ou
 reais: a conferência visual dos dois temas tela a tela (T202), o comportamento com 5.000
 lançamentos (T204) e a verificação de aceitação de quickstart.md §8 (T206). **O Boss 4 não
 fecha nenhum desses três** — a varredura foi de código, com build, tipos, lint e testes
-verdes, e uma checagem de que a página servida carrega Geist auto-hospedada
-(`font-family: 'Geist'` no CSS gerado).
+verdes.
+
+A tipografia, essa sim, foi conferida em navegador de verdade (Chrome headless na página
+servida): `getComputedStyle` do `<html>`, do `<body>` e de um `<h2>` começando em `Geist`,
+`document.fonts.check("700 24px Geist")` verdadeiro e captura de `/entrar` sem serifa. Foi
+preciso: a checagem anterior — procurar `font-family: 'Geist'` no CSS gerado — passava com o
+bug do item 12 ativo, porque o `@font-face` sempre esteve lá. **Declaração no CSS não é
+prova de aplicação na tela.**
 
 **Passagem manual de 2026-08-02**, com login real (Supabase Auth) contra o backend
 implantado e o banco de produção: as nove rotas de tela abrem sem erro de cliente, nos dois

@@ -108,6 +108,14 @@ O visual vem do projeto Claude Design **Synapse ERP Financeiro**
 - **Cursor e estado de hover não se escrevem componente a componente.** A regra de
   `cursor: pointer` para tudo que é acionável mora em `app/globals.css`; botão novo que não
   reage ao mouse é bug, não estilo faltando.
+- **Classes do `next/font` moram no `<html>`, nunca no `<body>`.** Elas declaram
+  `--fonte-display/body/mono`, e `globals.css` consome essas variáveis em `:root`. Fora do
+  `<html>`, o `var()` não resolve, a declaração inteira morre e o navegador cai em serif —
+  foi assim que a interface rodou serifada da Fase C até 2026-08-03. Sempre usar a forma com
+  fallback: `var(--fonte-body, "Geist")`.
+- **Fonte se confere no navegador, não no CSS.** `getComputedStyle(document.documentElement)
+  .fontFamily` e `document.fonts.check(...)`. Achar o `@font-face` no CSS gerado não prova
+  que a família chegou à tela.
 
 ## Ao terminar qualquer task
 

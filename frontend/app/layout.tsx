@@ -56,10 +56,21 @@ export const viewport: Viewport = {
 
 export default function LayoutRaiz({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body
-        className={`${geist.variable} ${geistCorpo.variable} ${mono.variable} antialiased`}
-      >
+    // As classes do `next/font` vão no **`<html>`**, não no `<body>`.
+    //
+    // Elas são o que declara `--fonte-display/body/mono`, e `globals.css`
+    // consome essas três em `:root` (`--font-body: var(--fonte-body), …`).
+    // Com as classes no `<body>`, o `:root` não enxergava as variáveis: em CSS
+    // um `var()` não resolvido **invalida a declaração inteira**, então
+    // `html { font-family: var(--font-body) }` caía no valor inicial do
+    // navegador — serif. A interface rodou assim desde a Fase C, com Plus
+    // Jakarta e Inter carregadas e nenhuma das duas aplicada.
+    <html
+      lang="pt-BR"
+      suppressHydrationWarning
+      className={`${geist.variable} ${geistCorpo.variable} ${mono.variable}`}
+    >
+      <body className="antialiased">
         {/* Pular para o conteúdo — primeiro foco tabulável da página
             (Web Interface Guidelines, Acessibilidade). Só aparece com foco. */}
         <a
