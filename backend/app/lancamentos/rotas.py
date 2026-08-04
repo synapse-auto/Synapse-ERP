@@ -561,7 +561,10 @@ async def acoes_em_massa(
     description=(
         "Papel: gestor, operador. `FR-045`. Aceita **os mesmos filtros** de "
         "`GET /api/lancamentos` — o arquivo é exatamente o que está na tela, não a "
-        "base inteira. Para a base inteira existe `POST /api/exportacoes/completa`."
+        "base inteira. Para a base inteira existe `POST /api/exportacoes/completa`.\n\n"
+        "`id` (repetível) restringe aos lançamentos escolhidos: é o 'exportar' da barra "
+        "de ações em massa (`FR-040`). Sem ele, aquele botão exportava a lista filtrada "
+        "inteira e ignorava a seleção em silêncio."
     ),
     response_class=Response,
     responses={200: {"content": {"text/csv": {}}, "description": "Arquivo CSV."}},
@@ -584,6 +587,10 @@ async def exportar(
     valor_min: Annotated[Decimal | None, Query()] = None,
     valor_max: Annotated[Decimal | None, Query()] = None,
     busca: Annotated[str | None, Query()] = None,
+    id: Annotated[  # noqa: A002 — o nome do parâmetro é público, vem do contrato
+        list[UUID] | None,
+        Query(description="Repetível. Exporta só estes lançamentos (`FR-040`)."),
+    ] = None,
 ) -> Response:
     if formato != "csv":
         raise ErroValidacao(
@@ -608,6 +615,7 @@ async def exportar(
         valor_min=valor_min,
         valor_max=valor_max,
         busca=busca,
+        ids=id,
     )
 
     agregado = await repositorio.conta_e_soma(conexao, condicoes=condicoes, parametros=parametros)

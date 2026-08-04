@@ -42,6 +42,18 @@ export default function PaginaFuncionario({ params }: { params: Promise<{ id: st
     onError: (e) => toast.error(mensagemDoErro(e)),
   });
 
+  // Simétrico ao do cliente. O aviso vem do servidor: a folha **não** volta junto, e
+  // religá-la é editar o funcionário — recriar a recorrência sozinho reativaria um
+  // pagamento mensal que alguém desligou de propósito.
+  const desarquivar = useMutation({
+    mutationFn: () => api.post<{ aviso_folha?: string }>(`/api/funcionarios/${id}/desarquivar`),
+    onSuccess: (r) => {
+      invalidar();
+      toast.success(r?.aviso_folha ?? "Funcionário de volta.");
+    },
+    onError: (e) => toast.error(mensagemDoErro(e)),
+  });
+
   if (isLoading || !f) {
     return (
       <div className="mx-auto max-w-[var(--conteudo-largura-max)] px-[30px] pt-[26px]">
@@ -81,12 +93,14 @@ export default function PaginaFuncionario({ params }: { params: Promise<{ id: st
                   <Pencil size={14} />
                   Editar
                 </BotaoChrome>
-                {!f.arquivado_em ? (
+                {f.arquivado_em ? (
+                  <BotaoChrome onClick={() => desarquivar.mutate()}>Desarquivar</BotaoChrome>
+                ) : (
                   <BotaoChrome onClick={() => arquivar.mutate()}>
                     <Archive size={14} />
                     Arquivar
                   </BotaoChrome>
-                ) : null}
+                )}
               </>
             ) : null}
           </>

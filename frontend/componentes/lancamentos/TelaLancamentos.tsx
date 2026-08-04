@@ -72,9 +72,23 @@ export function TelaLancamentos() {
     }));
   }
 
-  function exportar() {
+  /**
+   * Exporta o CSV (`FR-045`).
+   *
+   * Com `ids`, exporta **só os marcados** — é o "Exportar" da barra de ações em
+   * massa (`FR-040`). Sem, exporta a lista filtrada inteira, que é o botão do
+   * cabeçalho. Até 2026-08-03 os dois faziam a mesma coisa: o botão da barra
+   * ignorava a seleção sem avisar.
+   */
+  function exportar(ids?: string[]) {
     window.location.assign(
-      montarUrlExportacao({ ...escopo.parametros, ...consulta, pagina: undefined, por_pagina: undefined }),
+      montarUrlExportacao({
+        ...escopo.parametros,
+        ...consulta,
+        pagina: undefined,
+        por_pagina: undefined,
+        id: ids?.length ? ids : undefined,
+      }),
     );
   }
 
@@ -109,7 +123,7 @@ export function TelaLancamentos() {
               <IconeExportar className="rotate-180" />
               Importar CSV / OFX
             </BotaoChrome>
-            <BotaoChrome onClick={exportar}>
+            <BotaoChrome onClick={() => exportar()}>
               <IconeExportar />
               Exportar
             </BotaoChrome>
@@ -130,7 +144,7 @@ export function TelaLancamentos() {
         <BarraAcoesEmMassa
           ids={idsMarcados}
           aoLimpar={() => setMarcados({})}
-          aoExportar={exportar}
+          aoExportar={() => exportar(idsMarcados)}
         />
 
         <TabelaLancamentos

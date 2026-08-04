@@ -20,6 +20,7 @@ que deu certo**.
 > | `010_ocorrencia_unica_por_data` | B2/T083 | Sem o índice único, a idempotência de D-08 não existe |
 > | `011_importacoes` | B6/T133 | A importação em três requisições precisa do conteúdo lido sobrevivendo entre elas (é a 20ª tabela) |
 > | `012_chaves_idempotencia` | Auditoria de fim do Boss 2 | O `Idempotency-Key` vivia em memória do processo, que não sobrevive entre invocações — era a divergência nº 2 do README do backend, aberta desde B0 (é a 21ª tabela) |
+> | `013_seed_card_receita_servico` | Auditoria de requisitos (2026-08-03) | O card "Receita por serviço" (`FR-064`) não tinha entrada em `dashboard_cards_disponiveis`, e sem entrada no catálogo a grade não desenha o bloco. Não cria tabela nem chave: só acrescenta o 19º card à chave que já existia |
 >
 > **`list_migrations` devolve um registro a mais que a contagem de arquivos**, e isso é
 > esperado: a `006a_rls_revoga_execute_rls_auto_enable` foi aplicada à parte quando o

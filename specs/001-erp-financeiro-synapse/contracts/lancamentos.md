@@ -210,7 +210,8 @@ exatamente o "meio lote gravado" que este endpoint existe para impedir.
 ```
 
 `acao`: `excluir` | `mudar_categoria` | `mudar_status` | `adicionar_tags` | `remover_tags`.
-Também tudo-ou-nada. Exportar em massa usa `GET /api/lancamentos/exportacao`.
+Também tudo-ou-nada. Exportar em massa usa `GET /api/lancamentos/exportacao?id=…&id=…`, com
+os ids marcados — ver §6.
 
 Parâmetro exigido por ação (recusado no corpo com `400 validacao` quando falta):
 
@@ -442,6 +443,18 @@ O padrão de `efetivar_automaticamente` das linhas com data futura vem de
 Aceita **exatamente** os mesmos filtros de `GET /api/lancamentos`. Responde `text/csv` com
 `Content-Disposition: attachment` e nome descritivo
 (`lancamentos-digital-2026-07-01-a-2026-07-31.csv`).
+
+Mais um parâmetro, **repetível**, que os outros endpoints não têm:
+
+| Parâmetro | O quê |
+|---|---|
+| `id` | Restringe aos lançamentos escolhidos. É o "Exportar" da barra de ações em massa (`FR-040`) |
+
+`id` **combina** com os demais filtros, não os substitui — a seleção nasceu dentro deles.
+Entrou em 2026-08-03, na auditoria de requisitos: até ali aquele botão chamava a mesma
+exportação do cabeçalho e levava a lista filtrada inteira, ignorando a seleção sem avisar.
+`FR-040` diz "selecionar vários e exportar", e era a única das cinco ações em massa que
+não olhava para a seleção.
 
 O arquivo é **apresentação, não transporte**: separador `;`, decimal `1.234,50`, data
 `dd/mm/aaaa`, BOM UTF-8 e rótulos em PT-BR ("Synapse Digital", "Despesa", "Efetivado"). É o

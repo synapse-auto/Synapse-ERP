@@ -19,7 +19,7 @@ Tarefas: T109, T110
 
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -51,7 +51,12 @@ VINCULO = "funcionario"
 class FuncionarioEntrada(BaseModel):
     nome: str = Field(min_length=1, max_length=160)
     funcao: str = Field(min_length=1, max_length=160)
-    tipo_contratacao: str = Field(description="pj | freelancer.")
+    # `Literal`, não `str`, pelo mesmo motivo já registrado em `app/clientes/rotas.py`
+    # para `tipo_cobranca`: com `str` o valor atravessa o Pydantic intacto e só morre no
+    # `cast(:tipo as tipo_contratacao)` do Postgres, como `InvalidTextRepresentationError`
+    # — que sai `500 erro_interno` onde contracts/README.md manda `400 validacao` com o
+    # nome do campo. Vale para todo enum do banco (2026-08-03).
+    tipo_contratacao: Literal["pj", "freelancer"] = Field(description="pj | freelancer.")
     valor_mensal: Decimal = Field(gt=0, decimal_places=2, max_digits=14)
     dia_pagamento: int = Field(ge=1, le=31)
     mundo: str = Field(description="digital | infra. **Imutável** depois de criado (`RN-15`).")
@@ -463,4 +468,56 @@ async def arquivar(funcionario_id: UUID, usuario: Gestor, conexao: Conexao) -> d
     return _para_json(
         await _exige(conexao, funcionario_id),
         **mod_arquivamento.resumo_do_arquivamento(ocorrencias_removidas=removidas),
+    )
+
+
+# ── Desarquivar (auditoria de requisitos, 2026-08-03) ───────────────────────
+#
+# O cabeçalho de contracts/cadastros.md promete `arquivar` **e** `/desarquivar` para
+# todo cadastro, mas só categorias e clientes tinham. Como aqui não existe `DELETE`
+# (`RN-06`), arquivar o funcionário errado era um caminho sem volta pela API — restava
+# mexer no banco à mão, que é o oposto do que `RN-06` quer.
+#
+# Simétrico ao do cliente e pelo mesmo motivo: **a folha não volta sozinha**. As
+# ocorrências futuras foram removidas ao arquivar, e recriá-las por conta própria
+# reativaria um pagamento mensal que alguém desligou de propósito.
+
+
+@roteador.post(
+    "/{funcionario_id}/desarquivar",
+    summary="Traz o funcionário de volta",
+    description=(
+        "Papel: **gestor**. Desarquiva o funcionário e a subcategoria espelho. A "
+        "**recorrência da folha não volta sozinha**: as ocorrências futuras foram "
+        "removidas ao arquivar, e recriá-las sem o gestor pedir reativaria um pagamento "
+        "mensal que ele desligou. Para religar a folha, edite o funcionário."
+    ),
+)
+async def desarquivar(funcionario_id: UUID, usuario: Gestor, conexao: Conexao) -> dict[str, Any]:
+    linha = await _exige(conexao, funcionario_id)
+    if linha["arquivado_em"] is None:
+        raise ErroRegraViolada(
+            f"O funcionário '{linha['nome']}' não está arquivado.",
+            requisito="RN-06",
+            campos={"arquivado_em": "Já ativo."},
+        )
+
+    await conexao.execute(
+        text("update funcionarios set arquivado_em = null where id = :id"),
+        {"id": str(funcionario_id)},
+    )
+    await mod_espelho.desarquiva(conexao, vinculo=VINCULO, dono_id=funcionario_id)
+
+    await registra_auditoria(
+        conexao,
+        entidade="funcionarios",
+        entidade_id=funcionario_id,
+        acao="restauracao",
+        usuario_id=usuario.id,
+        alteracoes={"arquivado_em": {"de": "arquivado", "para": None}},
+    )
+
+    return _para_json(
+        await _exige(conexao, funcionario_id),
+        aviso_folha=("A folha recorrente continua desativada. Edite o funcionário para religá-la."),
     )

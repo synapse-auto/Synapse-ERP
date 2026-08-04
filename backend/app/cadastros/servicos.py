@@ -223,3 +223,45 @@ async def arquivar(
         alteracoes={"ativo": {"de": True, "para": False}},
     )
     return _servico_json(linha)
+
+
+@roteador.post(
+    "/{servico_id}/desarquivar",
+    summary="Reativa o serviço",
+    description=(
+        "Papel: gestor. Volta a aparecer no campo 'serviço vinculado' dos formulários. "
+        "O cabeçalho de contracts/cadastros.md promete `arquivar` **e** `/desarquivar` "
+        "para todo cadastro; sem este, desativar o serviço errado não tinha volta pela "
+        "API — e `DELETE` não existe aqui de propósito (`RN-06`)."
+    ),
+)
+async def desarquivar(
+    servico_id: UUID,
+    usuario: Annotated[UsuarioAutenticado, Depends(exige_papel("gestor"))],
+    conexao: Annotated[AsyncConnection, Depends(obter_conexao)],
+) -> dict[str, Any]:
+    linha = (
+        (
+            await conexao.execute(
+                text("""
+                    update servicos set ativo = true where id = :id and not ativo
+                    returning id, nome, mundo, ativo, ordem
+                    """),
+                {"id": str(servico_id)},
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if linha is None:
+        raise ErroNaoEncontrado("Serviço não encontrado ou já ativo.")
+
+    await registra_auditoria(
+        conexao,
+        entidade="servicos",
+        entidade_id=servico_id,
+        acao="restauracao",
+        usuario_id=usuario.id,
+        alteracoes={"ativo": {"de": False, "para": True}},
+    )
+    return _servico_json(linha)

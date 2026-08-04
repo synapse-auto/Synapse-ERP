@@ -97,13 +97,15 @@ ao mesmo tempo, porque o Tailwind espera o primeiro e D-12 escreve o segundo.
 
 | # | O quê | Situação |
 |---|---|---|
-| 1 | **`receita_por_servico` não tem entrada no catálogo de cards.** A API devolve o dado e o mockup desenha o bloco, mas as 18 chaves de `dashboard_cards_disponiveis` (migração `007`) não incluem esse id. O componente existe e é resolvido por `receita_servico` — basta acrescentar a chave no seed para o bloco aparecer, sem tocar em código | aberta, decisão do dono |
+| 1 | **`receita_por_servico` não tinha entrada no catálogo de cards** (`FR-064`). A API devolvia o dado e o componente existia, mas o id não estava nas 18 chaves de `dashboard_cards_disponiveis`, e a grade ignora em silêncio id sem catálogo — o bloco nunca aparecia. Resolvido pela migração **`013`**, que acrescenta o 19º card na posição 16. Nenhuma linha de código mudou | resolvida em 2026-08-03 |
 | 2 | **T154 — projeto `synapse-erp-web` na Vercel** | aberta: é painel, não código |
 | 3 | **`GET /api/exportacoes/{id}` não existe**: a exportação completa é síncrona (contracts/plataforma.md §8). Por isso a tela não tem barra de progresso nem link assinado ao final | alinhado ao contrato |
 | 4 | **`npm audit`: 3 vulnerabilidades `high`**, todas transitivas do próprio Next.js (`postcss`, `sharp`) e de tempo de build. O "fix" oferecido rebaixaria o Next para a versão 9 | sem ação |
 | 5 | **`app/page.tsx` do `create-next-app` sombreava o Dashboard.** Grupo de rotas não cria segmento de URL, então `app/page.tsx` e `app/(app)/page.tsx` disputavam `/` — e quem ganhava era o boilerplate. A raiz do sistema mostrava "Deploy now / Read our docs", sem erro de build nem de tipo. Removido junto com os cinco SVGs do template, que só ele usava | resolvida em 2026-08-02 |
 | 6 | **Cabeçalho com 285px em vez de 64px** em toda tela ≥ `md`. `CascaApp` passava `flex-1` ao `CabecalhoGlobal`: abaixo de `md` é o certo (a faixa é flex em linha ao lado do botão de menu), mas de `md` para cima o invólucro vira `contents` e o cabeçalho passa a ser filho direto da coluna `h-dvh flex-col` — ali `flex-1` cresce na vertical e atropela o `h-[--cabecalho-altura]`. Corrigido com `md:flex-none` | resolvida em 2026-08-02 |
 | 7 | **`FuncionarioPerfil.pagamentos` estava tipado como `PaginaDe<Lancamento>`.** A API devolve lista simples, com `lancamento_id` — igual ao campo irmão `proximos_pagamentos` —, e `f.pagamentos.itens` derrubava a tela de detalhe do funcionário. O tipo virou `PagamentoDoFuncionario[]`. O perfil do **cliente** é o oposto: ali o contrato promete envelope paginado, e era o backend que não mandava o campo | resolvida em 2026-08-02 |
+| 8 | **`RNF-10` pede os atalhos `1`–`7`** para navegar entre as abas e só existiam as sequências `G`+letra. Os números entraram junto, sem tirar as sequências; a folha de atalhos (`?`) mostra os dois | resolvida em 2026-08-03 |
+| 9 | **"Exportar" da barra de ações em massa ignorava a seleção** e baixava a lista filtrada inteira (`FR-040`). `GET /api/lancamentos/exportacao` ganhou o parâmetro repetível `id` e a tela passa os marcados | resolvida em 2026-08-03 |
 
 ## Testes
 

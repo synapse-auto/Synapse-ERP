@@ -510,7 +510,7 @@ limite que não estava escrito: **um vínculo, uma categoria**. Não dá para te
 Na prática isso só aparece se alguém tentar promover uma segunda categoria a "Clientes" ou
 "Funcionários" — e aí a tela explica qual categoria já ocupa o lugar e o que fazer.
 
-### 17.4. O que foi corrigido sem mudar requisito
+### 17.4. O que foi corrigido sem mudar requisito (auditoria do Boss 2)
 
 Registrado para não parecer que a auditoria não achou nada: conexão com o pooler derrubando
 consultas em produção; consultas do Dashboard e dos Relatórios que nunca chegavam a executar;
@@ -521,3 +521,36 @@ Funcionários (`RF-44`, `RF-45`); alerta de caixa baixo (`RF-83`) que ignorava j
 contas já vencidas; lançamento importado sem registro de auditoria (`RF-03`); a validade de
 24h da importação, que estava escrita e não era aplicada; e a repetição de rede que podia
 criar o mesmo lançamento duas vezes.
+
+---
+
+## 18. Auditoria de requisitos — 2026-08-03
+
+Conferência requisito a requisito (`RF`, `RN`, `RNF` deste documento e os `FR-001`–`FR-116`
+da spec) contra o que existe hoje: as rotas carregadas do app (94 antes desta auditoria, 97 depois), o catálogo de cards lido
+do banco pelo MCP do Supabase, as telas do `frontend/` e os contratos.
+
+**Nenhum requisito mudou de significado.** Os seis itens abaixo eram requisito escrito que o
+sistema **não cumpria** — e agora cumpre. Estão aqui, e não só no `tasks.md`, porque três
+deles falhavam **em silêncio**: nada de erro na tela, nada no log, só a funcionalidade
+ausente.
+
+| # | Requisito | O que faltava | Onde ficou |
+|---|---|---|---|
+| 1 | `RF-43b` / `FR-064` | **O bloco "Receita por serviço" nunca aparecia no Dashboard.** A API devolvia o dado e o componente existia, mas o card não tinha entrada no catálogo `dashboard_cards_disponiveis` — e a grade, por `FR-106`, só desenha id que o catálogo declara. Ignorava sem avisar | migração `013` |
+| 2 | `RN-06` | **Arquivar funcionário, serviço ou centro de custo não tinha volta.** O par `arquivar`/`desarquivar` valia só para categorias e clientes; como `DELETE` não existe aqui de propósito, arquivar o cadastro errado só se corrigia no banco à mão | 3 endpoints novos |
+| 3 | `RF-52` / `FR-074` | **A caixa "Mostrar arquivadas" da tela de Categorias não fazia nada.** O servidor esperava `incluir_arquivadas` e o contrato (e o frontend) mandam `incluir_arquivados`; parâmetro de consulta desconhecido é ignorado, então o clique não mudava a lista | nome alinhado ao contrato |
+| 4 | `RF-20` / `FR-040` | **"Selecionar vários e exportar" exportava a lista inteira.** Das cinco ações em massa, exportar era a única que ignorava a seleção — levava tudo que o filtro trazia | `?id=` na exportação |
+| 5 | `RNF-10` | **Faltavam os atalhos `1`–`7`** para navegar entre as abas. Existiam só as sequências `G`+letra, que este documento não menciona | `1`–`7` somados, `G` mantido |
+| 6 | `RN-02` / erro de contrato | **`tipo_contratacao` inválido no cadastro de funcionário devolvia `500`** em vez de `400` com o nome do campo. Mesmo defeito já corrigido em `tipo_cobranca` no cliente: campo de enum precisa ser fechado no modelo de entrada, senão o valor só morre no `cast` do Postgres | modelo de entrada fechado |
+
+**O que a auditoria conferiu e estava certo**: as 97 rotas do `/api/docs` batem uma a uma
+com os quatro arquivos de `contracts/` (a única ausência, `GET /api/exportacoes/{id}`, é
+declarada em prosa como não implementada — §17.1); `mundo` é validado antes do banco em
+todos os pontos de escrita; o filtro derivado de clientes, a quebra por mundo, o comparativo
+dos cards, o `sem_movimentacao` e as sete seções de Configurações existem como escrito.
+
+**O que continua em aberto, e não é código** (mesma lista de 2026-07-31): desabilitar o
+cadastro público no Supabase Auth, confirmar o backup gerenciado e publicar os dois projetos
+na Vercel. Mais a conferência visual dos dois temas, o celular e a medição com 5.000
+lançamentos — todas dependem de dados reais no banco.

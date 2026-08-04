@@ -417,6 +417,13 @@ migração `009` (`18`): `select count(*) from configuracoes` devolve `18`.
 Rótulos dos cards vivem em `dashboard_cards_disponiveis` — nenhum texto de card no código
 (`FR-106`).
 
+> **19 cards desde 2026-08-03** (migração `013`). O catálogo nasceu com 18 e faltava
+> `receita_servico`, o bloco de `FR-064`. A consequência de faltar não era um erro: a grade
+> **ignora em silêncio** todo id que o catálogo não declara, então o bloco simplesmente não
+> aparecia. É o preço de `FR-106` — quem esquece a chave no seed não descobre pelo log.
+> A conferência que pega isso é comparar os `case` de `TelaDashboard.tsx` com os ids do
+> catálogo.
+
 ### 3.16. `notificacoes`
 
 | Campo | Tipo | Regra |
@@ -691,6 +698,7 @@ centavos incomoda menos numa parcela que ninguém anunciou.
 | `009_seed_anexo_url_assinada.sql` | chave `anexo_url_assinada_segundos` (§3.15). Nasceu em B1/T064: os anexos precisavam de um prazo para a URL assinada, e prazo não mora no código (Princípio VII). Migração nova em vez de editar a `007`, que já estava aplicada |
 | `011_importacoes.sql` | tabela `importacoes` — o estado das três etapas da importação (`FR-044`). **Não estava entre as 19 tabelas do desenho**: a necessidade só ficou clara ao implementar o fluxo de três requisições, que precisa do conteúdo lido sobrevivendo entre elas. Memória não serve (cada requisição da Vercel pode cair numa instância diferente — o mesmo motivo de D-01). Dado **temporário**: expira em 24h — recusado em `importacao/rotas.py` e apagado pela rotina diária (§5.15) |
 | `012_chaves_idempotencia.sql` | tabela `chaves_idempotencia` — o cabeçalho `Idempotency-Key` (contracts/README.md) deixa de viver na memória do processo. Nasceu na auditoria de fim do Boss 2 (2026-07-31), que encontrou aberta a divergência que o README do backend declarava desde B0: memória de função serverless não sobrevive entre invocações, e a repetição após timeout de rede — o caso que o mecanismo existe para cobrir — cai em instância nova. Dado **temporário**: expira em 10 minutos, limpo pela rotina diária. PK `(usuario_id, rota, chave)`; ver §3.20 |
+| `013_seed_card_receita_servico.sql` | acrescenta o card `receita_servico` a `dashboard_cards_disponiveis` (§3.15) — o bloco de `FR-064`/`RF-43b`. O dado existia desde B3 e o componente desde C4, mas o catálogo nasceu com **18** entradas e nenhuma era essa; como `FR-106` proíbe rótulo de card no frontend, a grade ignorava o id em silêncio e o bloco nunca era desenhado. Estava anotado como divergência nº 1 no `frontend/README.md`. Nenhuma linha de código muda. `update` com `jsonb_agg` entrada a entrada, e não valor novo inteiro, porque `PUT /api/configuracoes` aceita esta chave e sobrescrever apagaria ajuste do gestor. Guardado por `not (valor @> …)`, então é idempotente. Posição 16, fechando o grupo `grafico`; os três especiais descem uma casa |
 | `010_ocorrencia_unica_por_data.sql` | índice único `lancamentos (recorrencia_id, data) where recorrencia_id is not null`. Nasceu em B2/T083: **sem ele a idempotência de D-08 não existe**. É o que permite `insert … on conflict do nothing` em vez de um `select` antes de cada ocorrência (N+1 numa função com duração limitada), e cobre o caso de duas invocações simultâneas. Deliberadamente **não** é parcial em `excluido_em is null`: excluir uma ocorrência não pode fazê-la renascer na próxima execução da rotina (§3.13). **Consequência descoberta na auditoria de 2026-07-31**: soft delete não libera a data, então o caminho que apaga **para regerar** — editar a série com `esta_e_futuras` — precisa de remoção definitiva, senão o `on conflict do nothing` não insere nada e a série fica sem futuro em silêncio. Ver §5.10 |
 
 As `003`/`004` têm dependência circular entre `subcategorias.cliente_id` e

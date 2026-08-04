@@ -208,3 +208,43 @@ async def arquivar(
         alteracoes={"arquivado_em": {"de": None, "para": linha["arquivado_em"].isoformat()}},
     )
     return _para_json(linha)
+
+
+@roteador.post("/{centro_id}/desarquivar", summary="Desarquiva", description="Papel: gestor.")
+async def desarquivar(
+    centro_id: UUID,
+    usuario: Annotated[UsuarioAutenticado, Depends(exige_papel("gestor"))],
+    conexao: Annotated[AsyncConnection, Depends(obter_conexao)],
+) -> dict[str, Any]:
+    """Traz o centro de volta aos formulários.
+
+    O cabeçalho de contracts/cadastros.md promete o par `arquivar`/`desarquivar` para
+    todo cadastro, e aqui faltava a volta: como `DELETE` não existe (`RN-06`), arquivar
+    o centro errado era caminho sem retorno pela API.
+    """
+    linha = (
+        (
+            await conexao.execute(
+                text("""
+                    update centros_custo set arquivado_em = null
+                    where id = :id and arquivado_em is not null
+                    returning id, nome, mundo, arquivado_em
+                    """),
+                {"id": str(centro_id)},
+            )
+        )
+        .mappings()
+        .first()
+    )
+    if linha is None:
+        raise ErroNaoEncontrado("Centro de custo não encontrado ou já ativo.")
+
+    await registra_auditoria(
+        conexao,
+        entidade="centros_custo",
+        entidade_id=centro_id,
+        acao="restauracao",
+        usuario_id=usuario.id,
+        alteracoes={"arquivado_em": {"de": "arquivado", "para": None}},
+    )
+    return _para_json(linha)

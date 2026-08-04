@@ -644,6 +644,61 @@ então código próprio, e **registrar a pesquisa** (Princípio II).
 
 ---
 
+## Auditoria de requisitos — 2026-08-03
+
+Conferência dos `RF`/`RN`/`RNF` do documento-mestre e dos `FR-001`–`FR-116` da spec contra
+o que existe: as rotas carregadas do app FastAPI, o catálogo de cards lido do banco pelo MCP
+do Supabase, as telas do `frontend/` e os quatro arquivos de `contracts/`. Correções
+aplicadas na mesma entrega.
+
+### O que era requisito escrito e não estava cumprido
+
+| # | Requisito | Defeito | Onde |
+|---|---|---|---|
+| 1 | `FR-064` / `RF-43b` | **O bloco "Receita por serviço" nunca era desenhado.** `GET /api/dashboard` devolvia `receita_por_servico` e o componente existia resolvido pelo id `receita_servico`, mas o catálogo `dashboard_cards_disponiveis` nasceu com 18 entradas e nenhuma era essa. Como `FR-106` proíbe rótulo de card no frontend, a grade **ignora em silêncio** id sem catálogo. Estava anotado como divergência nº 1 no `frontend/README.md` desde 2026-07-31, à espera de decisão — e a decisão era só acrescentar a chave | `migracoes/013_seed_card_receita_servico.sql` |
+| 2 | `RN-06` | **Arquivar funcionário, serviço ou centro de custo não tinha volta.** O cabeçalho de contracts/cadastros.md promete `arquivar` **e** `/desarquivar` para todo cadastro; só categorias e clientes tinham. Sem `DELETE` (de propósito), arquivar o cadastro errado só se desfazia no banco à mão. A assimetria de funcionários estava apontada na auditoria do Boss 2 e ficou como "sem endpoint novo" | `funcionarios/rotas.py`, `cadastros/servicos.py`, `cadastros/centros_custo.py` |
+| 3 | `FR-074` / `RF-52` | **A caixa "Mostrar arquivadas" da tela de Categorias não fazia nada.** O servidor declarava `incluir_arquivadas`; contrato e frontend usam `incluir_arquivados`. FastAPI ignora parâmetro de consulta desconhecido, então o clique não mudava a lista e nada acusava erro | `categorias/rotas.py` |
+| 4 | `FR-040` / `RF-20` | **"Exportar" da barra de ações em massa ignorava a seleção** e baixava a lista filtrada inteira. Era a única das cinco ações em massa que não olhava para o que estava marcado | `lancamentos/rotas.py`, `lancamentos/repositorio.py`, `TelaLancamentos.tsx` |
+| 5 | `RNF-10` | **Faltavam os atalhos `1`–`7`** de navegação entre abas, que o documento-mestre nomeia. Existiam só as sequências `G`+letra, que ele não menciona. Os dois valem agora | `lib/atalhos.ts`, `CabecalhoGlobal.tsx`, `FolhaDeAtalhos.tsx` |
+| 6 | contracts/README.md | **`tipo_contratacao` inválido devolvia `500`** em vez de `400 validacao` com o nome do campo: o campo era `str` e o valor só morria no `cast(:tipo as tipo_contratacao)` do Postgres. É o mesmo defeito já corrigido em `tipo_cobranca` (2026-08-02) e registrado no README do backend como valendo "para todo enum do banco" — este tinha escapado | `funcionarios/rotas.py` |
+
+### O que foi conferido e estava certo
+
+As rotas do `/api/docs` batem uma a uma com `contracts/` — eram 94, são **97** com os três
+`/desarquivar` (T208 fica coberta para o que é rota; a única ausência, `GET
+/api/exportacoes/{id}`, está declarada em prosa como não implementada). `mundo` passa por `mod_mundo.exige` em **todos** os pontos de escrita.
+Existem como escrito: filtro derivado de clientes com `sem_movimentacao`, quebra por mundo
+nos cards e no ranking, comparativo dos blocos especiais, composição de "A pagar"/"A receber"
+por situação, leitura em linguagem natural do DRE, agrupamento do Extrato por dia/semana/mês
+e as sete seções de Configurações.
+
+### Testado, rodando
+
+```
+pytest tests/unidade tests/contrato -q          → 429 passed  (eram 420)
+pytest (os 5 testes novos de integração) -q     → 5 passed in 73s
+ruff check . ; black --check .                  → limpos
+npx tsc --noEmit ; npx next lint ; npx vitest   → sem erros · 37 passed
+npx next build                                  → compilou · 13 rotas
+```
+
+Os 9 testes de contrato a mais são os três `/desarquivar` novos entrando nas três varreduras
+que já existiam: existe na API, declara o papel, e é **só de gestor**.
+
+Os 5 de integração rodam contra o banco de produção em transação desfeita, como os demais:
+desarquivar funcionário (com a folha **não** voltando junto), desarquivar serviço e centro
+de custo, `incluir_arquivados` em categorias e a exportação por id.
+
+A migração `013` foi aplicada e conferida no banco: o catálogo tem **19** cards,
+`receita_servico` na posição 16, e reaplicar a migração devolve 0 linhas — é idempotente.
+
+### O que a auditoria **não** fecha
+
+T006, T008, T038 e T154 (painéis do Supabase e da Vercel) e T170, T202–T210 continuam
+abertas pelo mesmo motivo de antes: dependem de painel ou de dados reais no banco.
+
+---
+
 ## Fase final — Polimento e conferência de aceitação
 
 - [ ] T202 Percorrer **todas** as telas nos temas claro e escuro e corrigir o que não estiver legível — cards, gráficos e tabelas (`SC-009`, `FR-109`)

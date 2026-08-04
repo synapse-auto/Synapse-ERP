@@ -86,6 +86,7 @@ def monta_filtros(
     valor_min: Any = None,
     valor_max: Any = None,
     busca: str | None = None,
+    ids: list[UUID] | None = None,
 ) -> tuple[list[str], dict[str, Any]]:
     """Os filtros combináveis de `FR-037`, como lista de condições e parâmetros.
 
@@ -94,6 +95,13 @@ def monta_filtros(
     """
     condicoes = ["l.mundo = any(cast(:mundos as mundo[]))"]
     parametros: dict[str, Any] = {"mundos": mundos}
+
+    # Recorte por id explícito: é o que faz "exportar os selecionados" de `FR-040`
+    # exportar **os selecionados**, e não a lista filtrada inteira. Combina com os
+    # demais filtros em vez de substituí-los — a seleção nasceu dentro deles.
+    if ids:
+        condicoes.append("l.id = any(cast(:ids as uuid[]))")
+        parametros["ids"] = [str(x) for x in ids]
 
     if inicio is not None and fim is not None:
         condicoes.append("l.data between :inicio and :fim")

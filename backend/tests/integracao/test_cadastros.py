@@ -21,9 +21,11 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import text
 
+from app.cadastros import centros_custo as rotas_centros
+from app.cadastros import servicos as rotas_servicos
 from app.categorias import rotas as rotas_categorias
 from app.clientes import rotas as rotas_clientes
-from app.comum.erros import ErroConfirmacaoNecessaria, ErroRegraViolada
+from app.comum.erros import ErroConfirmacaoNecessaria, ErroNaoEncontrado, ErroRegraViolada
 from app.comum.paginacao import Paginacao
 from app.funcionarios import rotas as rotas_funcionarios
 from app.seguranca.auth import UsuarioAutenticado
@@ -422,6 +424,54 @@ async def test_bonus_avulso_soma_ao_custo_do_funcionario(conexao_de_teste):
     assert Decimal(perfil["custo_historico"]) >= Decimal("500.00")
 
 
+async def test_desarquivar_funcionario_traz_de_volta_sem_religar_a_folha(conexao_de_teste):
+    """`RN-06` — arquivar não pode ser caminho sem volta, já que `DELETE` não existe.
+
+    O endpoint faltava até 2026-08-03: o cabeçalho de contracts/cadastros.md promete o
+    par `arquivar`/`desarquivar` para todo cadastro e só categorias e clientes tinham.
+
+    A folha **não** volta junto, de propósito e igual ao cliente: as ocorrências futuras
+    foram removidas ao arquivar, e recriá-las sozinho reativaria um pagamento mensal que
+    alguém desligou.
+    """
+    usuario = await _usuario(conexao_de_teste)
+    criado = await rotas_funcionarios.criar(_funcionario(), usuario, conexao_de_teste)
+    identificador = UUID(criado["id"])
+
+    await rotas_funcionarios.arquivar(identificador, usuario, conexao_de_teste)
+    espelho_arquivado = (
+        await conexao_de_teste.execute(
+            text("select arquivada_em from subcategorias where funcionario_id = :f"),
+            {"f": criado["id"]},
+        )
+    ).scalar_one()
+    assert espelho_arquivado is not None
+
+    voltou = await rotas_funcionarios.desarquivar(identificador, usuario, conexao_de_teste)
+    assert voltou["arquivado_em"] is None
+    assert "folha" in voltou["aviso_folha"].lower()
+
+    espelho_ativo = (
+        await conexao_de_teste.execute(
+            text("select arquivada_em from subcategorias where funcionario_id = :f"),
+            {"f": criado["id"]},
+        )
+    ).scalar_one()
+    assert espelho_ativo is None, "A subcategoria espelho ficou arquivada."
+
+    # A folha continua desativada — é a metade que o gestor precisa pedir de novo.
+    ativa = (
+        await conexao_de_teste.execute(
+            text("select ativa from recorrencias where funcionario_id = :f"),
+            {"f": criado["id"]},
+        )
+    ).scalar_one()
+    assert ativa is False
+
+    with pytest.raises(ErroRegraViolada):
+        await rotas_funcionarios.desarquivar(identificador, usuario, conexao_de_teste)
+
+
 # ── Categorias (`RN-06`) ───────────────────────────────────────────────────
 
 
@@ -629,3 +679,85 @@ async def test_promover_categoria_a_especial_aponta_as_subcategorias_sem_dono(co
     assert promovida["especial"] is True
     nomes = [item["nome"] for item in promovida["subcategorias_pendentes_de_vinculo"]]
     assert "Antiga sem dono" in nomes
+
+
+# ── Serviços e centros de custo: o par arquivar/desarquivar ────────────────
+#
+# Os dois endpoints de volta entraram em 2026-08-03, na auditoria de requisitos. Sem
+# eles, desativar o serviço ou o centro errado não tinha correção pela API — e `DELETE`
+# não existe aqui de propósito (`RN-06`).
+
+
+async def test_desarquivar_servico_devolve_ele_a_lista(conexao_de_teste):
+    usuario = await _usuario(conexao_de_teste)
+    criado = await rotas_servicos.criar(
+        rotas_servicos.ServicoEntrada(nome=f"Serviço {uuid4().hex[:6]}", mundo="infra"),
+        usuario,
+        conexao_de_teste,
+    )
+    identificador = UUID(criado["id"])
+
+    arquivado = await rotas_servicos.arquivar(identificador, usuario, conexao_de_teste)
+    assert arquivado["ativo"] is False
+    listagem = await rotas_servicos.listar(usuario, conexao_de_teste, mundo="infra")
+    assert criado["id"] not in [item["id"] for item in listagem["itens"]]
+
+    voltou = await rotas_servicos.desarquivar(identificador, usuario, conexao_de_teste)
+    assert voltou["ativo"] is True
+    listagem = await rotas_servicos.listar(usuario, conexao_de_teste, mundo="infra")
+    assert criado["id"] in [item["id"] for item in listagem["itens"]]
+
+    # Segunda chamada não tem o que fazer — e diz isso, em vez de fingir sucesso.
+    with pytest.raises(ErroNaoEncontrado):
+        await rotas_servicos.desarquivar(identificador, usuario, conexao_de_teste)
+
+
+async def test_desarquivar_centro_de_custo_devolve_ele_a_lista(conexao_de_teste):
+    usuario = await _usuario(conexao_de_teste)
+    criado = await rotas_centros.criar(
+        rotas_centros.CentroEntrada(nome=f"Obra {uuid4().hex[:6]}", mundo="infra"),
+        usuario,
+        conexao_de_teste,
+    )
+    identificador = UUID(criado["id"])
+
+    await rotas_centros.arquivar(identificador, usuario, conexao_de_teste)
+    listagem = await rotas_centros.listar(usuario, conexao_de_teste, mundo="infra")
+    assert criado["id"] not in [item["id"] for item in listagem["itens"]]
+
+    voltou = await rotas_centros.desarquivar(identificador, usuario, conexao_de_teste)
+    assert voltou["arquivado_em"] is None
+    listagem = await rotas_centros.listar(usuario, conexao_de_teste, mundo="infra")
+    assert criado["id"] in [item["id"] for item in listagem["itens"]]
+
+    with pytest.raises(ErroNaoEncontrado):
+        await rotas_centros.desarquivar(identificador, usuario, conexao_de_teste)
+
+
+async def test_incluir_arquivados_traz_a_categoria_arquivada_de_volta_na_lista(conexao_de_teste):
+    """O nome do parâmetro é `incluir_arquivados`, como manda contracts/cadastros.md §1.
+
+    Estava escrito `incluir_arquivadas` no servidor. O FastAPI **ignora** parâmetro de
+    consulta desconhecido, então o que o frontend mandava caía no vazio e a caixa
+    "Mostrar arquivadas" da tela de Categorias não fazia nada — sem erro nenhum.
+    """
+    usuario = await _usuario(conexao_de_teste)
+    criada = await rotas_categorias.criar(
+        rotas_categorias.CategoriaEntrada(
+            nome=f"Temporária {uuid4().hex[:6]}", cor="#8B6CF0", icone="tag", tipo="despesa"
+        ),
+        usuario,
+        conexao_de_teste,
+    )
+    await rotas_categorias.arquivar(
+        UUID(criada["id"]),
+        rotas_categorias.ArquivarCategoriaEntrada(),
+        usuario,
+        conexao_de_teste,
+    )
+
+    sem = await rotas_categorias.listar(usuario, conexao_de_teste)
+    assert criada["id"] not in [item["id"] for item in sem["itens"]]
+
+    com = await rotas_categorias.listar(usuario, conexao_de_teste, incluir_arquivados=True)
+    assert criada["id"] in [item["id"] for item in com["itens"]]

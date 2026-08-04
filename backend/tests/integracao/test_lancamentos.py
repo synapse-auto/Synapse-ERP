@@ -676,6 +676,29 @@ async def test_exportacao_traz_so_o_que_o_filtro_traria(conexao_de_teste):
     assert "Synapse Infra" not in texto
 
 
+async def test_exportacao_por_id_leva_so_os_selecionados(conexao_de_teste):
+    """`FR-040` — "selecionar vários e exportar" tem que exportar **os selecionados**.
+
+    O parâmetro `id` entrou em 2026-08-03: até então o botão "Exportar" da barra de
+    ações em massa chamava a mesma exportação do cabeçalho, que leva a lista filtrada
+    inteira. A seleção era ignorada sem nenhum aviso.
+    """
+    usuario = await _usuario(conexao_de_teste)
+    infra = await _categoria(conexao_de_teste, "Infraestrutura")
+
+    marca = f"selecao-{uuid4().hex[:6]}"
+    escolhido = await _cria(conexao_de_teste, usuario, infra, descricao=f"{marca}-escolhido")
+    await _cria(conexao_de_teste, usuario, infra, descricao=f"{marca}-de-fora")
+
+    resposta = await rotas.exportar(
+        usuario, conexao_de_teste, mundo="digital", periodo="este_mes", id=[UUID(escolhido["id"])]
+    )
+    texto = resposta.body.decode("utf-8-sig")
+
+    assert f"{marca}-escolhido" in texto
+    assert f"{marca}-de-fora" not in texto
+
+
 # ── `RF-013a` — anexo do pai vale para as partes ────────────────────────────
 
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, Plus, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Quadro } from "@/componentes/comum/CabecalhoTela";
 import { EstadoVazio } from "@/componentes/comum/EstadoVazio";
@@ -30,6 +30,13 @@ interface Item {
   mundo?: Mundo;
   cor?: string | null;
   arquivado_em?: string | null;
+  /** Serviço não tem `arquivado_em` — tem `ativo`. Os dois querem dizer o mesmo aqui. */
+  ativo?: boolean;
+}
+
+/** Um item arquivado, seja qual for o nome do campo no recurso. */
+function estaArquivado(i: Item): boolean {
+  return Boolean(i.arquivado_em) || i.ativo === false;
 }
 
 export function SecaoCadastroSimples({
@@ -54,9 +61,20 @@ export function SecaoCadastroSimples({
   const [mundo, setMundo] = useState<Mundo>("digital");
   const [cor, setCor] = useState("#8B6CF0");
 
+  // Aqui a lista traz **também os arquivados**, ao contrário da leitura que alimenta o
+  // formulário de lançamento. Esta é a tela de gestão do cadastro: sem os arquivados, o
+  // selo "arquivado" nunca aparecia e não havia de onde clicar em "desarquivar".
+  // Serviço usa `incluir_inativos` porque o campo lá é `ativo` (contracts/cadastros.md §5).
   const { data, isLoading } = useQuery<{ itens: Item[] }>({
     queryKey: [recurso, "config"],
-    queryFn: () => api.get<{ itens: Item[] }>(`/api/${recurso}`, { consulta: { mundo: "ambos" } }),
+    queryFn: () =>
+      api.get<{ itens: Item[] }>(`/api/${recurso}`, {
+        consulta: {
+          mundo: "ambos",
+          ...(recurso === "servicos" ? { incluir_inativos: true } : {}),
+          ...(recurso === "centros-custo" ? { incluir_arquivados: true } : {}),
+        },
+      }),
   });
 
   function invalidar() {
@@ -82,6 +100,15 @@ export function SecaoCadastroSimples({
     onSuccess: () => {
       invalidar();
       toast.success("Arquivado.");
+    },
+    onError: (e) => toast.error(mensagemDoErro(e)),
+  });
+
+  const desarquivar = useMutation({
+    mutationFn: (id: string) => api.post(`/api/${recurso}/${id}/desarquivar`),
+    onSuccess: () => {
+      invalidar();
+      toast.success("De volta à lista.");
     },
     onError: (e) => toast.error(mensagemDoErro(e)),
   });
@@ -168,7 +195,7 @@ export function SecaoCadastroSimples({
               ) : null}
               <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--fg)]">{i.nome}</span>
               {i.mundo ? <BadgeMundo mundo={i.mundo} /> : null}
-              {i.arquivado_em ? (
+              {estaArquivado(i) ? (
                 <span className="rounded-full bg-[var(--bg-muted)] px-2 py-[1px] text-[10px] text-suave">
                   arquivado
                 </span>
@@ -183,7 +210,16 @@ export function SecaoCadastroSimples({
                   >
                     <Trash2 size={15} />
                   </button>
-                ) : !i.arquivado_em ? (
+                ) : estaArquivado(i) ? (
+                  <button
+                    type="button"
+                    aria-label={`Desarquivar ${i.nome}`}
+                    onClick={() => desarquivar.mutate(i.id)}
+                    className="rounded-[7px] p-1.5 text-suave hover:bg-[var(--bg-subtle)]"
+                  >
+                    <ArchiveRestore size={15} />
+                  </button>
+                ) : (
                   <button
                     type="button"
                     aria-label={`Arquivar ${i.nome}`}
@@ -192,7 +228,7 @@ export function SecaoCadastroSimples({
                   >
                     <Archive size={15} />
                   </button>
-                ) : null
+                )
               ) : null}
             </li>
           ))}

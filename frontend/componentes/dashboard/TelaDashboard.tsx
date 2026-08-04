@@ -173,8 +173,9 @@ export function TelaDashboard() {
         );
 
       case "receita_servico":
-        // Só existe se o catálogo declarar. Hoje as 18 chaves do seed não
-        // incluem este bloco — ver a nota de C4 no relato.
+        // `FR-064`. A entrada no catálogo entrou na migração `013` (2026-08-03) —
+        // até lá o bloco existia aqui e nunca era desenhado, porque a grade só
+        // desenha id que o catálogo declara.
         return <ReceitaPorServico key={c.id} itens={data!.receita_por_servico} rotulo={c.rotulo} />;
 
       case "bloco_clientes":

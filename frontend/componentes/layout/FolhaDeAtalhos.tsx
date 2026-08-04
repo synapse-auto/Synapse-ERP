@@ -68,7 +68,9 @@ export function FolhaDeAtalhos({ aberta, aoFechar }: { aberta: boolean; aoFechar
               {DESTINOS_DE_ATALHO.map((d) => (
                 <li key={d.rota} className="flex items-center justify-between gap-3">
                   <span className="text-[12.5px] text-suave">{d.rotulo}</span>
-                  <span className="flex gap-1">
+                  <span className="flex items-center gap-1">
+                    <Tecla>{d.numero}</Tecla>
+                    <span className="text-[10px] text-sutil">ou</span>
                     <Tecla>G</Tecla>
                     <Tecla>{d.tecla.toUpperCase()}</Tecla>
                   </span>

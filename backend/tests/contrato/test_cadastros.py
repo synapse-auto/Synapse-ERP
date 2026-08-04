@@ -35,16 +35,19 @@ ENDPOINTS_ACORDADOS = [
     ("get", "/api/funcionarios/{funcionario_id}"),
     ("put", "/api/funcionarios/{funcionario_id}"),
     ("post", "/api/funcionarios/{funcionario_id}/arquivar"),
+    ("post", "/api/funcionarios/{funcionario_id}/desarquivar"),
     # §5 serviços
     ("get", "/api/servicos"),
     ("post", "/api/servicos"),
     ("put", "/api/servicos/{servico_id}"),
     ("post", "/api/servicos/{servico_id}/arquivar"),
+    ("post", "/api/servicos/{servico_id}/desarquivar"),
     # §6 centros de custo
     ("get", "/api/centros-custo"),
     ("post", "/api/centros-custo"),
     ("put", "/api/centros-custo/{centro_id}"),
     ("post", "/api/centros-custo/{centro_id}/arquivar"),
+    ("post", "/api/centros-custo/{centro_id}/desarquivar"),
     # §7 tags
     ("get", "/api/tags"),
     ("post", "/api/tags"),
@@ -63,8 +66,12 @@ SO_DE_GESTOR = [
     ("post", "/api/funcionarios"),
     ("put", "/api/funcionarios/{funcionario_id}"),
     ("post", "/api/funcionarios/{funcionario_id}/arquivar"),
+    # O par de volta é tão de gestor quanto a ida (auditoria de requisitos, 2026-08-03).
+    ("post", "/api/funcionarios/{funcionario_id}/desarquivar"),
     ("post", "/api/servicos"),
     ("put", "/api/servicos/{servico_id}"),
+    ("post", "/api/servicos/{servico_id}/desarquivar"),
+    ("post", "/api/centros-custo/{centro_id}/desarquivar"),
 ]
 
 

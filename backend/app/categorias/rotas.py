@@ -59,7 +59,12 @@ async def listar(
     periodo: Annotated[str | None, Query()] = None,
     data_inicio: Annotated[str | None, Query()] = None,
     data_fim: Annotated[str | None, Query()] = None,
-    incluir_arquivadas: Annotated[bool, Query()] = False,
+    # O nome vem de contracts/cadastros.md §1 e é o mesmo dos outros cadastros:
+    # `incluir_arquivados`. Estava escrito `incluir_arquivadas` (concordando com
+    # "categoria"), e como o FastAPI **ignora** parâmetro de consulta desconhecido, o
+    # que o frontend mandava caía no vazio: a caixa "Mostrar arquivadas" da tela de
+    # Categorias não fazia nada, sem erro nenhum. Corrigido em 2026-08-03.
+    incluir_arquivados: Annotated[bool, Query()] = False,
 ) -> dict[str, Any]:
     from datetime import date as tipo_data
 
@@ -93,7 +98,7 @@ async def listar(
                        select 1 from lancamentos p where p.lancamento_pai_id = l.id
                                                      and p.excluido_em is null
                      )
-                    where (:incluir_arquivadas or c.arquivada_em is null)
+                    where (:incluir_arquivados or c.arquivada_em is null)
                     group by c.id
                     order by c.ordem, lower(c.nome)
                     """),
@@ -101,7 +106,7 @@ async def listar(
                     "inicio": janela.inicio,
                     "fim": janela.fim,
                     "mundos": mundos,
-                    "incluir_arquivadas": incluir_arquivadas,
+                    "incluir_arquivados": incluir_arquivados,
                 },
             )
         )
@@ -134,7 +139,7 @@ async def listar(
                        select 1 from lancamentos p where p.lancamento_pai_id = l.id
                                                      and p.excluido_em is null
                      )
-                    where (:incluir_arquivadas or s.arquivada_em is null)
+                    where (:incluir_arquivados or s.arquivada_em is null)
                     group by s.id
                     order by s.ordem, lower(s.nome)
                     """),
@@ -142,7 +147,7 @@ async def listar(
                     "inicio": janela.inicio,
                     "fim": janela.fim,
                     "mundos": mundos,
-                    "incluir_arquivadas": incluir_arquivadas,
+                    "incluir_arquivados": incluir_arquivados,
                 },
             )
         )

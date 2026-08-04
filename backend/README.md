@@ -68,7 +68,7 @@ ruff check . ; black --check .
 | `app/comum/` | Erro, paginação, período, idempotência, auditoria |
 | `app/seguranca/` | `auth.py` valida o token; `rbac.py` decide o papel |
 | `app/<dominio>/` | `rotas.py` → `servico.py` → `repositorio.py`, nessa ordem de dependência |
-| `migracoes/` | SQL versionado, `001`…`010` (data-model §7) |
+| `migracoes/` | SQL versionado, `001`…`013` (data-model §7) |
 | `api/index.py` | Só reexporta o app para a Vercel |
 
 Camada de tela **nunca** fala com o banco, e `repositorio.py` **nunca** contém regra de
@@ -125,8 +125,12 @@ literal ao Postgres e vira `operator does not exist: text %% unknown`. Custou um
 atravessa o Pydantic intacto e só morre no `cast(:x as meu_enum)` do Postgres, como
 `InvalidTextRepresentationError` — que sai `500 erro_interno` onde contracts/README.md
 manda `400 validacao` com o nome do campo. Era o caso de `tipo_cobranca` em
-`app/clientes/rotas.py` (corrigido em 2026-08-02). Vale para todo enum do banco:
-`tipo_cobranca`, `mundo`, `status`, `papel`.
+`app/clientes/rotas.py` (corrigido em 2026-08-02) e de `tipo_contratacao` em
+`app/funcionarios/rotas.py`, que escapou da primeira varredura e caiu na auditoria de
+requisitos de 2026-08-03. Vale para todo enum do banco: `tipo_cobranca`,
+`tipo_contratacao`, `status`, `papel`. **`mundo` é a exceção que confirma a regra**: fica
+`str` no modelo porque quem valida é `mod_mundo.exige`, o dono de `RN-15` — e ele já
+responde `400` com a mensagem certa.
 
 **Rota com `response_class=Response` tem que devolver `JSONResponse`, não `dict`.** Os
 quatro relatórios declaram isso para poderem responder CSV e PDF, e a declaração torna o

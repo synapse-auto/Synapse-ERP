@@ -6,6 +6,18 @@ Padrão de arquivamento: nenhum destes recursos tem `DELETE` real. `POST
 /api/{recurso}/{id}/arquivar` e `/desarquivar` (`RN-06`). Listas aceitam
 `?incluir_arquivados=true`.
 
+> **Fechado em 2026-08-03 (auditoria de requisitos).** O par valia para categorias e
+> clientes e faltava em **funcionários, serviços e centros de custo**: dava para arquivar
+> e não dava para voltar. Como `DELETE` não existe aqui de propósito, arquivar o cadastro
+> errado só se corrigia no banco à mão — o oposto do que `RN-06` quer. Os três
+> `/desarquivar` existem agora, cada um listado na sua seção.
+>
+> O nome do parâmetro de lista é `incluir_arquivados` em todos. Em `GET /api/categorias`
+> o servidor esperava `incluir_arquivadas`, e como o FastAPI ignora parâmetro de consulta
+> desconhecido, a caixa "Mostrar arquivadas" da tela não fazia nada — sem erro nenhum.
+> Corrigido no servidor; o frontend já mandava o nome do contrato. Serviços usam
+> `incluir_inativos`, porque lá o campo é `ativo` e não `arquivado_em`.
+
 ---
 
 ## 1. Categorias (`FR-072`–`FR-079`)
@@ -199,6 +211,7 @@ Mesma forma dos clientes, com uma diferença de modelagem: **funcionário tem `m
 | `GET /api/funcionarios/{id}` | gestor, operador |
 | `PUT /api/funcionarios/{id}` | gestor |
 | `POST /api/funcionarios/{id}/arquivar` | gestor |
+| `POST /api/funcionarios/{id}/desarquivar` | gestor |
 
 ### `POST /api/funcionarios`
 
@@ -213,6 +226,14 @@ transação. `PUT` com `mundo` diferente → `409 regra_violada` / `RN-15`.
 A folha nasce com **`efetivar_automaticamente = true`** (decidido em B4/T109): é despesa
 certa, e deixá-la pendente encheria a caixa de confirmações mensais sem informação nenhuma.
 É o oposto da mensalidade de cliente, onde o manual é que faz a cobrança existir (D-05).
+
+### `POST /api/funcionarios/{id}/desarquivar` (2026-08-03)
+
+Desarquiva o funcionário e a subcategoria espelho. **A folha não volta sozinha** — mesma
+regra do cliente e pelo mesmo motivo: as ocorrências futuras foram removidas ao arquivar,
+e recriá-las por conta própria reativaria um pagamento mensal que o gestor desligou. A
+resposta traz `aviso_folha` em PT-BR dizendo isso e mandando editar o funcionário para
+religar. Funcionário já ativo → `409 regra_violada` / `RN-06`.
 
 ### `GET /api/funcionarios/{id}` — perfil (`FR-087`)
 
@@ -229,13 +250,19 @@ vales aparecem como lançamentos avulsos na mesma subcategoria e somam ao custo 
 | `POST /api/servicos` | gestor |
 | `PUT /api/servicos/{id}` | gestor |
 | `POST /api/servicos/{id}/arquivar` | gestor |
+| `POST /api/servicos/{id}/desarquivar` | gestor |
 
 ```json
 { "nome": "Energia Solar", "mundo": "infra", "ativo": true, "ordem": 5 }
 ```
 
 `GET` com `?mundo=digital` devolve só os serviços daquele mundo — é o que alimenta o campo
-"serviço vinculado" do formulário de lançamento (`FR-104`, `RF-103`).
+"serviço vinculado" do formulário de lançamento (`FR-104`, `RF-103`). `?incluir_inativos=true`
+traz também os desativados — aqui o campo é `ativo`, não `arquivado_em`.
+
+Arquivar é `ativo = false`: o serviço some dos formulários novos e os lançamentos antigos
+continuam apontando para ele (`RN-06`). `desarquivar` (2026-08-03) devolve `ativo = true`.
+Serviço já no estado pedido → `404`, porque o `update` guardado não casa linha nenhuma.
 
 ---
 
@@ -247,6 +274,7 @@ vales aparecem como lançamentos avulsos na mesma subcategoria e somam ao custo 
 | `POST /api/centros-custo` | gestor |
 | `PUT /api/centros-custo/{id}` | gestor |
 | `POST /api/centros-custo/{id}/arquivar` | gestor |
+| `POST /api/centros-custo/{id}/desarquivar` | gestor |
 
 ```json
 { "nome": "Obra Estrutural Vidros", "mundo": "infra" }

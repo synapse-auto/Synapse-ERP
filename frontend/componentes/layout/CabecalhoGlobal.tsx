@@ -69,6 +69,15 @@ export function CabecalhoGlobal({ className }: { className?: string }) {
       descricao: `Ir para ${d.rotulo}`,
       aoDisparar: () => router.push(d.rota),
     })),
+    // `1`–`7` na ordem do menu: é o atalho que a `RNF-10` nomeia por escrito.
+    // As sequências `G`+letra continuam valendo — quem já decorou uma não perde
+    // nada, e o número é o que está no documento-mestre.
+    ...DESTINOS_DE_ATALHO.map((d) => ({
+      tecla: d.numero,
+      grupo: "Navegação" as const,
+      descricao: `Ir para ${d.rotulo}`,
+      aoDisparar: () => router.push(d.rota),
+    })),
   ]);
 
   return (

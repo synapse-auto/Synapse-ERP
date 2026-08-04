@@ -129,12 +129,18 @@ export function rotuloDoAtalho(a: Pick<Atalho, "tecla" | "comando" | "shift" | "
  * Os atalhos de navegação, num só lugar para a folha de ajuda (`?`) e o
  * registro não divergirem.
  */
-export const DESTINOS_DE_ATALHO: { tecla: string; rota: string; rotulo: string }[] = [
-  { tecla: "d", rota: "/", rotulo: "Dashboard" },
-  { tecla: "l", rota: "/lancamentos", rotulo: "Lançamentos" },
-  { tecla: "e", rota: "/extrato", rotulo: "Extrato" },
-  { tecla: "c", rota: "/categorias", rotulo: "Categorias" },
-  { tecla: "i", rota: "/clientes", rotulo: "Clientes" },
-  { tecla: "f", rota: "/funcionarios", rotulo: "Funcionários" },
-  { tecla: "r", rota: "/relatorios", rotulo: "Relatórios" },
+export const DESTINOS_DE_ATALHO: {
+  tecla: string;
+  /** `1`–`7`, na ordem do menu — é o atalho que a `RNF-10` nomeia. */
+  numero: string;
+  rota: string;
+  rotulo: string;
+}[] = [
+  { tecla: "d", numero: "1", rota: "/", rotulo: "Dashboard" },
+  { tecla: "l", numero: "2", rota: "/lancamentos", rotulo: "Lançamentos" },
+  { tecla: "e", numero: "3", rota: "/extrato", rotulo: "Extrato" },
+  { tecla: "c", numero: "4", rota: "/categorias", rotulo: "Categorias" },
+  { tecla: "i", numero: "5", rota: "/clientes", rotulo: "Clientes" },
+  { tecla: "f", numero: "6", rota: "/funcionarios", rotulo: "Funcionários" },
+  { tecla: "r", numero: "7", rota: "/relatorios", rotulo: "Relatórios" },
 ];
