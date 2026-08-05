@@ -16,6 +16,8 @@ import { Input } from "@/componentes/ui/input";
 import { Label } from "@/componentes/ui/label";
 import { Switch } from "@/componentes/ui/switch";
 import { Seletor } from "@/componentes/comum/Seletor";
+import { SeletorIcone } from "@/componentes/comum/SeletorIcone";
+import { ICONE_PADRAO } from "@/componentes/comum/catalogo-icones";
 import { api, ErroApi, mensagemDoErro } from "@/lib/api";
 import { useInvalidarFinanceiro } from "@/lib/consultas";
 import type { Categoria, TipoCategoria, VinculoSubcategoria } from "@/lib/tipos";
@@ -42,6 +44,7 @@ export function FormCategoria({
   const invalidar = useInvalidarFinanceiro();
   const [nome, setNome] = useState("");
   const [cor, setCor] = useState("#8B6CF0");
+  const [icone, setIcone] = useState(ICONE_PADRAO);
   const [tipo, setTipo] = useState<TipoCategoria>("despesa");
   const [especial, setEspecial] = useState(false);
   const [vinculo, setVinculo] = useState<VinculoSubcategoria>("cliente");
@@ -52,6 +55,7 @@ export function FormCategoria({
     setErro(null);
     setNome(categoria?.nome ?? "");
     setCor(categoria?.cor ?? "#8B6CF0");
+    setIcone(categoria?.icone ?? ICONE_PADRAO);
     setTipo(categoria?.tipo ?? "despesa");
     setEspecial(categoria?.especial ?? false);
     setVinculo(categoria?.vinculo ?? "cliente");
@@ -115,6 +119,18 @@ export function FormCategoria({
             </div>
           </div>
 
+          {/* O ícone é dado editável da categoria (`FR-072`) e a coluna é
+              `not null`: até 2026-08-05 o formulário mandava `icone: null` e o
+              servidor recusava com `400 validacao` — criar categoria não
+              funcionava. Agora sempre sai um nome Lucide válido do catálogo. */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="icone-cat">Ícone</Label>
+            <SeletorIcone id="icone-cat" valor={icone} aoMudar={setIcone} cor={cor} />
+            <p className="text-[12px] text-sutil">
+              Aparece na lista de categorias, na cor escolhida acima.
+            </p>
+          </div>
+
           <label className="flex items-start justify-between gap-4 rounded-[10px] border border-linha-suave bg-[var(--bg-subtle)] px-4 py-3">
             <span className="flex flex-col gap-0.5">
               <span className="text-[13px] font-semibold text-[var(--fg)]">Categoria especial</span>
@@ -166,7 +182,7 @@ export function FormCategoria({
               salvar.mutate({
                 nome: nome.trim(),
                 cor,
-                icone: categoria?.icone ?? null,
+                icone,
                 tipo,
                 especial,
                 vinculo: especial ? vinculo : null,

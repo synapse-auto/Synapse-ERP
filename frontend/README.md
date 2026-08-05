@@ -338,6 +338,36 @@ O que mudou **nesta pasta**:
 Detalhe das duas causas de backend em
 [`contracts/consultas.md`](../specs/001-erp-financeiro-synapse/contracts/consultas.md) §1 e §2.
 
+## Ícone da categoria — seletor e catálogo (2026-08-05)
+
+Levantada pelo dono do projeto: **criar categoria respondia `400`** e a tela só dizia
+"Alguns campos precisam de correção", sem apontar campo. O corpo trazia `icone: null`
+(`categoria?.icone ?? null`, e em categoria nova não existe `categoria`); `CategoriaEntrada`
+exige string e a coluna é `text not null`. Editar funcionava, porque ali o ícone da
+categoria vinha junto. Nenhuma linha de backend mudou.
+
+Além do conserto, o ícone passou a **existir na interface**: `FR-072` sempre tratou cor e
+ícone como dados editáveis da categoria, e os nove nomes do seed (`users`, `server`,
+`truck`…) nunca chegavam à tela — a lista mostrava só um quadradinho da cor.
+
+| Onde | O quê |
+|---|---|
+| `comum/catalogo-icones.tsx` | **Novo.** 135 ícones Lucide em 8 grupos (dinheiro, pessoas, tecnologia, obra/energia/clima, marketing, transporte, documentos, gerais), cada um com rótulo PT-BR. Também resolve nome → componente com queda para o padrão (`tag`), porque a coluna é `text` livre e um nome desconhecido derrubaria a lista |
+| `comum/SeletorIcone.tsx` | **Novo.** `Popover` + `Input` do shadcn, os dois já no projeto: prévia na cor da categoria, busca que ignora acento e caixa e casa com o rótulo PT-BR **ou** com o nome Lucide, grade de 8 colunas, `Enter` escolhe o primeiro resultado |
+| `categorias/FormCategoria.tsx` | Campo "Ícone" entre a cor e o interruptor de especial. O corpo agora sai sempre com um nome do catálogo |
+| `app/(app)/categorias/page.tsx` | O quadradinho de cor virou pastilha de 28px com o ícone da categoria, fundo em `color-mix` da cor dela |
+
+**Por que uma lista curada e não o picker pronto** (Princípio II): shadcn/ui não tem icon
+picker oficial; `alan-crts/shadcn-iconpicker` cobre os ~1600 ícones do Lucide com busca
+difusa e virtualização, mas custa uma dependência nova (TanStack Virtual), carrega o pacote
+inteiro de ícones para escolher entre nove categorias e é em inglês. Com `import` nomeado,
+o bundle leva os 135 — `/categorias` passou de 8,6 kB para 23,7 kB de rota, 268 kB de
+primeiro carregamento.
+
+**Isto não é hardcode de dado** (`RNF-02`): o que está no código é o vocabulário de
+componentes que o bundle sabe desenhar — nome em tabela não vira SVG sem `import`. A escolha
+continua sendo dado, em `categorias.icone`, editável pela tela sem deploy.
+
 ## Divergências e pendências conhecidas
 
 | # | O quê | Situação |
@@ -355,10 +385,11 @@ Detalhe das duas causas de backend em
 | 11 | **`cmdk` continua no `package.json` sem uso**, junto com 16 outros primitivos do shadcn que ainda não foram chamados. Não foi removido para não mexer no lockfile numa entrega de polimento | sem ação |
 | 12 | **A interface inteira renderizava em serif desde a Fase C.** As classes do `next/font` estavam no `<body>` e o alias `--font-body: var(--fonte-body), …` no `:root`; o `var()` não resolvia, a declaração morria e o navegador usava a família inicial. Nem Plus Jakarta nem Inter chegaram a aparecer na tela. Achado pelo dono do projeto ao ver que a troca para Geist "não mudou nada" | resolvida em 2026-08-03 |
 | 13 | **O Dashboard nunca pôs dois cards lado a lado.** Cada bloco não-numérico ganhava um `grid lg:grid-cols-2` **próprio, com um filho só** — meia largura ocupada, meia vazia, o vizinho embaixo. Virou uma grade única de duas colunas, com a largura vindo do servidor (`cards_disponiveis[].largura`) e configurável card a card. Achado pelo dono do projeto | resolvida em 2026-08-03 |
+| 14 | **Criar categoria era impossível pela tela**: o formulário mandava `icone: null` e o servidor recusava com `400 validacao`, mensagem genérica. Achado pelo dono do projeto no console. Resolvido com o seletor de ícone — seção acima. O ícone de categoria **ainda não aparece** fora da tela de Categorias (seletor de categoria do lançamento, gráfico de despesas por categoria e busca global continuam só com a cor) | resolvida em 2026-08-05 |
 
 ## Testes
 
-`npm run teste` — 64 testes cobrindo o que quebra em silêncio: formatação brasileira
+`npm run teste` — 71 testes cobrindo o que quebra em silêncio: formatação brasileira
 (inclusive o erro de fuso que faria `2026-07-31` virar dia 30), tradução de filtros e
 drill-down, a ida e a volta dos filtros pela URL, envelope de erro da API, os componentes
 comuns, os seis casos da busca global (é campo e não janela; funcionário aparece; clicar
@@ -367,7 +398,12 @@ reordenação do "Configurar cards" (arrastar **insere**, não troca) e os cinco
 `Seletor` — com destaque para a opção de valor vazio, que é onde o Radix quebra. Desde
 2026-08-04, também os seis casos do **cliente retroativo** (não aparece em pontual, aparece
 em recorrente, os campos só depois do checkbox, some na edição, avisa no mês corrente, e o
-corpo sai como `AAAA-MM` sem dia) e o "tempo de casa" contado em meses de calendário.
+corpo sai como `AAAA-MM` sem dia) e o "tempo de casa" contado em meses de calendário. Desde
+2026-08-05, os sete casos do **ícone da categoria**: os nove nomes do seed reconhecidos pelo
+catálogo, nome desconhecido caindo no padrão em vez de derrubar a tela, busca sem acento
+("eletrica" acha "Elétrica"), o corpo do `POST` sempre com um ícone do catálogo — **nunca
+`null`**, que era o `400` —, "solar" chegando como `sun` e a edição preservando o ícone que
+já existia.
 
 O que **não** está coberto por teste automatizado e depende de olhar a tela ou de dados
 reais: a conferência visual dos dois temas tela a tela (T202), o comportamento com 5.000

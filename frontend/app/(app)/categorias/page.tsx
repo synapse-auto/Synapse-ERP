@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Archive, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { CabecalhoTela, Quadro } from "@/componentes/comum/CabecalhoTela";
+import { IconeDaCategoria } from "@/componentes/comum/catalogo-icones";
 import { EstadoVazio } from "@/componentes/comum/EstadoVazio";
 import { Button } from "@/componentes/ui/button";
 import { Checkbox } from "@/componentes/ui/checkbox";
@@ -100,11 +101,20 @@ export default function PaginaCategorias() {
                 key={c.id}
                 className="flex flex-wrap items-center gap-3 border-b border-[var(--linha-suave)] px-4 py-3 last:border-b-0"
               >
+                {/* O ícone é dado da categoria (`FR-072`) e até 2026-08-05 nunca
+                    aparecia: a lista mostrava só um quadradinho da cor, e as nove
+                    categorias do seed carregavam `users`, `server`, `truck`… sem
+                    ninguém ver. A cor virou o fundo da pastilha. */}
                 <span
                   aria-hidden
-                  className="size-[10px] flex-none rounded-[2px]"
-                  style={{ background: c.cor ?? "var(--fg-subtle)" }}
-                />
+                  className="flex size-7 flex-none items-center justify-center rounded-[8px]"
+                  style={{
+                    background: `color-mix(in srgb, ${c.cor || "var(--fg-subtle)"} 16%, transparent)`,
+                    color: c.cor || "var(--fg-muted)",
+                  }}
+                >
+                  <IconeDaCategoria nome={c.icone} tamanho={16} />
+                </span>
 
                 <button
                   type="button"

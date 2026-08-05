@@ -1095,3 +1095,82 @@ por testes de integração, e não um bloco nunca executado.
 | T143 | Escala de tema escuro derivada | ✅ Haverá tema escuro; escala derivada na implementação, sem aprovação prévia |
 
 **Nenhuma task depende mais de decisão.** O que resta é execução, começando por T001.
+
+---
+
+## Ícone da categoria — seletor e catálogo (2026-08-05) — `FR-072`
+
+Achado pelo dono do projeto no console do navegador: **criar categoria respondia `400`**,
+sete vezes seguidas (retry do React Query), e a tela só dizia "Alguns campos precisam de
+correção" — sem apontar campo.
+
+### A causa
+
+`FormCategoria` mandava `icone: categoria?.icone ?? null`. Em categoria **nova** não existe
+`categoria`, então saía `icone: null`; `CategoriaEntrada` exige `str` (`min_length=1`) e a
+coluna é `text not null` (`migracoes/003_cadastros.sql`). O `RequestValidationError` virava
+`400 validacao` no tradutor de `main.py`, com o detalhe em `campos.icone` — que o formulário
+não mostra, só a mensagem geral. Editar funcionava, porque ali o ícone vinha da categoria.
+
+O que deixou passar: `lib/tipos.ts` declara `icone: string | null`, então o `tsc` não viu
+nada de errado. **Nenhuma linha de backend mudou.**
+
+### O que estava por baixo do bug
+
+`FR-072` sempre tratou cor **e ícone** como dados editáveis da categoria, e o ícone não
+existia na interface: não havia campo no formulário e a lista mostrava só um quadradinho da
+cor. Os nove nomes gravados pelo seed (`users`, `briefcase`, `server`, `wrench`, `landmark`,
+`megaphone`, `laptop`, `truck`, `ellipsis`) nunca chegaram à tela.
+
+### O que mudou (só frontend)
+
+- **`componentes/comum/catalogo-icones.tsx`** (novo) — 135 ícones Lucide em 8 grupos, cada um
+  com rótulo PT-BR. Resolve nome → componente com queda para o padrão (`tag`): a coluna é
+  `text` livre e um nome fora do catálogo derrubaria a lista inteira.
+- **`componentes/comum/SeletorIcone.tsx`** (novo) — `Popover` + `Input`, prévia na cor da
+  categoria, busca que ignora acento e caixa casando com o rótulo PT-BR **ou** com o nome
+  Lucide, grade de 8 colunas, `Enter` escolhe o primeiro resultado.
+- **`componentes/categorias/FormCategoria.tsx`** — campo "Ícone"; o corpo sai sempre com um
+  nome do catálogo.
+- **`app/(app)/categorias/page.tsx`** — o quadradinho de cor virou pastilha de 28px com o
+  ícone da categoria, fundo em `color-mix` da cor dela.
+
+**Pesquisa de componente pronto (Princípio II)**: shadcn/ui não tem icon picker oficial;
+`alan-crts/shadcn-iconpicker` (GitHub) cobre os ~1600 ícones do Lucide com busca difusa e
+virtualização, mas custa uma dependência nova (TanStack Virtual), carrega o pacote inteiro
+de ícones para escolher entre nove categorias e é em inglês. Ficou `Popover` + `Input`, os
+dois já no projeto, sobre uma lista curada com `import` nomeado — o bundle leva 135 ícones,
+não 1600.
+
+**Por que a lista está no código e não em `configuracoes`** (`RNF-02`): o que está fixo é o
+vocabulário de componentes que o bundle sabe desenhar — nome em tabela não vira SVG sem
+`import` correspondente. A **escolha** continua sendo dado, em `categorias.icone`, editável
+pela tela sem deploy.
+
+### Testado, rodando
+
+```
+frontend: tsc --noEmit + eslint          → sem erros, sem avisos
+frontend: npm run teste                  →  71 passed  (64 antes + 7 do ícone)
+frontend: npm run build                  →  15 rotas; /categorias 23,7 kB / 268 kB
+backend:  CategoriaEntrada(icone=None)   →  reproduz o erro: "Input should be a valid string"
+banco:    select … from categorias       →  as 9 têm ícone; nenhuma cai no padrão
+```
+
+Os sete casos travam: os nove nomes do seed reconhecidos, nome desconhecido caindo no padrão,
+busca sem acento ("eletrica" acha "Elétrica"), corpo do `POST` sempre com ícone do catálogo —
+**nunca `null`** —, "solar" chegando como `sun`, e a edição preservando o ícone existente.
+
+### O que ficou de fora
+
+- **Conferência em navegador** com login real: o seletor foi exercitado por teste de
+  componente (jsdom), não por olho. O popover em si — posicionamento, rolagem da grade, tema
+  escuro — não foi visto na tela.
+- **O ícone só aparece na tela de Categorias.** O seletor de categoria do lançamento, o
+  gráfico de despesas por categoria e a busca global continuam mostrando só a cor.
+- **Ícone de subcategoria**: não existe coluna, e nada no documento-mestre pede.
+- **Backend intocado**: `icone` continua obrigatório no `POST`/`PUT`, como contracts diz. Se
+  outro cliente da API mandar `null`, o `400` volta — o conserto foi no formulário, não numa
+  tolerância nova no servidor.
+- **Nada a mudar** no documento-mestre, em `data-model.md` (a coluna já era `text not null`),
+  nos contratos (`cadastros.md` §1 já exige `icone` no corpo) nem na constituição.
