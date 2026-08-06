@@ -146,19 +146,34 @@ async def lista(
                     select {_SELECAO},
                            coalesce(t.historico, 0) as total_recebido_historico,
                            coalesce(t.periodo, 0) as total_recebido_periodo,
+                           coalesce(t.custo_historico, 0) as total_custo_historico,
+                           coalesce(t.custo_periodo, 0) as total_custo_periodo,
                            coalesce(a.em_aberto, '[]'::jsonb) as em_aberto,
                            {_SEM_MOVIMENTACAO_NENHUMA} as sem_movimentacao
                     from clientes c
                     left join lateral (
+                      -- Os quatro números saem da **mesma** varredura: o `where` deixou
+                      -- de recortar `tipo` e quem recorta agora é o `filter`. Custo do
+                      -- cliente (`RF-58`) sem uma segunda junção lateral, que seria uma
+                      -- varredura a mais por linha da página.
                       select
-                        sum(l.valor) filter (where l.status = 'efetivado') as historico,
                         sum(l.valor) filter (
-                          where l.status = 'efetivado' and l.data between :inicio and :fim
-                        ) as periodo
+                          where l.status = 'efetivado' and l.tipo = 'receita'
+                        ) as historico,
+                        sum(l.valor) filter (
+                          where l.status = 'efetivado' and l.tipo = 'receita'
+                            and l.data between :inicio and :fim
+                        ) as periodo,
+                        sum(l.valor) filter (
+                          where l.status = 'efetivado' and l.tipo = 'despesa'
+                        ) as custo_historico,
+                        sum(l.valor) filter (
+                          where l.status = 'efetivado' and l.tipo = 'despesa'
+                            and l.data between :inicio and :fim
+                        ) as custo_periodo
                       from lancamentos_ativos l
                       join subcategorias s on s.id = l.subcategoria_id
-                      where s.cliente_id = c.id and l.tipo = 'receita'
-                        and {_SEM_PAI_DE_SPLIT}
+                      where s.cliente_id = c.id and {_SEM_PAI_DE_SPLIT}
                     ) t on true
                     left join lateral (
                       select jsonb_agg(jsonb_build_object(
@@ -235,16 +250,24 @@ async def em_aberto(conexao: AsyncConnection, cliente_id: UUID) -> list[dict[str
 
 
 async def quebra_por_mundo(conexao: AsyncConnection, cliente_id: UUID) -> dict[str, Any]:
-    """`FR-081`: o cliente não tem mundo, mas a receita dele tem (D-04)."""
+    """`FR-081`: o cliente não tem mundo, mas a receita e o custo dele têm (D-04).
+
+    Devolve `{"receita": {...}, "custo": {...}}` — os dois lados na mesma ida ao banco,
+    porque o custo por cliente (`RF-58`) responde à mesma pergunta de sempre ("de que
+    mundo veio o dinheiro deste cliente?") do outro lado do sinal.
+    """
     linhas = (
         (
             await conexao.execute(
                 text("""
-                    select l.mundo, coalesce(sum(l.valor), 0) as valor
+                    select l.mundo,
+                           coalesce(sum(l.valor) filter (where l.tipo = 'receita'), 0)
+                             as receita,
+                           coalesce(sum(l.valor) filter (where l.tipo = 'despesa'), 0)
+                             as custo
                     from lancamentos_ativos l
                     join subcategorias s on s.id = l.subcategoria_id
-                    where s.cliente_id = :cliente
-                      and l.tipo = 'receita' and l.status = 'efetivado'
+                    where s.cliente_id = :cliente and l.status = 'efetivado'
                     group by l.mundo
                     """),
                 {"cliente": str(cliente_id)},
@@ -253,16 +276,25 @@ async def quebra_por_mundo(conexao: AsyncConnection, cliente_id: UUID) -> dict[s
         .mappings()
         .all()
     )
-    resultado = {"digital": 0, "infra": 0}
+    resultado: dict[str, dict[str, Any]] = {
+        "receita": {"digital": 0, "infra": 0},
+        "custo": {"digital": 0, "infra": 0},
+    }
     for linha in linhas:
-        resultado[linha["mundo"]] = linha["valor"]
+        resultado["receita"][linha["mundo"]] = linha["receita"]
+        resultado["custo"][linha["mundo"]] = linha["custo"]
     return resultado
 
 
 async def receita_mensal(
     conexao: AsyncConnection, cliente_id: UUID, *, meses: int = 12
 ) -> list[dict[str, Any]]:
-    """Série mensal do perfil. `generate_series` para mês sem receita aparecer zerado."""
+    """Série mensal do perfil: receita, custo e margem. Mês sem movimento vem zerado.
+
+    O `left join` em `subcategorias` alcança **todos** os espelhos do cliente — o de
+    receita e o de custo (`RF-58`). Ele não duplica valor: cada lançamento pertence a
+    uma subcategoria só, e o que separa receita de custo é o `filter`.
+    """
     linhas = (
         (
             await conexao.execute(
@@ -275,13 +307,16 @@ async def receita_mensal(
                       )::date as mes
                     )
                     select to_char(m.mes, 'YYYY-MM') as mes,
-                           coalesce(sum(l.valor), 0) as valor
+                           coalesce(sum(l.valor) filter (where l.tipo = 'receita'), 0)
+                             as valor,
+                           coalesce(sum(l.valor) filter (where l.tipo = 'despesa'), 0)
+                             as custo
                     from meses m
                     left join subcategorias s on s.cliente_id = :cliente
                     left join lancamentos_ativos l
                       on l.subcategoria_id = s.id
                      and date_trunc('month', l.data) = m.mes
-                     and l.tipo = 'receita' and l.status = 'efetivado'
+                     and l.status = 'efetivado'
                     group by m.mes
                     order by m.mes
                     """),

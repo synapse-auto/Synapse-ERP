@@ -239,6 +239,15 @@ class CategoriaEntrada(BaseModel):
             )
         if not self.especial and self.vinculo is not None:
             raise ValueError("Só categoria especial tem vínculo.")
+        # `RF-58`: é o `tipo` que separa as duas categorias do mesmo vínculo — a de
+        # receita do cliente e a de custo do cliente. Uma especial `ambas` deixaria
+        # "qual é a categoria de receita?" sem resposta única. Mesma regra do
+        # `CHECK categorias_especial_tem_lado` (migração 015).
+        if self.especial and self.tipo == "ambas":
+            raise ValueError(
+                "Categoria especial precisa ser de receita ou de despesa — 'ambas' não "
+                "diz de que lado ela entra."
+            )
         return self
 
 
@@ -346,8 +355,11 @@ async def criar(
     description=(
         "Papel: **gestor**. **Promover a especial é só isto** (`FR-079`): `especial: true` "
         "mais o `vinculo`. Não há deploy envolvido, porque nada no código compara nome de "
-        "categoria. A resposta lista as subcategorias que ficaram sem dono, para o gestor "
-        "saber o que precisa vincular."
+        "categoria. Ao promover, o espelho de **cada cadastro já existente** é criado na "
+        "mesma transação (`espelhos_criados`, `RF-58`). A resposta também lista as "
+        "subcategorias que ficaram sem dono, para o gestor saber o que precisa vincular. "
+        "O par `(vinculo, tipo)` é único: cabem uma categoria de receita e uma de despesa "
+        "por vínculo, e `tipo: ambas` não pode ser especial."
     ),
 )
 async def editar(
@@ -358,40 +370,47 @@ async def editar(
 ) -> dict[str, Any]:
     atual = await _exige_categoria(conexao, categoria_id)
 
-    # `vinculo` é único entre as categorias ativas (índice `categorias_vinculo_uidx`), e
-    # tem que ser: `dominio/espelho_subcategoria.py` precisa saber em **qual** categoria
-    # criar a subcategoria espelho quando um cliente é cadastrado. Com duas categorias
-    # `vinculo = 'cliente'`, a pergunta não tem resposta.
+    # O par `(vinculo, tipo)` é único entre as categorias ativas (índice
+    # `categorias_vinculo_tipo_uidx`, migração 015), e tem que ser:
+    # `dominio/espelho_subcategoria.py` precisa saber em **qual** categoria a
+    # mensalidade do cliente cai. Com duas categorias `vinculo = 'cliente'` **de
+    # receita**, a pergunta não tem resposta.
+    #
+    # Até a `015` o único era `vinculo` sozinho — e era isso que impedia o custo
+    # operacional por cliente (`RF-58`): o cliente só podia existir de um lado.
     #
     # Sem esta checagem o `update` batia direto no índice e o usuário recebia
     # `500 erro_interno` — "Algo deu errado do nosso lado" para uma ação previsível, com
-    # a explicação só no log. Agora a recusa diz **qual** categoria já ocupa o vínculo,
-    # que é a informação necessária para resolver (`FR-079`, contracts/README.md §Erros).
-    if corpo.vinculo and corpo.vinculo != atual["vinculo"]:
+    # a explicação só no log. Agora a recusa diz **qual** categoria já ocupa o par, que é
+    # a informação necessária para resolver (`FR-079`, contracts/README.md §Erros).
+    if corpo.vinculo and (corpo.vinculo, corpo.tipo) != (atual["vinculo"], atual["tipo"]):
         ocupante = (
             (
                 await conexao.execute(
                     text("""
                         select nome from categorias
                         where vinculo = cast(:vinculo as vinculo_subcategoria)
+                          and tipo = cast(:tipo as tipo_categoria)
                           and arquivada_em is null and id <> :id
                         """),
-                    {"vinculo": corpo.vinculo, "id": str(categoria_id)},
+                    {"vinculo": corpo.vinculo, "tipo": corpo.tipo, "id": str(categoria_id)},
                 )
             )
             .scalars()
             .first()
         )
         if ocupante is not None:
+            lado = "receita" if corpo.tipo == "receita" else "despesa"
             raise ErroRegraViolada(
                 (
                     f"A categoria '{ocupante}' já é a categoria especial de "
-                    f"{corpo.vinculo}. Só pode existir uma."
+                    f"{corpo.vinculo} do lado de {lado}. Só pode existir uma de cada lado."
                 ),
                 requisito="FR-079",
                 campos={
                     "vinculo": (
-                        f"Arquive ou mude o vínculo de '{ocupante}' antes de promover esta."
+                        f"Arquive '{ocupante}', mude o vínculo dela ou escolha o outro "
+                        f"tipo antes de promover esta."
                     )
                 },
             )
@@ -417,9 +436,18 @@ async def editar(
     )
 
     pendentes: list[dict[str, Any]] = []
+    espelhos_criados = 0
     if corpo.especial and not atual["especial"]:
-        # Ao promover, as subcategorias que já existiam não têm dono. Não são apagadas
-        # nem vinculadas por adivinhação — são **apontadas**, para o gestor decidir.
+        # Promover é ligar `especial` e escolher o vínculo — e a categoria nasceria vazia,
+        # porque os clientes já cadastrados não voltam ao cadastro para ganhar
+        # subcategoria. O espelho de cada um é criado aqui, na mesma transação
+        # (`RF-58`, D-07). Cadastro arquivado gera espelho arquivado.
+        espelhos_criados = await mod_espelho.sincroniza_categoria(
+            conexao, categoria_id=categoria_id, vinculo=corpo.vinculo or ""
+        )
+
+        # As subcategorias que já existiam não têm dono. Não são apagadas nem vinculadas
+        # por adivinhação — são **apontadas**, para o gestor decidir.
         linhas = (
             (
                 await conexao.execute(
@@ -458,6 +486,7 @@ async def editar(
     return _categoria_json(
         await _exige_categoria(conexao, categoria_id),
         subcategorias_pendentes_de_vinculo=pendentes,
+        espelhos_criados=espelhos_criados,
     )
 
 

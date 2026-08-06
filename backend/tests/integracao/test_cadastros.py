@@ -108,6 +108,57 @@ async def test_cadastrar_cliente_cria_a_subcategoria_espelho(conexao_de_teste):
     assert espelho["vinculo"] == "cliente"
 
 
+async def _espelho_do_cliente(conexao, cliente_id, *, tipo: str = "receita") -> dict:
+    """O espelho do cliente **de um lado** (`RF-58`).
+
+    Desde a migração `015` o cliente tem dois: um em "Clientes" (receita) e um em
+    "Custos Operacionais" (despesa). Todo teste que precisa "da subcategoria do
+    cliente" precisa dizer qual — e é por `categorias.tipo`, nunca por nome.
+    """
+    return dict(
+        (
+            await conexao.execute(
+                text("""
+                    select s.id, s.categoria_id, s.nome, s.arquivada_em
+                    from subcategorias s join categorias c on c.id = s.categoria_id
+                    where s.cliente_id = :cliente and c.tipo = cast(:tipo as tipo_categoria)
+                    """),
+                {"cliente": str(cliente_id), "tipo": tipo},
+            )
+        )
+        .mappings()
+        .one()
+    )
+
+
+async def test_cadastrar_cliente_cria_espelho_dos_dois_lados(conexao_de_teste):
+    """`RF-58`: o cliente nasce em Clientes (receita) **e** em Custos Operacionais.
+
+    É o que faz o custo operacional poder apontar para um cliente sem que ninguém
+    compare nome de categoria em lugar nenhum.
+    """
+    usuario = await _usuario(conexao_de_teste)
+    nome = f"Dois Lados {uuid4().hex[:6]}"
+    criado = await rotas_clientes.criar(_cliente(nome), usuario, conexao_de_teste)
+
+    lados = (
+        (
+            await conexao_de_teste.execute(
+                text("""
+                    select c.tipo::text as tipo, s.nome
+                    from subcategorias s join categorias c on c.id = s.categoria_id
+                    where s.cliente_id = :cliente and c.vinculo = 'cliente'
+                    """),
+                {"cliente": criado["id"]},
+            )
+        )
+        .mappings()
+        .all()
+    )
+    assert {linha["tipo"] for linha in lados} == {"receita", "despesa"}
+    assert {linha["nome"] for linha in lados} == {nome}
+
+
 async def test_cliente_recorrente_ganha_a_recorrencia_da_mensalidade(conexao_de_teste):
     usuario = await _usuario(conexao_de_teste)
     criado = await rotas_clientes.criar(_recorrente(), usuario, conexao_de_teste)
@@ -169,16 +220,8 @@ async def test_cliente_com_movimentacao_so_aparece_no_mundo_em_que_movimentou(co
     usuario = await _usuario(conexao_de_teste)
     criado = await rotas_clientes.criar(_cliente("Só Digital"), usuario, conexao_de_teste)
 
-    subcategoria = (
-        await conexao_de_teste.execute(
-            text("select id from subcategorias where cliente_id = :c"), {"c": criado["id"]}
-        )
-    ).scalar_one()
-    categoria = (
-        await conexao_de_teste.execute(
-            text("select categoria_id from subcategorias where id = :s"), {"s": str(subcategoria)}
-        )
-    ).scalar_one()
+    espelho = await _espelho_do_cliente(conexao_de_teste, criado["id"])
+    subcategoria, categoria = espelho["id"], espelho["categoria_id"]
 
     await conexao_de_teste.execute(
         text("""
@@ -213,16 +256,7 @@ async def test_cliente_com_movimentacao_so_aparece_no_mundo_em_que_movimentou(co
 
 
 async def _cria_receita_vencida(conexao, usuario, cliente_id, *, dias, automatico=False):
-    subcategoria = (
-        (
-            await conexao.execute(
-                text("select id, categoria_id from subcategorias where cliente_id = :c"),
-                {"c": str(cliente_id)},
-            )
-        )
-        .mappings()
-        .one()
-    )
+    subcategoria = await _espelho_do_cliente(conexao, cliente_id)
     await conexao.execute(
         text("""
             insert into lancamentos (
@@ -287,12 +321,19 @@ async def test_renomear_o_cliente_renomeia_a_subcategoria(conexao_de_teste):
     await rotas_clientes.editar(
         UUID(criado["id"]), _cliente("Nome Novo"), usuario, conexao_de_teste
     )
-    nome = (
-        await conexao_de_teste.execute(
-            text("select nome from subcategorias where cliente_id = :c"), {"c": criado["id"]}
+    # Os **dois** espelhos (`RF-58`): o de receita e o de custo. Renomear um só faria
+    # o Dashboard mostrar dois nomes para o mesmo cliente.
+    nomes = (
+        (
+            await conexao_de_teste.execute(
+                text("select nome from subcategorias where cliente_id = :c"), {"c": criado["id"]}
+            )
         )
-    ).scalar_one()
-    assert nome == "Nome Novo", "O Dashboard continuaria mostrando o nome antigo."
+        .scalars()
+        .all()
+    )
+    assert len(nomes) == 2
+    assert set(nomes) == {"Nome Novo"}, "O Dashboard continuaria mostrando o nome antigo."
 
 
 async def test_arquivar_cliente_desliga_a_cobranca_e_diz_quantas_saiu(conexao_de_teste):
@@ -313,13 +354,18 @@ async def test_arquivar_cliente_desliga_a_cobranca_e_diz_quantas_saiu(conexao_de
     ).scalar_one()
     assert ativa is False
 
-    arquivada = (
-        await conexao_de_teste.execute(
-            text("select arquivada_em from subcategorias where cliente_id = :c"),
-            {"c": criado["id"]},
+    arquivadas = (
+        (
+            await conexao_de_teste.execute(
+                text("select arquivada_em from subcategorias where cliente_id = :c"),
+                {"c": criado["id"]},
+            )
         )
-    ).scalar_one()
-    assert arquivada is not None
+        .scalars()
+        .all()
+    )
+    assert len(arquivadas) == 2
+    assert all(data is not None for data in arquivadas)
 
 
 async def test_arquivar_preserva_o_que_ja_foi_recebido(conexao_de_teste):

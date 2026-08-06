@@ -103,7 +103,10 @@ export function FormCategoria({
                 opcoes={[
                   { valor: "despesa", rotulo: "Despesa", cor: "var(--despesa-fg)" },
                   { valor: "receita", rotulo: "Receita", cor: "var(--receita-fg)" },
-                  { valor: "ambas", rotulo: "Receita e despesa" },
+                  // Categoria especial precisa de um lado (`RF-58`): é o `tipo` que
+                  // separa "Clientes" de "Custos Operacionais" dentro do mesmo
+                  // vínculo. Oferecer "ambas" aqui só levaria a um `400` no salvar.
+                  ...(especial ? [] : [{ valor: "ambas", rotulo: "Receita e despesa" }]),
                 ]}
               />
             </div>
@@ -139,7 +142,15 @@ export function FormCategoria({
                 Dashboard ganha o bloco correspondente.
               </span>
             </span>
-            <Switch checked={especial} onCheckedChange={setEspecial} />
+            <Switch
+              checked={especial}
+              onCheckedChange={(marcado) => {
+                setEspecial(marcado);
+                // "Ambas" não é um lado, e categoria especial precisa de um
+                // (`RF-58`). Trocar aqui evita o `400` no salvar.
+                if (marcado && tipo === "ambas") setTipo("despesa");
+              }}
+            />
           </label>
 
           {especial ? (
@@ -156,7 +167,10 @@ export function FormCategoria({
                 ]}
               />
               <p className="text-[12px] text-sutil">
-                Um vínculo, uma categoria. Se outra já ocupa este, o sistema recusa e diz qual é.
+                Cabe uma categoria de <strong>receita</strong> e uma de <strong>despesa</strong>{" "}
+                por vínculo — é assim que Clientes e Custos Operacionais convivem. Se outra já
+                ocupa este lado, o sistema recusa e diz qual é. Ao salvar, o espelho de cada
+                cadastro existente é criado aqui.
               </p>
             </div>
           ) : null}

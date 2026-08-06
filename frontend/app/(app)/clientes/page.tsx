@@ -193,6 +193,24 @@ export default function PaginaClientes() {
                     <span className="text-[11px] text-sutil">
                       {dinheiro(c.total_recebido_historico)} no total
                     </span>
+                    {/* O custo só aparece quando existe (`RF-58`): numa base sem custo
+                        lançado, uma coluna de zeros ocuparia a linha sem informar nada. */}
+                    {Number(c.total_custo_periodo) > 0 ? (
+                      <span className="text-[11px] text-sutil">
+                        − {dinheiro(c.total_custo_periodo)} de custo ·{" "}
+                        <span
+                          className="numerico font-semibold"
+                          style={{
+                            color:
+                              Number(c.margem_periodo) < 0
+                                ? "var(--despesa-fg)"
+                                : "var(--receita-fg)",
+                          }}
+                        >
+                          {dinheiro(c.margem_periodo)}
+                        </span>
+                      </span>
+                    ) : null}
                   </span>
 
                   {c.sem_movimentacao ? (

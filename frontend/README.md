@@ -368,6 +368,31 @@ primeiro carregamento.
 componentes que o bundle sabe desenhar — nome em tabela não vira SVG sem `import`. A escolha
 continua sendo dado, em `categorias.icone`, editável pela tela sem deploy.
 
+## Custo operacional por cliente (`RF-58`, 2026-08-05)
+
+Pedido do dono do projeto: **"Custos Operacionais" passa a ter os clientes como
+subcategoria**, para dar custo por cliente e abrir espaço para margem.
+
+Nada disso virou caso especial no frontend. A categoria é `especial` com
+`vinculo = cliente` e `tipo = despesa` — o par `(vinculo, tipo)` é que identifica cada
+bloco, e o servidor entrega tudo resolvido (`FR-079`).
+
+| Onde | O quê |
+|---|---|
+| `dashboard/blocos.tsx` | **`BlocoCustosCliente`** — custo do período com comparativo (`inverso`: custo que sobe é notícia ruim), margem total, e a lista por cliente do maior custo abaixo, com o percentual de margem à direita |
+| `dashboard/TelaDashboard.tsx` | Mais um `case` na resolução por id: `bloco_custos_cliente`. A entrada no catálogo veio na migração `015` — sem ela a grade ignoraria o id em silêncio, como fez com `receita_servico` até a `013` |
+| `app/(app)/clientes/[id]/page.tsx` | Cartões Recebido · **Custo** · **Margem** (com o percentual em texto), quebra por mundo com os dois lados, custo sobreposto ao gráfico mensal e sinal do lançamento vindo do `tipo` |
+| `lib/tipos.ts` | `Cliente.total_custo_*`/`margem_*`, `ClientePerfil.custos`, `card_custos_cliente` |
+
+**Dois detalhes que a tela precisa mostrar diferente**, e por isso vêm distinguidos do
+servidor:
+
+1. **Margem percentual nula ≠ 0%.** Cliente com custo e sem receita no período não tem
+   margem de 0% — tem margem incalculável. O card escreve "Sem receita no período" e a
+   lista mostra "—", nunca "0,0%".
+2. **O sinal do lançamento vem do `tipo`.** A lista do perfil passou a misturar o que o
+   cliente pagou com o que ele custou; o "+" fixo de antes leria a despesa como entrada.
+
 ## Divergências e pendências conhecidas
 
 | # | O quê | Situação |

@@ -268,12 +268,34 @@ O cálculo usa despesas recorrentes + programadas dos próximos 30 dias vs. sald
 - Ganha card especial no Dashboard (`RF-45`) e página de perfil por funcionário.
 **RF-57 — Extensível.** 🟠 Arquitetura permite promover qualquer categoria a "especial" no futuro (ex.: "Assinaturas" com card de custo recorrente mensal). Comportamento especial = configuração, não código novo.
 
+**RF-58 — Categoria especial "Custos Operacionais" (custo por cliente).** 🟠 *Acrescentado
+em 2026-08-05. É o primeiro uso real de `RF-57`, e muda o limite escrito em §17.3.*
+
+Categoria de **despesa** com o mesmo vínculo de `RF-55`: **subcategoria = cliente**. Todo
+lançamento nela nomeia de qual cliente é aquele custo — servidor, licença, hora de
+terceiro, deslocamento.
+
+- **O cliente passa a ter dois lados.** "Clientes" é o que ele paga (receita); "Custos
+  Operacionais" é o que ele custa (despesa). O cadastro de cliente cria a subcategoria
+  espelho **nas duas** na mesma transação (D-07); renomear e arquivar valem para as duas.
+- **Margem por cliente = recebido − custo.** Aparece no perfil do cliente (período e
+  histórico, com percentual), na lista de clientes e no card novo do Dashboard.
+- **Card "Custos por cliente"** no Dashboard, ao lado do card Clientes: custo do período
+  com comparativo, margem total e a lista por cliente ordenada pelo maior custo.
+- **Custo sem cliente não cabe aqui.** Por `RN-01`, categoria especial exige subcategoria —
+  então despesa que não é de um cliente específico continua em Infraestrutura,
+  Ferramentas/Assinaturas ou Outros, como sempre foi.
+- **Margem percentual é nula, não zero**, quando o cliente teve custo e nenhuma receita no
+  período: não dá para calcular percentual sobre zero, e "0,0%" seria mentira.
+- Nada disso compara nome de categoria (`FR-079`): a resolução é por `vinculo` + `tipo`, e
+  promover outra categoria a especial continua sendo configuração, não deploy.
+
 ---
 
 ## 7. Aba **Clientes** (gestão da categoria especial) 🟠
 
 **RF-60 — Cadastro de cliente.** 🟠 Nome, empresa, contato, tags de serviço contratado (CRM, automação, solar...), tipo de cobrança (pontual, recorrente, parcelado) e valor/dia da recorrência quando houver.
-**RF-61 — Perfil do cliente.** 🟠 Página por cliente: total recebido (histórico e por período), gráfico de receita mensal, lista de lançamentos, próximos recebimentos programados, status (em dia / atrasado).
+**RF-61 — Perfil do cliente.** 🟠 Página por cliente: total recebido (histórico e por período), gráfico de receita mensal, lista de lançamentos, próximos recebimentos programados, status (em dia / atrasado). *Desde `RF-58` (2026-08-05), também o **custo** do cliente e a **margem**: cartões de período e histórico, custo sobreposto ao gráfico mensal e quebra de custo por mundo.*
 **RF-62 — Recorrência vinculada.** 🟠 Cliente recorrente gera automaticamente o lançamento programado da mensalidade (integra `RF-15`).
 **RF-63 — Alerta de inadimplência.** 🟠 Pagamento esperado não efetivado até X dias após o vencimento → cliente marcado `Atrasado` e destacado no Dashboard (`RF-44`, `RF-46a`) e no topo da lista de clientes (ver `RN-10`).
 
@@ -523,17 +545,28 @@ aplicada sozinha.
 depois, torto, no DRE e no card do Dashboard. Recusar e perguntar é mais barato que corrigir
 300 lançamentos classificados errado.
 
-### 17.3. `RF-57` — só pode existir **uma** categoria especial por tipo 🟢
+### 17.3. `RF-57` — uma categoria especial por vínculo **e por lado** 🟢
+
+*Revisado em 2026-08-05 por `RF-58`. O que estava escrito antes era "um vínculo, uma
+categoria"; virou "um vínculo, uma categoria de receita e uma de despesa".*
 
 `RF-57` diz que a arquitetura permite promover qualquer categoria a especial. Verdade, com um
-limite que não estava escrito: **um vínculo, uma categoria**. Não dá para ter duas categorias
-"de cliente" ao mesmo tempo.
+limite: o par **(vínculo, tipo)** é único. Cabem duas categorias "de cliente" — uma de
+receita ("Clientes") e uma de despesa ("Custos Operacionais") —, e não cabe uma terceira do
+mesmo lado.
 
-**Motivo**: quando um cliente é cadastrado, o sistema cria sozinho a subcategoria dele
-(`RF-55`). Com duas categorias de cliente, não há como saber em qual criar.
+**Motivo**: quando um cliente é cadastrado, o sistema cria a subcategoria dele em **todas**
+as categorias do vínculo (`RF-55`, `RF-58`). O que precisa de resposta única é "em qual
+delas nasce a mensalidade?" — e quem responde é o `tipo`. Com duas categorias de cliente de
+receita, a pergunta volta a não ter resposta.
 
-Na prática isso só aparece se alguém tentar promover uma segunda categoria a "Clientes" ou
-"Funcionários" — e aí a tela explica qual categoria já ocupa o lugar e o que fazer.
+Consequência: **categoria especial não pode ter `tipo: ambas`** — sem lado, ela não se
+encaixa em nenhum dos dois pares.
+
+Na prática isso só aparece se alguém tentar promover uma terceira categoria de cliente ou
+funcionário do mesmo lado — e aí a tela explica qual categoria já ocupa o lugar e o que fazer.
+Promover também **preenche sozinho** os espelhos dos cadastros que já existem, para a
+categoria nova não nascer vazia.
 
 ### 17.4. O que foi corrigido sem mudar requisito (auditoria do Boss 2)
 

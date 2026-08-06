@@ -58,15 +58,21 @@ ativo (`FR-074`, cenário 5 da história 2).
 ```
 
 - `especial: true` exige `vinculo`; `especial: false` exige `vinculo: null` → `400 validacao`.
+- **Categoria especial não aceita `tipo: "ambas"`** → `400 validacao` (`RF-58`). É o `tipo`
+  que diz de que lado ela entra, e sem lado ela não se encaixa em par nenhum.
 - **Promover a especial é só isto** (`FR-079`): `PUT` com `especial: true` e `vinculo`. Não
-  há deploy envolvido. Ao promover, as subcategorias existentes que não correspondem a um
+  há deploy envolvido. Ao promover, o **espelho de cada cadastro já existente é criado na
+  mesma transação** e a resposta devolve `espelhos_criados: N` (`RF-58`) — sem isso a
+  categoria nasceria vazia. As subcategorias existentes que não correspondem a um
   cliente/funcionário são apontadas na resposta como pendentes de vínculo.
-- **Um vínculo, uma categoria.** Promover para um `vinculo` que outra categoria ativa já
-  ocupa → `409 regra_violada` / `FR-079`, **nomeando a categoria que ocupa** e dizendo o que
-  fazer (arquivá-la ou mudar o vínculo dela). O limite não é burocracia: o espelho de
-  subcategoria (D-07) precisa saber em qual categoria criar a linha quando um cliente é
-  cadastrado, e com duas a pergunta não tem resposta. Até 2026-07-31 esta tentativa batia no
-  índice do banco e virava `500`.
+- **Um vínculo, uma categoria por lado.** O par `(vinculo, tipo)` é único entre as ativas:
+  cabem "Clientes" (receita) e "Custos Operacionais" (despesa), não cabe uma terceira do
+  mesmo lado. Promover para um par que outra categoria ativa já ocupa → `409 regra_violada`
+  / `FR-079`, **nomeando a categoria que ocupa** e dizendo o que fazer (arquivá-la, mudar o
+  vínculo dela ou escolher o outro tipo). O limite não é burocracia: o espelho de
+  subcategoria (D-07) precisa saber em qual categoria a **mensalidade** do cliente cai, e
+  com duas de receita a pergunta não tem resposta. Até 2026-07-31 esta tentativa batia no
+  índice do banco e virava `500`; até 2026-08-05 o único era `vinculo` sozinho.
 - Categoria não aceita `mundo` no corpo → `400 validacao`.
 
 ### `POST /api/categorias/{id}/arquivar` (`RN-06`, `FR-075`)
@@ -133,10 +139,16 @@ Dashboard mostrarem coisas diferentes.
     "servicos": [{ "id": "…", "nome": "CRM" }],
     "situacao": "atrasado", "dias_atraso": 8, "valor_atrasado": "2000.00",
     "total_recebido_periodo": "4000.00", "total_recebido_historico": "34000.00",
+    "total_custo_periodo": "600.00", "total_custo_historico": "5400.00",
+    "margem_periodo": "3400.00", "margem_historico": "28600.00",
     "cliente_desde": "2025-03-10",
     "arquivado_em": null }],
   "paginacao": {} }
 ```
+
+- `total_custo_*` e `margem_*` entraram com `RF-58`: são os lançamentos de **despesa** nas
+  subcategorias espelho do cliente — a categoria especial de custo do cliente. Saem da mesma
+  varredura dos totais de receita (um `filter` por tipo), sem consulta a mais.
 
 - **Sem campo `mundo`** (research.md D-04). `mundo_cobranca` é o mundo em que a mensalidade
   gera lançamento, não o mundo do cliente.
@@ -214,8 +226,10 @@ março), porque é literalmente a mesma regra: `data_inicio` no passado é tudo 
   reativaria cobranças que ele desligou. A mensagem manda editar o cliente.
 - `tipo_cobranca: "recorrente"` exige `valor_recorrente`, `dia_cobranca` e
   `mundo_cobranca` → `400 validacao`.
-- Criar cliente **cria a subcategoria espelho** na categoria com `vinculo=cliente` (D-07) e,
-  se recorrente, **cria a recorrência da mensalidade** (`FR-082`). Ambas na mesma transação.
+- Criar cliente **cria a subcategoria espelho em cada categoria com `vinculo=cliente`**
+  (D-07, `RF-58`) — a de receita ("Clientes") e a de custo ("Custos Operacionais") — e,
+  se recorrente, **cria a recorrência da mensalidade** (`FR-082`). Tudo na mesma transação.
+  `subcategoria_id` na resposta é o espelho **de receita**, que é o que a mensalidade usa.
 - `efetivar_automaticamente: null` faz a recorrência herdar
   `configuracoes.efetivacao_automatica_padrao_receita_cliente` (research.md D-05). Passar
   `true`/`false` sobrepõe. O frontend mostra o valor efetivo e explica a consequência para o
@@ -227,12 +241,22 @@ março), porque é literalmente a mesma regra: `data_inicio` no passado é tudo 
 { "…dados do cliente…", "cliente_desde": "2025-03-10",
   "total_recebido_historico": "34000.00", "total_recebido_periodo": "4000.00",
   "quebra_por_mundo": { "digital": "34000.00", "infra": "0.00" },
-  "receita_mensal": [{ "mes": "2026-06", "valor": "2000.00" }],
+  "quebra_custo_por_mundo": { "digital": "5400.00", "infra": "0.00" },
+  "custos": { "total_historico": "5400.00", "total_periodo": "600.00",
+              "margem_historico": "28600.00", "margem_periodo": "3400.00",
+              "margem_percentual_periodo": "85.0" },
+  "receita_mensal": [{ "mes": "2026-06", "valor": "2000.00", "custo": "300.00", "margem": "1700.00" }],
   "lancamentos": { "itens": [], "paginacao": {} },
   "proximos_recebimentos": [{ "lancamento_id": "…", "data": "2026-08-10", "valor": "2000.00", "status": "programado" }],
   "situacao": "atrasado", "dias_atraso": 8,
   "recorrencia": { "id": "…", "rotulo": "Mensal, dia 10", "ativa": true, "efetivar_automaticamente": false } }
 ```
+
+`custos`, `quebra_custo_por_mundo` e os campos `custo`/`margem` da série entraram com
+`RF-58`. `valor` continua sendo a **receita** do mês — o nome não mudou de propósito.
+`margem_percentual_periodo` é `null`, não `"0.0"`, quando não houve receita no período:
+custo sem faturamento não é margem zero, é margem que não dá para calcular. `lancamentos`
+passou a trazer receita **e** custo do cliente, e o sinal na tela vem do `tipo` de cada um.
 
 `receita_mensal` cobria 12 meses fixos e passou a acompanhar o tempo de casa (mínimo 12,
 máximo 36, a partir de `cliente_desde`). Com histórico retroativo carregado, os 12 fixos

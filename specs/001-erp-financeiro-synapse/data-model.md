@@ -108,14 +108,23 @@ ativo: rebaixar ou desativar o último gestor é recusado.
 **Regras**:
 - Sem `mundo` — compartilhada pelos dois mundos (`FR-006`).
 - `especial = true` exige `vinculo` preenchido; `especial = false` exige `vinculo` nulo
-  (constraint `CHECK`).
+  (constraint `CHECK categorias_especial_exige_vinculo`).
+- `especial = true` exige `tipo <> 'ambas'` (constraint `CHECK categorias_especial_tem_lado`,
+  migração 015): é o `tipo` que diz de que lado ela entra (`RF-58`).
+- **Único: `(vinculo, tipo)` entre as ativas** (`categorias_vinculo_tipo_uidx`, migração
+  015). Cabe uma categoria de receita e uma de despesa por vínculo — "Clientes" e "Custos
+  Operacionais" para `cliente`, "Funcionários" para `funcionario`. Até 2026-08-05 o único
+  era `vinculo` sozinho, e era isso que impedia o custo por cliente.
 - **Promover a especial é dado, não código** (`FR-079`): basta gravar `especial = true` e
   `vinculo`. O card do Dashboard e a página de perfil são renderizados a partir de
-  `vinculo`, sem `if categoria.nome == 'Clientes'` em nenhum lugar.
+  `vinculo` + `tipo`, sem `if categoria.nome == 'Clientes'` em nenhum lugar. Promover
+  também preenche os espelhos dos cadastros que já existem (§5.14).
 - Arquivar com lançamentos exige destino ou vínculo somente-leitura (`RN-06`, `FR-075`) —
   ver §5.3.
 - Seed: 9 categorias de `FR-076`, com Clientes (`especial`, `vinculo=cliente`,
-  `tipo=receita`) e Funcionários (`especial`, `vinculo=funcionario`, `tipo=despesa`).
+  `tipo=receita`) e Funcionários (`especial`, `vinculo=funcionario`, `tipo=despesa`). A
+  migração 015 acrescenta Custos Operacionais (`especial`, `vinculo=cliente`,
+  `tipo=despesa`).
 
 ### 3.3. `subcategorias`
 
@@ -134,9 +143,12 @@ ativo: rebaixar ou desativar o último gestor é recusado.
 - Exatamente dois níveis — não existe `subcategoria_id` pai (`FR-073`).
 - `CHECK`: no máximo um entre `cliente_id` e `funcionario_id` preenchido, e só quando a
   categoria tem o `vinculo` correspondente.
+- **Único: `(categoria_id, cliente_id)` e `(categoria_id, funcionario_id)`** (migração 015).
+  Um espelho por dono **por categoria** — não mais um por dono: desde `RF-58` o mesmo
+  cliente tem uma linha em "Clientes" e outra em "Custos Operacionais".
 - Nas categorias especiais, as linhas são **espelhadas** de `clientes`/`funcionarios` pelo
-  serviço de domínio (D-07): criar cliente cria a subcategoria; arquivar cliente arquiva a
-  subcategoria; renomear renomeia.
+  serviço de domínio (D-07): criar cliente cria a subcategoria **em cada categoria do
+  vínculo**; arquivar cliente arquiva todas; renomear renomeia todas.
 
 ### 3.4. `clientes`
 

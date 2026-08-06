@@ -57,6 +57,12 @@ constituição exige.
   recorrente aceita um mês de início no passado e gera as mensalidades já efetivadas até
   hoje. **Não tem gerador próprio** — é a recorrência de sempre com `data_inicio` no
   passado. Antes de escrever geração de série, procure a que já existe.
+- **Categoria especial se resolve por `vinculo` + `tipo`, nunca por nome** (`FR-079`). Desde
+  `RF-58` (2026-08-05) o vínculo `cliente` tem **dois lados**: "Clientes" (receita, o que ele
+  paga) e "Custos Operacionais" (despesa, o que ele custa) — daí sai a margem por cliente. O
+  par `(vinculo, tipo)` é único, e o cliente tem **um espelho de subcategoria por
+  categoria do vínculo**, não um só. Consulta que junte `subcategorias` por `cliente_id`
+  esperando uma linha está errada; a que filtra por `l.tipo` continua certa.
 - **Toda `RN-xx` mora em `backend/app/dominio/`**, um módulo por regra. Componente de tela
   nunca fala com o banco, nem contém regra de negócio.
 - **Nada hardcoded** (`RNF-02`, Princípio VII): rótulos de card, cores, limites, prazos e

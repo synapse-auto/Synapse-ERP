@@ -11,6 +11,7 @@ import { ConfigurarCards } from "./ConfigurarCards";
 import {
   AlertaAtrasados,
   BlocoClientes,
+  BlocoCustosCliente,
   BlocoFuncionarios,
   CartaoSaudeCaixa,
   LinhaTempo7Dias,
@@ -200,6 +201,14 @@ export function TelaDashboard() {
       case "bloco_clientes":
         return data!.card_clientes ? (
           <BlocoClientes key={c.id} bloco={data!.card_clientes} rotulo={c.rotulo} />
+        ) : null;
+
+      case "bloco_custos_cliente":
+        // `RF-58`. A entrada no catálogo veio na migração `015` — sem ela a
+        // grade ignoraria este id em silêncio, como fez com `receita_servico`
+        // até a `013`.
+        return data!.card_custos_cliente ? (
+          <BlocoCustosCliente key={c.id} bloco={data!.card_custos_cliente} rotulo={c.rotulo} />
         ) : null;
 
       case "bloco_funcionarios":

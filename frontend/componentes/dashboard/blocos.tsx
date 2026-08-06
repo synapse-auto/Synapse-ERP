@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Cartao, RotuloCartao } from "@/componentes/comum/Cartao";
 import { Delta } from "@/componentes/comum/Delta";
@@ -15,10 +16,12 @@ import type { Dashboard } from "@/lib/tipos";
  * linguagem natural, Clientes, Funcionários, maiores despesas, receita por
  * serviço e a linha do tempo de 7 dias.
  *
- * Clientes e Funcionários existem porque `categorias.vinculo` diz que
- * existem — não porque alguém escreveu `if nome == 'Clientes'` (`FR-079`).
- * A resposta traz `card_clientes` / `card_funcionarios` já resolvidos; se o
- * vínculo não existir, o campo vem nulo e o bloco simplesmente não aparece.
+ * Clientes, Custos por cliente e Funcionários existem porque
+ * `categorias.vinculo` + `categorias.tipo` dizem que existem — não porque
+ * alguém escreveu `if nome == 'Clientes'` (`FR-079`). A resposta traz
+ * `card_clientes` / `card_custos_cliente` / `card_funcionarios` já
+ * resolvidos; se o vínculo não existir, o campo vem nulo e o bloco
+ * simplesmente não aparece.
  */
 
 /* ------------------------------------------------------------------ */
@@ -233,6 +236,120 @@ export function BlocoClientes({
           ))}
         </ul>
       )}
+    </Cartao>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+/**
+ * Custos por cliente (`RF-58`).
+ *
+ * O outro lado de `BlocoClientes`: mesma mecânica de categoria especial, do
+ * lado da despesa. O servidor já mandou custo, receita e margem de cada
+ * cliente — aqui não se soma nem se calcula percentual, só se pinta.
+ */
+export function BlocoCustosCliente({
+  bloco,
+  rotulo,
+}: {
+  bloco: NonNullable<Dashboard["card_custos_cliente"]>;
+  rotulo: string;
+}) {
+  const margemNegativa = Number(bloco.margem_total) < 0;
+
+  return (
+    <Cartao className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-[8px] bg-[var(--st-atrasado-bg)] text-[var(--st-atrasado-fg)]">
+            <Receipt size={16} />
+          </span>
+          <div className="flex flex-col">
+            <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
+              {rotulo}
+            </span>
+            <span className="rotulo-seccao text-[10px]">Categoria especial</span>
+          </div>
+        </div>
+        <Link
+          href="/clientes"
+          className="flex items-center gap-1 rounded-[6px] px-1.5 py-1 font-[family-name:var(--font-display)] text-[12px] font-semibold text-[var(--brand-hover)] no-underline transition-colors duration-[var(--dur-fast)] hover:bg-[var(--brand-tint)] hover:text-[var(--brand-press)]"
+        >
+          Ver clientes <IconeSetaDireita tamanho={13} />
+        </Link>
+      </div>
+
+      <div className="flex items-end justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="text-[12px] text-sutil">Custo no período</span>
+          <span className="flex items-center gap-2">
+            <span className="numerico font-[family-name:var(--font-display)] text-[24px] font-extrabold tracking-[-0.03em] text-forte">
+              {dinheiro(bloco.custo_total)}
+            </span>
+            {/* Custo que sobe é notícia ruim — daí o `inverso`. */}
+            <Delta comparativo={bloco.comparativo} inverso />
+          </span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="text-[12px] text-sutil">Margem no período</span>
+          <span
+            className="numerico font-[family-name:var(--font-display)] text-[20px] font-extrabold"
+            style={{ color: margemNegativa ? "var(--despesa-fg)" : "var(--receita-fg)" }}
+          >
+            {dinheiro(bloco.margem_total)}
+          </span>
+        </div>
+      </div>
+
+      {bloco.por_cliente.length === 0 ? (
+        <EstadoVazio
+          titulo="Nenhum custo lançado no período"
+          descricao="Lançamentos de despesa na categoria de custo do cliente aparecem aqui, um por cliente."
+          compacto
+        />
+      ) : (
+        <ul className="flex flex-col">
+          {bloco.por_cliente.map((c) => {
+            const negativa = Number(c.margem) < 0;
+            return (
+              <li key={c.cliente_id}>
+                <Link
+                  href={`/clientes/${c.cliente_id}`}
+                  className="-mx-2 flex items-center gap-2.5 rounded-[6px] border-b border-linha-suave px-2 py-2 no-underline transition-colors duration-[var(--dur-fast)] last:border-b-0 hover:bg-[var(--bg-subtle)]"
+                >
+                  <span className="flex size-6 flex-none items-center justify-center rounded-[6px] bg-[var(--st-atrasado-bg)] font-[family-name:var(--font-display)] text-[10px] font-extrabold text-[var(--st-atrasado-fg)]">
+                    {iniciais(c.nome)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--fg)]">
+                    {c.nome}
+                  </span>
+                  <span className="numerico text-[13px] font-semibold text-[var(--despesa-fg)]">
+                    − {dinheiro(c.custo)}
+                  </span>
+                  {/* `margem_percentual` vem nulo quando o cliente não faturou no
+                      período: sem receita não há percentual, e "0,0%" seria mentira. */}
+                  <span
+                    className="numerico w-[62px] text-right text-[12px]"
+                    style={{
+                      color: negativa ? "var(--despesa-fg)" : "var(--receita-fg)",
+                    }}
+                    title={`Margem: ${dinheiro(c.margem)} sobre ${dinheiro(c.receita)} de receita`}
+                  >
+                    {percentual(c.margem_percentual, { vazio: "—" })}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className="text-[11px] text-sutil">
+        {bloco.clientes_com_custo}{" "}
+        {bloco.clientes_com_custo === 1 ? "cliente com custo" : "clientes com custo"} ·{" "}
+        {percentual(bloco.percentual_sobre_despesas)} da despesa total do período
+      </p>
     </Cartao>
   );
 }

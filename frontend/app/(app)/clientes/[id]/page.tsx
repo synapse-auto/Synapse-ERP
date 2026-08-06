@@ -18,8 +18,8 @@ import { PainelDetalhe } from "@/componentes/lancamentos/PainelDetalhe";
 import { CaixaDeDica, COR } from "@/componentes/graficos/base";
 import { api, mensagemDoErro } from "@/lib/api";
 import { useCliente, useInvalidarFinanceiro, useSessao } from "@/lib/consultas";
-import { dinheiro, iniciais, mesAno, mesCurto, tempoDeCasa } from "@/lib/formato";
-import type { MundoFiltro } from "@/lib/tipos";
+import { dinheiro, iniciais, mesAno, mesCurto, percentual, tempoDeCasa } from "@/lib/formato";
+import type { Mundo, MundoFiltro } from "@/lib/tipos";
 
 /**
  * Perfil do cliente (T187, `FR-081`).
@@ -69,6 +69,7 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
   }
 
   const podeEditar = sessao?.permissoes.cadastros ?? false;
+  const margemNegativa = Number(c.custos.margem_periodo) < 0;
 
   return (
     <div className="mx-auto flex max-w-[var(--conteudo-largura-max)] animate-entrada flex-col gap-4 px-4 pt-5 sm:px-[30px] sm:pt-[26px] pb-11">
@@ -117,32 +118,42 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
         }
       />
 
+      {/* Receita, custo e margem do período lado a lado (`FR-081`, `RF-58`). O custo
+          é a soma dos lançamentos de despesa na categoria especial de custo do
+          cliente — a mesma subcategoria espelho de sempre, do outro lado do sinal. */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Cartao className="flex flex-col gap-1.5">
           <RotuloCartao>Recebido no período</RotuloCartao>
           <span className="numerico font-[family-name:var(--font-display)] text-[24px] font-extrabold tracking-[-0.03em] text-[var(--receita-fg)]">
             {dinheiro(c.total_recebido_periodo)}
           </span>
-        </Cartao>
-        <Cartao className="flex flex-col gap-1.5">
-          <RotuloCartao>Recebido no total</RotuloCartao>
-          <span className="numerico font-[family-name:var(--font-display)] text-[24px] font-extrabold tracking-[-0.03em] text-forte">
-            {dinheiro(c.total_recebido_historico)}
+          <span className="text-[12px] text-sutil">
+            {dinheiro(c.total_recebido_historico)} no total
           </span>
         </Cartao>
-        <Cartao className="flex flex-col gap-2">
-          <RotuloCartao>Por mundo</RotuloCartao>
-          {Object.entries(c.quebra_por_mundo).map(([m, v]) => (
-            <span key={m} className="flex items-center gap-2 text-[13px]">
-              <span
-                aria-hidden
-                className="size-[7px] rounded-[2.5px]"
-                style={{ background: `var(--mundo-${m})` }}
-              />
-              <span className="flex-1 text-suave">{ROTULO_MUNDO[m as MundoFiltro]}</span>
-              <span className="numerico font-semibold text-forte">{dinheiro(v)}</span>
-            </span>
-          ))}
+        <Cartao className="flex flex-col gap-1.5">
+          <RotuloCartao>Custo no período</RotuloCartao>
+          <span className="numerico font-[family-name:var(--font-display)] text-[24px] font-extrabold tracking-[-0.03em] text-[var(--despesa-fg)]">
+            {dinheiro(c.custos.total_periodo)}
+          </span>
+          <span className="text-[12px] text-sutil">
+            {dinheiro(c.custos.total_historico)} no total
+          </span>
+        </Cartao>
+        <Cartao className="flex flex-col gap-1.5">
+          <RotuloCartao>Margem no período</RotuloCartao>
+          <span
+            className="numerico font-[family-name:var(--font-display)] text-[24px] font-extrabold tracking-[-0.03em]"
+            style={{ color: margemNegativa ? "var(--despesa-fg)" : "var(--receita-fg)" }}
+          >
+            {dinheiro(c.custos.margem_periodo)}
+          </span>
+          {/* Nulo quando não houve receita no período — "0,0%" seria mentira. */}
+          <span className="text-[12px] text-sutil">
+            {c.custos.margem_percentual_periodo === null
+              ? "Sem receita no período"
+              : `${percentual(c.custos.margem_percentual_periodo)} do que ele pagou`}
+          </span>
         </Cartao>
         <Cartao className="flex flex-col items-start gap-2">
           <RotuloCartao>Situação</RotuloCartao>
@@ -159,6 +170,28 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
         </Cartao>
       </div>
 
+      <Cartao className="flex flex-col gap-2">
+        <RotuloCartao>Por mundo · histórico</RotuloCartao>
+        <div className="grid gap-x-8 gap-y-1.5 sm:grid-cols-2">
+          {Object.entries(c.quebra_por_mundo).map(([m, v]) => (
+            <span key={m} className="flex items-center gap-2 text-[13px]">
+              <span
+                aria-hidden
+                className="size-[7px] rounded-[2.5px]"
+                style={{ background: `var(--mundo-${m})` }}
+              />
+              <span className="flex-1 text-suave">{ROTULO_MUNDO[m as MundoFiltro]}</span>
+              <span className="numerico font-semibold text-[var(--receita-fg)]">
+                {dinheiro(v)}
+              </span>
+              <span className="numerico w-[110px] text-right font-semibold text-[var(--despesa-fg)]">
+                − {dinheiro(c.quebra_custo_por_mundo[m as Mundo] ?? "0")}
+              </span>
+            </span>
+          ))}
+        </div>
+      </Cartao>
+
       {c.recorrencia?.aviso_inadimplencia ? (
         <p
           className="rounded-[10px] px-4 py-3 text-[13px]"
@@ -171,20 +204,29 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <Cartao className="flex flex-col gap-2">
           <span className="font-[family-name:var(--font-display)] text-[15px] font-bold text-forte">
-            Receita mês a mês
+            Receita e custo mês a mês
           </span>
           {c.receita_mensal.length === 0 ? (
             <EstadoVazio titulo="Sem histórico ainda" compacto />
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart
-                data={c.receita_mensal.map((p) => ({ mes: p.mes, v: Number(p.valor) }))}
+                data={c.receita_mensal.map((p) => ({
+                  mes: p.mes,
+                  v: Number(p.valor),
+                  custo: Number(p.custo),
+                  margem: Number(p.margem),
+                }))}
                 margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
               >
                 <defs>
                   <linearGradient id="areaCliente" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={COR.receita} stopOpacity={0.24} />
                     <stop offset="100%" stopColor={COR.receita} stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="areaCustoCliente" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COR.despesa} stopOpacity={0.2} />
+                    <stop offset="100%" stopColor={COR.despesa} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
@@ -202,8 +244,18 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
                         linhas={[
                           {
                             rotulo: "Recebido",
-                            valor: dinheiro(Number(payload[0].value)),
+                            valor: dinheiro(Number(payload[0].payload.v)),
                             cor: COR.receita,
+                          },
+                          {
+                            rotulo: "Custo",
+                            valor: dinheiro(Number(payload[0].payload.custo)),
+                            cor: COR.despesa,
+                          },
+                          {
+                            rotulo: "Margem",
+                            valor: dinheiro(Number(payload[0].payload.margem)),
+                            cor: COR.marca,
                           },
                         ]}
                       />
@@ -216,6 +268,15 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
                   stroke={COR.receita}
                   strokeWidth={1.8}
                   fill="url(#areaCliente)"
+                />
+                {/* `RF-58`. Custo desenhado por cima, na mesma escala: onde a área
+                    vermelha alcança a verde, o cliente parou de dar lucro. */}
+                <Area
+                  type="monotone"
+                  dataKey="custo"
+                  stroke={COR.despesa}
+                  strokeWidth={1.8}
+                  fill="url(#areaCustoCliente)"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -268,14 +329,23 @@ export default function PaginaCliente({ params }: { params: Promise<{ id: string
                   <span className="min-w-0 flex-1 truncate text-[13px]">{l.descricao}</span>
                   <BadgeMundo mundo={l.mundo} />
                   <BadgeStatus status={l.status} compacto />
+                  {/* O sinal vem do `tipo` do lançamento, não do fato de estar no
+                      perfil do cliente: desde `RF-58` esta lista mistura o que ele
+                      pagou com o que ele custou, e um "+" em cima de despesa seria
+                      leitura errada do número. */}
                   <span
                     className="numerico w-[120px] text-right text-[13px] font-semibold"
                     style={{
                       color:
-                        l.status === "efetivado" ? "var(--receita-fg)" : "var(--valor-previsto-fg)",
+                        l.status !== "efetivado"
+                          ? "var(--valor-previsto-fg)"
+                          : l.tipo === "despesa"
+                            ? "var(--despesa-fg)"
+                            : "var(--receita-fg)",
                     }}
                   >
-                    + {dinheiro(l.valor)}
+                    {l.tipo === "despesa" ? "− " : "+ "}
+                    {dinheiro(l.valor)}
                   </span>
                 </button>
               </li>

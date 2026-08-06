@@ -78,6 +78,14 @@ que está visível na configuração do usuário).
     "top_clientes": [{ "cliente_id": "…", "nome": "…", "valor": "4000.00" }],
     "inadimplentes": [{ "cliente_id": "…", "nome": "…", "valor_atrasado": "2000.00", "dias_atraso": 8 }]
   },
+  "card_custos_cliente": {
+    "custo_total": "3200.00", "comparativo": {},
+    "percentual_sobre_despesas": "18.4",
+    "clientes_com_custo": 3, "margem_total": "10800.00",
+    "por_cliente": [{ "cliente_id": "…", "subcategoria_id": "…", "nome": "…",
+                      "custo": "1200.00", "receita": "4000.00",
+                      "margem": "2800.00", "margem_percentual": "70.0" }]
+  },
   "card_funcionarios": {
     "custo_total": "2100.00", "comparativo": {},
     "percentual_sobre_despesas": "22.7",
@@ -108,8 +116,15 @@ que está visível na configuração do usuário).
   projeção era uma reta no último saldo realizado: marcado como projeção e sem projetar
   nada. O mês corrente continua `projetado: false` e só mostra o realizado; o que ainda
   vence neste mês entra a partir do mês seguinte.
-- `card_clientes`/`card_funcionarios` são renderizados a partir de `categorias.vinculo`, não
-  do nome da categoria (`FR-079`).
+- `card_clientes`/`card_custos_cliente`/`card_funcionarios` são renderizados a partir de
+  `categorias.vinculo` **+ `categorias.tipo`**, não do nome da categoria (`FR-079`). O
+  `tipo` entrou com `RF-58`: o vínculo `cliente` tem dois lados — "Clientes" (receita) e
+  "Custos Operacionais" (despesa). Sem ele o mesmo cliente apareceria duas vezes em
+  `card_clientes.top_clientes`, uma delas com o valor do custo.
+- `card_custos_cliente.por_cliente` vem ordenado do maior custo para o menor, com receita e
+  margem do **mesmo período** ao lado — as duas listas saem da mesma consulta de blocos e
+  são cruzadas em memória, não com uma ida a mais ao banco.
+  `margem_percentual` é `null` quando o cliente não teve receita no período.
 - `explicacao` e `resumo_linguagem_natural` são geradas no servidor (`FR-069`, `FR-070`) —
   são texto de negócio, não de interface.
 - Período sem dados devolve valores `"0.00"` e listas vazias com `periodo_vazio: true`,

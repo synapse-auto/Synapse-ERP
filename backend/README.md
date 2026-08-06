@@ -68,7 +68,7 @@ ruff check . ; black --check .
 | `app/comum/` | Erro, paginação, período, idempotência, auditoria |
 | `app/seguranca/` | `auth.py` valida o token; `rbac.py` decide o papel |
 | `app/<dominio>/` | `rotas.py` → `servico.py` → `repositorio.py`, nessa ordem de dependência |
-| `migracoes/` | SQL versionado, `001`…`014` (data-model §7) |
+| `migracoes/` | SQL versionado, `001`…`015a` (data-model §7) |
 | `api/index.py` | Só reexporta o app para a Vercel |
 
 Camada de tela **nunca** fala com o banco, e `repositorio.py` **nunca** contém regra de
@@ -329,6 +329,44 @@ mostrava R$ 900 de resultado em cada mês futuro. `por_mes` passou a acumular du
 - **O drill-down não abria a mesma lista que o card somou.** `GET /api/lancamentos` filtra
   por janela contínua, e "período + vencido" não é contínuo. Os cards que alcançam o vencido
   passaram a mandar a janela alargada até o vencido mais antigo (`atrasados_desde`).
+
+## Custo operacional por cliente (`RF-58`, 2026-08-05)
+
+"Custos Operacionais" virou a **segunda categoria especial do vínculo `cliente`** — a de
+despesa, ao lado de "Clientes", que é a de receita. Lançamento nela nomeia de qual cliente
+é aquele custo, e daí saem margem por cliente e o card novo do Dashboard.
+
+**A parte que exigiu mudar arquitetura** foi um índice: `categorias_vinculo_uidx` era único
+por `vinculo`, e era ele que dizia "um vínculo, uma categoria". Virou
+`categorias_vinculo_tipo_uidx`, único por `(vinculo, tipo)` — **um lado de receita e um de
+despesa por vínculo**. A pergunta que precisava continuar tendo resposta única é "em qual
+categoria nasce a mensalidade do cliente?", e quem responde agora é o `tipo`.
+
+Duas consequências que valem estar escritas:
+
+- **`especial` não pode ter `tipo = 'ambas'`** (`CHECK categorias_especial_tem_lado`). Sem
+  lado, a categoria não entra em nenhum dos dois pares.
+- **Um espelho por (categoria, dono)**, não mais um por dono. `espelho_subcategoria.cria`
+  conferia unicidade com `scalar_one_or_none` e teria estourado com dois; agora insere em
+  todas as categorias do vínculo numa ida ao banco (`insert … select from` as categorias +
+  `on conflict do nothing`) e devolve o espelho do lado pedido.
+
+**Promover categoria a especial passou a preencher os espelhos** dos cadastros que já
+existem (`sincroniza_categoria`), e a resposta do `PUT` devolve `espelhos_criados`. Sem
+isso, `FR-079` prometia promoção sem deploy e entregava uma categoria vazia.
+
+**Nada de consulta nova nas telas que já consultavam** (a regra do topo deste arquivo):
+
+- os quatro totais do cliente (receita e custo, período e histórico) saem da **mesma**
+  junção lateral, com `filter` no lugar do `where`;
+- receita e custo do período do perfil saem de **um** `select` com dois `filter`;
+- a série mensal ganhou a coluna de custo no mesmo `generate_series`;
+- o Dashboard ganhou `c.tipo` no agrupamento que já existia, e a margem por cliente é
+  cruzamento em memória de duas listas que já vinham juntas.
+
+Sem o `tipo` no agrupamento, o mesmo cliente apareceria **duas vezes** no card de
+faturamento, uma delas com o valor do custo — e o número continuaria parecendo plausível. É
+o que `tests/integracao/test_custos_por_cliente.py` trava.
 
 ## Variáveis de ambiente
 

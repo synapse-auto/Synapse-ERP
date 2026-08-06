@@ -450,11 +450,16 @@ async def blocos(
     ate: date,
     limite_folha: int = 10,
 ) -> dict[str, Any]:
-    """Clientes, funcionários, folha, inadimplência e os próximos 7 dias, numa consulta.
+    """Clientes, custos por cliente, funcionários, folha, inadimplência e os próximos 7
+    dias, numa consulta.
 
-    **Resolvido por `categorias.vinculo`, nunca por nome** (`FR-079`). Um
-    `where c.nome = 'Clientes'` funcionaria hoje e quebraria no dia em que alguém
-    renomeasse a categoria pela tela — e renomear é permitido.
+    **Resolvido por `categorias.vinculo` e `categorias.tipo`, nunca por nome**
+    (`FR-079`). Um `where c.nome = 'Clientes'` funcionaria hoje e quebraria no dia em que
+    alguém renomeasse a categoria pela tela — e renomear é permitido.
+
+    Desde `RF-58` o vínculo sozinho não basta: `cliente` tem uma categoria de receita
+    ("Clientes") e uma de despesa ("Custos Operacionais"). O par `(vinculo, tipo)` é que
+    identifica o bloco — e é único por índice (migração 015).
 
     `em_aberto_por_cliente` devolve os lançamentos crus agrupados por cliente em vez de
     uma situação já decidida: quem decide se o cliente está atrasado é
@@ -480,6 +485,11 @@ async def blocos(
                 -- no período e no anterior, na mesma régua.
                 por_vinculo as (
                   select c.vinculo::text as vinculo,
+                         -- `tipo` entrou com `RF-58`: o vínculo `cliente` passou a ter
+                         -- duas categorias — "Clientes" (receita) e "Custos
+                         -- Operacionais" (despesa). Sem ele o mesmo cliente apareceria
+                         -- duas vezes no card de faturamento, uma delas com o custo.
+                         c.tipo::text as tipo,
                          case when b.data between :inicio and :fim
                               then 'atual' else 'anterior' end as janela,
                          s.id::text as subcategoria_id, s.nome,
@@ -493,7 +503,8 @@ async def blocos(
                     and b.status = 'efetivado' and b.conta
                     and (b.data between :inicio and :fim
                          or b.data between :inicio_anterior and :fim_anterior)
-                  group by c.vinculo, janela, s.id, s.nome, s.cliente_id, s.funcionario_id
+                  group by c.vinculo, c.tipo, janela, s.id, s.nome,
+                           s.cliente_id, s.funcionario_id
                 ),
                 folha as (
                   select b.id::text as lancamento_id, s.nome, b.data::text as data,
@@ -501,7 +512,7 @@ async def blocos(
                   from base b
                   join categorias c on c.id = b.categoria_id
                   join subcategorias s on s.id = b.subcategoria_id
-                  where c.vinculo = 'funcionario'
+                  where c.vinculo = 'funcionario' and c.tipo = 'despesa'
                     and b.data >= :hoje
                     and b.status in {_EM_ABERTO_STATUS} and b.conta
                   order by b.data
@@ -561,18 +572,22 @@ async def blocos(
         )
     ).scalar_one()
 
-    def _vinculo(nome: str, janela: str) -> list[dict[str, Any]]:
+    def _vinculo(nome: str, janela: str, tipo: str) -> list[dict[str, Any]]:
+        """Um lado de um vínculo numa janela. `tipo` é o que separa faturar de custar."""
         return [
             item
             for item in dados["por_vinculo"]
-            if item["vinculo"] == nome and item["janela"] == janela
+            if item["vinculo"] == nome and item["janela"] == janela and item["tipo"] == tipo
         ]
 
     return {
-        "clientes": _vinculo("cliente", "atual"),
-        "clientes_anterior": _vinculo("cliente", "anterior"),
-        "funcionarios": _vinculo("funcionario", "atual"),
-        "funcionarios_anterior": _vinculo("funcionario", "anterior"),
+        "clientes": _vinculo("cliente", "atual", "receita"),
+        "clientes_anterior": _vinculo("cliente", "anterior", "receita"),
+        # `RF-58` — o mesmo cliente, do lado da despesa.
+        "custos_cliente": _vinculo("cliente", "atual", "despesa"),
+        "custos_cliente_anterior": _vinculo("cliente", "anterior", "despesa"),
+        "funcionarios": _vinculo("funcionario", "atual", "despesa"),
+        "funcionarios_anterior": _vinculo("funcionario", "anterior", "despesa"),
         "proximos_da_folha": dados["folha"],
         "em_aberto_por_cliente": dados["inadimplencia"],
         "proximos_dias": dados["proximos"],

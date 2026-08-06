@@ -154,6 +154,16 @@ export interface Cliente {
   tolerancia_dias?: number | null;
   total_recebido_periodo: string;
   total_recebido_historico: string;
+  /**
+   * O outro lado do cliente (`RF-58`): o que ele **custa**. São os lançamentos de
+   * despesa na categoria especial de custo do cliente ("Custos Operacionais"), onde
+   * cada cliente é uma subcategoria — o mesmo espelho de sempre (D-07), do lado da
+   * despesa. `margem = recebido − custo`.
+   */
+  total_custo_periodo: string;
+  total_custo_historico: string;
+  margem_periodo: string;
+  margem_historico: string;
   /** Cliente sem lançamento nenhum aparece nos três estados do seletor (D-04). */
   sem_movimentacao?: boolean;
   /**
@@ -186,7 +196,22 @@ export interface RecorrenciaResumo {
 
 export interface ClientePerfil extends Cliente {
   quebra_por_mundo: QuebraPorMundo;
-  receita_mensal: { mes: string; valor: string }[];
+  /** `RF-58` — o custo do cliente por mundo, na mesma régua do faturamento. */
+  quebra_custo_por_mundo: QuebraPorMundo;
+  /**
+   * `RF-58`. `margem_percentual_periodo` é `null`, não `"0.0"`, quando não houve
+   * receita no período: custo sem faturamento não é margem zero, é margem que não dá
+   * para calcular.
+   */
+  custos: {
+    total_historico: string;
+    total_periodo: string;
+    margem_historico: string;
+    margem_periodo: string;
+    margem_percentual_periodo: string | null;
+  };
+  /** `valor` é a receita do mês; `custo` e `margem` entraram com `RF-58`. */
+  receita_mensal: { mes: string; valor: string; custo: string; margem: string }[];
   lancamentos: PaginaDe<Lancamento>;
   proximos_recebimentos: {
     lancamento_id: string;
@@ -576,6 +601,28 @@ export interface Dashboard {
       nome: string;
       valor_atrasado: string;
       dias_atraso: number;
+    }[];
+  } | null;
+  /**
+   * `RF-58` — quanto cada cliente custou no período e o que sobrou dele. Resolvido
+   * por `categorias.vinculo` + `categorias.tipo` no servidor, como os outros blocos
+   * especiais (`FR-079`): nenhum nome de categoria é comparado aqui.
+   */
+  card_custos_cliente: {
+    custo_total: string;
+    comparativo: Comparativo;
+    percentual_sobre_despesas: string | null;
+    clientes_com_custo: number;
+    margem_total: string;
+    por_cliente: {
+      cliente_id: string;
+      subcategoria_id: string;
+      nome: string;
+      custo: string;
+      receita: string;
+      margem: string;
+      /** `null` quando o cliente não teve receita no período. */
+      margem_percentual: string | null;
     }[];
   } | null;
   card_funcionarios: {

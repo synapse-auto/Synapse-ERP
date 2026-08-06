@@ -25,11 +25,16 @@ fazer — comparativo, percentual e soma.
 (`FR-106`, Princípio VII). O frontend monta a grade a partir da lista que chega, sem um
 único texto de card escrito em TypeScript.
 
-**Os blocos de Clientes e Funcionários são resolvidos por `categorias.vinculo`**, nunca
-por comparação de nome (`FR-079`). Renomear a categoria "Clientes" pela tela é permitido,
-e um `if nome == 'Clientes'` quebraria em silêncio no dia em que alguém renomeasse.
+**Os blocos de Clientes, Custos por cliente e Funcionários são resolvidos por
+`categorias.vinculo` + `categorias.tipo`**, nunca por comparação de nome (`FR-079`).
+Renomear a categoria "Clientes" pela tela é permitido, e um `if nome == 'Clientes'`
+quebraria em silêncio no dia em que alguém renomeasse.
 
-Tarefas: T090, T091, T092, T093, T094
+O `tipo` entrou com `RF-58`: o vínculo `cliente` tem dois lados — o que ele paga
+("Clientes", receita) e o que ele custa ("Custos Operacionais", despesa). É a subtração
+dos dois que dá a margem por cliente.
+
+Tarefas: T090, T091, T092, T093, T094, `RF-58`
 """
 
 from datetime import date, timedelta
@@ -111,6 +116,44 @@ def _comparativo(atual: Decimal, anterior: Decimal) -> dict[str, Any]:
         "variacao_percentual": f"{variacao:.1f}",
         "direcao": "alta" if variacao > 0 else ("baixa" if variacao < 0 else "estavel"),
     }
+
+
+def _custo_por_cliente(
+    custos: list[dict[str, Any]], receitas: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """`RF-58`: custo, receita e margem de cada cliente no período, do maior custo abaixo.
+
+    As duas listas vêm da **mesma** consulta de blocos — são os dois lados do vínculo
+    `cliente` (receita em "Clientes", despesa em "Custos Operacionais"). Cruzá-las aqui
+    custa um `dict`; cruzá-las no banco custaria uma ida a mais, que é o caro neste
+    projeto (`backend/README.md`).
+
+    `margem_percentual` é `null`, não `"0.0"`, quando o cliente não teve receita no
+    período: custo sem faturamento não é margem de 0% — é margem que não dá para
+    calcular. Mesma escolha de `_percentual`.
+    """
+    receita_de = {item["cliente_id"]: _d(item["valor"]) for item in receitas if item["cliente_id"]}
+
+    linhas = []
+    for item in custos:
+        if not item["cliente_id"]:
+            continue
+        custo = _d(item["valor"])
+        receita = receita_de.get(item["cliente_id"], Decimal("0"))
+        linhas.append(
+            {
+                "cliente_id": item["cliente_id"],
+                "subcategoria_id": item["subcategoria_id"],
+                "nome": item["nome"],
+                "custo": _dinheiro(custo),
+                "receita": _dinheiro(receita),
+                "margem": _dinheiro(receita - custo),
+                "margem_percentual": _percentual(receita - custo, receita),
+            }
+        )
+
+    linhas.sort(key=lambda linha: Decimal(linha["custo"]), reverse=True)
+    return linhas
 
 
 def _largura_padrao(definicao: dict) -> str:
@@ -460,10 +503,12 @@ async def obter(
 
     # ── Blocos especiais, por `categorias.vinculo` (`FR-065`, `FR-066`) ────
     clientes = blocos["clientes"]
+    custos_cliente = blocos["custos_cliente"]
     funcionarios = blocos["funcionarios"]
     proximos_da_folha = blocos["proximos_da_folha"]
 
     total_clientes = sum((_d(item["valor"]) for item in clientes), Decimal("0"))
+    total_custos_cliente = sum((_d(item["valor"]) for item in custos_cliente), Decimal("0"))
     total_funcionarios = sum((_d(item["valor"]) for item in funcionarios), Decimal("0"))
 
     # Comparativo dos blocos especiais (`FR-065`, `FR-066`). Mesma régua de período do
@@ -474,6 +519,9 @@ async def obter(
     )
     total_funcionarios_antes = sum(
         (_d(item["valor"]) for item in blocos["funcionarios_anterior"]), Decimal("0")
+    )
+    total_custos_cliente_antes = sum(
+        (_d(item["valor"]) for item in blocos["custos_cliente_anterior"]), Decimal("0")
     )
 
     # Inadimplentes do card Clientes (`FR-065`, `FR-083`, `SC-006`). A situação é
@@ -616,6 +664,17 @@ async def obter(
                 for item in clientes[:5]
             ],
             "inadimplentes": inadimplentes,
+        },
+        # `RF-58` — quanto cada cliente **custou** no período, e o que sobra dele.
+        # A receita vem do bloco de Clientes, que já está em memória: margem por cliente
+        # é subtração, não consulta nova.
+        "card_custos_cliente": {
+            "custo_total": _dinheiro(total_custos_cliente),
+            "comparativo": _comparativo(total_custos_cliente, total_custos_cliente_antes),
+            "percentual_sobre_despesas": _percentual(total_custos_cliente, despesas),
+            "clientes_com_custo": len(custos_cliente),
+            "margem_total": _dinheiro(total_clientes - total_custos_cliente),
+            "por_cliente": _custo_por_cliente(custos_cliente, clientes),
         },
         "card_funcionarios": {
             "custo_total": _dinheiro(total_funcionarios),

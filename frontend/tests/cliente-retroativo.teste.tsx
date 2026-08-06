@@ -33,6 +33,10 @@ const CLIENTE: Cliente = {
   valor_atrasado: null,
   total_recebido_periodo: "0.00",
   total_recebido_historico: "0.00",
+  total_custo_periodo: "0.00",
+  total_custo_historico: "0.00",
+  margem_periodo: "0.00",
+  margem_historico: "0.00",
   cliente_desde: null,
   arquivado_em: null,
 };

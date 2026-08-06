@@ -7,7 +7,8 @@ Papéis: leitura para gestor e operador; escrita só para gestor (cadastro estru
 Numa transação só (D-07, `FR-082`):
 
 1. a linha em `clientes`;
-2. a **subcategoria espelho** na categoria com `vinculo = cliente`;
+2. a **subcategoria espelho em cada categoria com `vinculo = cliente`** — a de receita
+   ("Clientes") e a de custo ("Custos Operacionais", `RF-58`);
 3. quando `tipo_cobranca = recorrente`, a **recorrência da mensalidade** no
    `mundo_cobranca`, já materializada.
 
@@ -209,6 +210,18 @@ def _para_json(linha: dict[str, Any], situacao, *, servicos=None) -> dict[str, A
         ],
         "total_recebido_historico": _dinheiro(linha.get("total_recebido_historico") or 0),
         "total_recebido_periodo": _dinheiro(linha.get("total_recebido_periodo") or 0),
+        # `RF-58` — o outro lado do cliente: o que ele custa. Vem da mesma varredura
+        # dos totais de receita, e `margem_*` é subtração, não consulta.
+        "total_custo_historico": _dinheiro(linha.get("total_custo_historico") or 0),
+        "total_custo_periodo": _dinheiro(linha.get("total_custo_periodo") or 0),
+        "margem_historico": _dinheiro(
+            Decimal(str(linha.get("total_recebido_historico") or 0))
+            - Decimal(str(linha.get("total_custo_historico") or 0))
+        ),
+        "margem_periodo": _dinheiro(
+            Decimal(str(linha.get("total_recebido_periodo") or 0))
+            - Decimal(str(linha.get("total_custo_periodo") or 0))
+        ),
         # D-04: cliente sem lançamento não pertence a mundo nenhum e aparece nos três
         # estados do seletor. A marca existe para a tela explicar, não para escondê-lo.
         "sem_movimentacao": bool(linha.get("sem_movimentacao", False)),
@@ -339,7 +352,9 @@ async def _cria_recorrencia_da_mensalidade(
     if corpo.tipo_cobranca != "recorrente":
         return None
 
-    categoria = await mod_espelho.categoria_do_vinculo(conexao, VINCULO)
+    # `tipo="receita"` porque a mensalidade é receita: desde `RF-58` o vínculo `cliente`
+    # tem duas categorias, e a de despesa é a dos custos operacionais.
+    categoria = await mod_espelho.categoria_do_vinculo(conexao, VINCULO, tipo="receita")
     automatico = corpo.efetivar_automaticamente
     if automatico is None:
         automatico = bool(
@@ -486,7 +501,12 @@ async def criar(
         )
     ).scalar_one()
 
-    espelho = await mod_espelho.cria(conexao, vinculo=VINCULO, dono_id=novo, nome=corpo.nome)
+    # Nasce um espelho por categoria do vínculo — em "Clientes" (receita) e em "Custos
+    # Operacionais" (despesa), `RF-58`. `espelho["id"]` é o do lado da receita, que é o
+    # que a mensalidade usa.
+    espelho = await mod_espelho.cria(
+        conexao, vinculo=VINCULO, dono_id=novo, nome=corpo.nome, tipo_principal="receita"
+    )
     await repositorio.define_servicos(conexao, novo, corpo.servico_ids)
     recorrencia = await _cria_recorrencia_da_mensalidade(
         conexao,
@@ -536,7 +556,9 @@ async def criar(
     description=(
         "Papel: gestor, operador. `FR-081`. Total recebido, receita mensal, próximos "
         "recebimentos, situação e **quebra por mundo** — que existe justamente porque o "
-        "cliente não tem mundo, mas a receita dele tem (D-04)."
+        "cliente não tem mundo, mas a receita dele tem (D-04). Desde `RF-58` traz "
+        "também o **custo operacional** do cliente (`custos`, `quebra_custo_por_mundo` e "
+        "`custo`/`margem` mês a mês na série)."
     ),
 )
 async def detalhar(
@@ -556,19 +578,31 @@ async def detalhar(
     situacao = mod_inadimplencia.avalia(abertos, tolerancia_dias=tolerancia, hoje=hoje)
     quebra = await repositorio.quebra_por_mundo(conexao, cliente_id)
 
-    historico = sum(Decimal(str(v)) for v in quebra.values())
+    historico = sum(Decimal(str(v)) for v in quebra["receita"].values())
+    custo_historico = sum(Decimal(str(v)) for v in quebra["custo"].values())
+
+    # Receita e custo do período na mesma ida ao banco — o `filter` separa os dois lados
+    # sem uma segunda consulta (`RF-58`, `backend/README.md` §custo).
     do_periodo = (
-        await conexao.execute(
-            text("""
-                select coalesce(sum(l.valor), 0)
-                from lancamentos_ativos l
-                join subcategorias s on s.id = l.subcategoria_id
-                where s.cliente_id = :cliente and l.tipo = 'receita'
-                  and l.status = 'efetivado' and l.data between :inicio and :fim
-                """),
-            {"cliente": str(cliente_id), "inicio": janela.inicio, "fim": janela.fim},
+        (
+            await conexao.execute(
+                text("""
+                    select
+                      coalesce(sum(l.valor) filter (where l.tipo = 'receita'), 0) as receita,
+                      coalesce(sum(l.valor) filter (where l.tipo = 'despesa'), 0) as custo
+                    from lancamentos_ativos l
+                    join subcategorias s on s.id = l.subcategoria_id
+                    where s.cliente_id = :cliente
+                      and l.status = 'efetivado' and l.data between :inicio and :fim
+                    """),
+                {"cliente": str(cliente_id), "inicio": janela.inicio, "fim": janela.fim},
+            )
         )
-    ).scalar_one()
+        .mappings()
+        .one()
+    )
+    receita_periodo = Decimal(str(do_periodo["receita"]))
+    custo_periodo = Decimal(str(do_periodo["custo"]))
 
     recorrencia = await repositorio.recorrencia_do_cliente(conexao, cliente_id)
     proximos = await repositorio.proximos_recebimentos(conexao, cliente_id, hoje=hoje)
@@ -577,15 +611,44 @@ async def detalhar(
     )
 
     perfil = _para_json(
-        linha | {"total_recebido_historico": historico, "total_recebido_periodo": do_periodo},
+        linha
+        | {
+            "total_recebido_historico": historico,
+            "total_recebido_periodo": receita_periodo,
+            "total_custo_historico": custo_historico,
+            "total_custo_periodo": custo_periodo,
+        },
         situacao,
         servicos=await repositorio.servicos_do_cliente(conexao, cliente_id),
     )
     perfil |= {
         "periodo": janela.como_dicionario(),
-        "quebra_por_mundo": {k: f"{Decimal(str(v)):.2f}" for k, v in quebra.items()},
+        "quebra_por_mundo": {k: f"{Decimal(str(v)):.2f}" for k, v in quebra["receita"].items()},
+        "quebra_custo_por_mundo": {k: f"{Decimal(str(v)):.2f}" for k, v in quebra["custo"].items()},
+        # `RF-58`. `margem_percentual` é `null`, não `"0.0"`, quando não houve receita
+        # no período: custo sem faturamento não é margem zero — é margem que não dá para
+        # calcular, e a tela mostra as duas coisas de forma diferente.
+        "custos": {
+            "total_historico": f"{custo_historico:.2f}",
+            "total_periodo": f"{custo_periodo:.2f}",
+            "margem_historico": f"{historico - custo_historico:.2f}",
+            "margem_periodo": f"{receita_periodo - custo_periodo:.2f}",
+            "margem_percentual_periodo": (
+                f"{(receita_periodo - custo_periodo) / receita_periodo * 100:.1f}"
+                if receita_periodo
+                else None
+            ),
+        },
+        # A série traz os três números do mesmo mês. `valor` continua sendo a receita —
+        # o nome do campo é o que contracts/cadastros.md §3 já prometia, e mudá-lo
+        # quebraria o gráfico por nada.
         "receita_mensal": [
-            {"mes": item["mes"], "valor": f"{Decimal(str(item['valor'])):.2f}"}
+            {
+                "mes": item["mes"],
+                "valor": f"{Decimal(str(item['valor'])):.2f}",
+                "custo": f"{Decimal(str(item['custo'])):.2f}",
+                "margem": f"{Decimal(str(item['valor'])) - Decimal(str(item['custo'])):.2f}",
+            }
             for item in await repositorio.receita_mensal(
                 conexao, cliente_id, meses=_meses_da_serie(linha.get("cliente_desde"), hoje=hoje)
             )

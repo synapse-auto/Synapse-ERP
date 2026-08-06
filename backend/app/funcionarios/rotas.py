@@ -215,8 +215,12 @@ async def criar(corpo: FuncionarioEntrada, usuario: Gestor, conexao: Conexao) ->
         )
     ).scalar_one()
 
-    espelho = await mod_espelho.cria(conexao, vinculo=VINCULO, dono_id=novo, nome=corpo.nome)
-    categoria = await mod_espelho.categoria_do_vinculo(conexao, VINCULO)
+    # A folha é despesa — e desde `RF-58` o lado precisa ser dito, porque uma categoria
+    # de vínculo pode ter par do outro lado (é o caso de `cliente`).
+    espelho = await mod_espelho.cria(
+        conexao, vinculo=VINCULO, dono_id=novo, nome=corpo.nome, tipo_principal="despesa"
+    )
+    categoria = await mod_espelho.categoria_do_vinculo(conexao, VINCULO, tipo="despesa")
 
     recorrencia = await repositorio_recorrencias.insere(
         conexao,
